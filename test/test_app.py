@@ -1,5 +1,6 @@
 import unittest
 from core.app import App
+import shutil
 
 class TestApp(unittest.TestCase):
     """docstring for TestApp"""
@@ -15,6 +16,7 @@ class TestApp(unittest.TestCase):
     def test_new(self):
         app = App('test/new_app')
         app.new()
+        shutil.rmtree('test/new_app')
         print app.config
 
 if __name__ == '__main__':
