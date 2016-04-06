@@ -5,9 +5,10 @@ class App(object):
     """Everything about App"""
     def __init__(self, app_path):
         super(App, self).__init__()
+        self.type = "genedock"
         self.app_path = app_path
         self.config_file = app_path + '/config.yaml'
-        self.parameters = {}
+        self.parameters = {'inputs':{}, 'outputs':{}, 'parameters':{}}
         self.config = {
             'app':{
                 'package': "package_name",
@@ -74,6 +75,32 @@ class App(object):
     def load(self):
         with open(self.config_file, 'r') as config_file:
             self.config = yaml.load(config_file)
+        # self.set_default_parameters()
+
+    def set_default_parameters(self):
+        def get_ext(formats):
+            if isinstance(formats, list):
+                return formats[0]
+            elif isinstance(formats, str):
+                return formats
+
+        def set_file_parameter(config_in_out):
+            file_parameters = {}
+            if config_in_out == None:
+                file_parameters = None
+            else:
+                for (file_parameter, settings) in config_in_out.iteritems():
+                    file_parameters[file_parameter] = {'enid': file_parameter,
+                        'name': "/var/data/%s.%s" % (file_parameter,
+                            get_ext(settings['formats']))
+                        }
+            return file_parameters
+
+        self.parameters['inputs'] = set_file_parameter(self.config['app']['inputs'])
+        self.parameters['outputs'] = set_file_parameter(self.config['app']['outputs'])
+
+        for (parameter, settings) in self.config['app']['parameters'].iteritems():
+            self.parameters['parameters'][parameter] = {'value': settings['default'], 'variable': False}
 
     def new(self):
         createDir = lambda folder : os.makedirs("%s/%s" % (self.app_path, folder))
