@@ -1,6 +1,76 @@
 import yaml
 import os
 
+class AppParameter(dict):
+    """AppParameter"""
+    def __init__(self, setting):
+        super(AppParameter, self).__init__()
+        self.update(setting)
+        self.__check()
+
+    def __check(self):
+        """
+        check if parameter was correct or not
+        """
+        types = ['integer', 'number', 'float', 'string', 'flag', 'boolean', 'array']
+        def checkType():
+            if self.get('type') not in types:
+                raise TypeError('type must be one of: %s' % types)
+
+        checkType()
+
+    def __str__(self):
+        def formatDefault(string = "%s%s%s"):
+            return string % (self.get('prefix'), self.get('separator'), self.get('default'))
+
+        def formatFlag():
+            if self.get('default') == True:
+                string = self.get('prefix')
+            else:
+                string = ""
+            return string
+
+        def formatBoolean():
+            if self.get('default') == True:
+                string = self.get('prefix')
+            else:
+                string = formatDefault()
+            return string
+
+        def formatString():
+            if self.get('quotes') == True:
+                string = "%s%s'%s'"
+            else:
+                string = "%s%s%s"
+            string = formatDefault(string)
+            return string
+
+        def formatArray():
+            pass
+
+        def formatNumber():
+            return formatDefault()
+
+        if self.get('type')=='flag':
+            return formatFlag()
+        elif self.get('type')=='boolean':
+            return formatBoolean()
+        elif self.get('type')=='string':
+            return formatString()
+        elif self.get('type')=='array':
+            return formatArray()
+        elif self.get('type') in ['integer', 'number', 'float']:
+            return formatNumber()
+
+
+class AppFiles(object):
+    """AppFiles"""
+    def __init__(self, setting):
+        super(AppFiles, self).__init__()
+        self.setting = setting
+        self.enid = id_generator(8)
+        self.path = "/oss/%s.%s" % (self.enid, self.setting['formats'][0])
+
 class App(object):
     """Everything about App"""
     def __init__(self, app_path):
