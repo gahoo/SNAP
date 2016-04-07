@@ -31,19 +31,14 @@ class AppParameter(dict):
             return string
 
         def formatBoolean():
-            if self.get('value') == True:
-                string = self.get('prefix')
-            else:
-                string = formatValue(self.get('value'))
-            return string
+            return formatValue(self.get('value'))
 
         def formatString():
             if self.get('quotes') == True:
                 string = "%s%s'%s'"
             else:
                 string = "%s%s%s"
-            string = formatValue(self.get('value'), string)
-            return string
+            return formatValue(self.get('value'), string)
 
         def formatArray():
             item_setting = self.get('item')
@@ -80,13 +75,30 @@ class AppParameter(dict):
             self.__check()
 
 
-class AppFiles(object):
+class AppFiles(dict):
     """AppFiles"""
-    def __init__(self, setting):
+    def __init__(self, name, setting):
         super(AppFiles, self).__init__()
-        self.setting = setting
-        self.enid = id_generator(8)
-        self.path = "/oss/%s.%s" % (self.enid, self.setting['formats'][0])
+        self.update(setting)
+        #name of object
+        self.enid = name
+        self.name = name
+        self.path = None
+        self.setPath()
+
+    def setPath(self):
+        if self.get('name') != None:
+            #name form parameter file
+            self.path = self.get('name')
+        else:
+            self.path = "/var/data/%s.%s" % (self.enid, self.__getExt())
+
+    def __getExt(self):
+        formats = self.get('formats')
+        if isinstance(formats, list):
+            return formats[0]
+        elif isinstance(formats, str):
+            return formats
 
 class App(object):
     """Everything about App"""
@@ -162,32 +174,47 @@ class App(object):
     def load(self):
         with open(self.config_file, 'r') as config_file:
             self.config = yaml.load(config_file)
-        # self.set_default_parameters()
+        # self.__loadParameters()
 
-    def set_default_parameters(self):
-        def get_ext(formats):
-            if isinstance(formats, list):
-                return formats[0]
-            elif isinstance(formats, str):
-                return formats
+    def __loadParameters(self, parameter_files=None):
+        pass
 
-        def set_file_parameter(config_in_out):
-            file_parameters = {}
-            if config_in_out == None:
-                file_parameters = None
-            else:
-                for (file_parameter, settings) in config_in_out.iteritems():
-                    file_parameters[file_parameter] = {'enid': file_parameter,
-                        'name': "/var/data/%s.%s" % (file_parameter,
-                            get_ext(settings['formats']))
-                        }
-            return file_parameters
+    def setParameters(self):
+        def formatParameters(item):
+            (name, parameter) = item
+            parameter = AppParameter(parameter)
+            if self.parameters['parameters'].get(name) != None:
+                parameter['value'] = self.parameters['parameters'][name]['value']
+            return (name, parameter)
 
-        self.parameters['inputs'] = set_file_parameter(self.config['app']['inputs'])
-        self.parameters['outputs'] = set_file_parameter(self.config['app']['outputs'])
 
-        for (parameter, settings) in self.config['app']['parameters'].iteritems():
-            self.parameters['parameters'][parameter] = {'value': settings['default'], 'variable': False}
+        #
+        # def set_file_parameter(config_in_out):
+        #     file_parameters = {}
+        #     if config_in_out == None:
+        #         file_parameters = None
+        #     else:
+        #         for (file_parameter, settings) in config_in_out.iteritems():
+        #             file_parameters[file_parameter] = {'enid': file_parameter,
+        #                 'name': "/var/data/%s.%s" % (file_parameter,
+        #                     get_ext(settings['formats']))
+        #                 }
+        #     return file_parameters
+        #
+        # self.parameters['inputs'] = set_file_parameter(self.config['app']['inputs'])
+        # self.parameters['outputs'] = set_file_parameter(self.config['app']['outputs'])
+        #
+        # for (parameter, settings) in self.config['app']['parameters'].iteritems():
+        #     self.parameters['parameters'][parameter] = {'value': settings['default'], 'variable': False}
+
+        # formatParameters(self.config['app']['parameters'], self.parameters['parameters'])
+        if self.config['app']['parameters'] != None:
+            self.config['app']['parameters'] = dict(map(
+                formatParameters,
+                self.config['app']['parameters'].iteritems())
+                )
+            print self.config['app']['parameters']
+            print self.config['app']['parameters']['workspace']
 
     def new(self):
         createDir = lambda folder : os.makedirs("%s/%s" % (self.app_path, folder))
