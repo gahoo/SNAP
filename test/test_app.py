@@ -43,6 +43,48 @@ class TestAppParameter(unittest.TestCase):
         param = AppParameter(string_param)
         self.assertEqual(param.__str__(), "-db 'nt'")
 
+    def test_array(self):
+        array_param = {
+            "separator": '=',
+            "prefix": '-taxid',
+            "type": 'array',
+            "required": True,
+            "minitems": 1,
+            "maxitems": 100,
+            "item":{
+                "type": 'string',
+                "item_quotes": True,
+                "separator": ' ',
+                "is_split": True,
+                },
+            "hint": 'array test',
+            "default": ['4', '5', '6', '7']
+        }
+        param = AppParameter(array_param)
+        self.assertEqual(param.__str__(), "-taxid='4' -taxid='5' -taxid='6' -taxid='7'")
+        # print param
+        (array_param['item']['is_split'], array_param['item']['item_quotes']) = (True, False)
+        param = AppParameter(array_param)
+        self.assertEqual(param.__str__(), "-taxid=4 -taxid=5 -taxid=6 -taxid=7")
+        # print param
+        (array_param['item']['is_split'], array_param['item']['item_quotes']) = (False, True)
+        param = AppParameter(array_param)
+        self.assertEqual(param.__str__(), "-taxid='4' '5' '6' '7'")
+        # print param
+        (array_param['item']['is_split'], array_param['item']['item_quotes']) = (False, False)
+        param = AppParameter(array_param)
+        self.assertEqual(param.__str__(), "-taxid=4 5 6 7")
+        # print param
+
+        array_param['item']['separator'] = ','
+        param = AppParameter(array_param)
+        self.assertEqual(param.__str__(), "-taxid=4,5,6,7")
+        # print param
+        array_param['separator'] = ' '
+        param = AppParameter(array_param)
+        self.assertEqual(param.__str__(), "-taxid 4,5,6,7")
+        # print param
+
     def test_flag(self):
         pass
 
