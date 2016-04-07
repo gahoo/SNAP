@@ -1,5 +1,5 @@
 import unittest
-from core.app import App, AppParameter, AppFiles
+from core.app import App, AppParameter, AppFile
 import shutil
 
 class TestAppParameter(unittest.TestCase):
@@ -114,13 +114,10 @@ class TestAppParameter(unittest.TestCase):
         param = AppParameter(boolean_param)
         self.assertEqual(param.__str__(), "-pe False")
 
-class TestAppFiles(unittest.TestCase):
-    """docstring for TestAppFiles"""
+class TestAppFile(unittest.TestCase):
+    """docstring for TestAppFile"""
     def setUp(self):
-        pass
-
-    def test_str(self):
-        output_file = {
+        self.file = {
             'type': 'file',
             'required': True,
             'minitems': 1,
@@ -130,7 +127,23 @@ class TestAppFiles(unittest.TestCase):
             },
             'formats': ['tgz']
         }
-        output = AppFiles('results', output_file)
+
+    def test_path(self):
+        output = AppFile(self.file)
+        print output.path
+
+    def test_enid(self):
+        output = AppFile(self.file)
+        print output.enid
+
+    def test_format(self):
+        self.file['formats'] = 'bam'
+        output = AppFile(self.file)
+        print output.path
+
+    def test_name(self):
+        self.file['name'] = '/path/to/data'
+        output = AppFile(self.file)
         print output.path
 
 class TestApp(unittest.TestCase):
@@ -154,11 +167,18 @@ class TestApp(unittest.TestCase):
         print "=====new====="
         # print self.app.config
 
-    def test_set_default_parameters(self):
+    def test_setParameters(self):
         print "=====set_default_parameters====="
         self.app.load()
-        self.app.setParameters()
         # print self.app.config['app']['parameters']['workspace']
+
+        self.app.parameters['inputs']['bam']={'data': [{"name":"/fwefwe/fwef/wef"}, {"name":"/fwe/fwe/2"}]}
+        self.app.setParameters()
+        print self.app.config['app']['inputs']['bam']
+        print self.app.config['app']['inputs']['bam'][0].path
+        print self.app.config['app']['outputs']['results'][0].path
+        print self.app.config['app']['outputs']['results']
+        print self.app.config
 
 if __name__ == '__main__':
     unittest.main()
