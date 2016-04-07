@@ -86,7 +86,34 @@ class TestAppParameter(unittest.TestCase):
         # print param
 
     def test_flag(self):
-        pass
+        flag_param = {
+            'separator': ' ',
+            'prefix': '-pe',
+            'type': 'flag',
+            'required': True,
+            'hint': 'flag test',
+            'default': True
+        }
+        param = AppParameter(flag_param)
+        self.assertEqual(param.__str__(), "-pe")
+        flag_param['value']=False
+        param = AppParameter(flag_param)
+        self.assertEqual(param.__str__(), "")
+
+    def test_boolean(self):
+        boolean_param = {
+            'separator': ' ',
+            'prefix': '-pe',
+            'type': 'boolean',
+            'required': True,
+            'hint': 'boolean test',
+            'default': True
+        }
+        param = AppParameter(boolean_param)
+        self.assertEqual(param.__str__(), "-pe True")
+        boolean_param['value']=False
+        param = AppParameter(boolean_param)
+        self.assertEqual(param.__str__(), "-pe False")
 
 class TestApp(unittest.TestCase):
     """docstring for TestApp"""
@@ -112,7 +139,7 @@ class TestApp(unittest.TestCase):
     def test_set_default_parameters(self):
         print "=====set_default_parameters====="
         self.app.load()
-        self.app.set_default_parameters()
+        self.app.setParameters()
         print self.app.parameters
 
 if __name__ == '__main__':
