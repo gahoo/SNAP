@@ -20,21 +20,21 @@ class AppParameter(dict):
         checkType()
 
     def __str__(self):
-        def formatDefault(string = "%s%s%s"):
-            return string % (self.get('prefix'), self.get('separator'), self.get('default'))
+        def formatValue(value, string = "%s%s%s"):
+            return string % (self.get('prefix'), self.get('separator'), value)
 
         def formatFlag():
-            if self.get('default') == True:
+            if self.get('value') == True:
                 string = self.get('prefix')
             else:
                 string = ""
             return string
 
         def formatBoolean():
-            if self.get('default') == True:
+            if self.get('value') == True:
                 string = self.get('prefix')
             else:
-                string = formatDefault()
+                string = formatValue(self.get('value'))
             return string
 
         def formatString():
@@ -42,14 +42,29 @@ class AppParameter(dict):
                 string = "%s%s'%s'"
             else:
                 string = "%s%s%s"
-            string = formatDefault(string)
+            string = formatValue(self.get('value'), string)
             return string
 
         def formatArray():
-            pass
+            item_setting = self.get('item')
+            if item_setting['type'] == 'string' and item_setting['item_quotes'] == True:
+                values = ["'%s'" % value for value in self.get('value')]
+            else:
+                values = self.get('value')
+
+            if item_setting['is_split']:
+                param_array = [formatValue(value) for value in values]
+                string = item_setting['separator'].join(param_array)
+            else:
+                values = item_setting['separator'].join(values)
+                string = formatValue(values)
+            return string
 
         def formatNumber():
-            return formatDefault()
+            return formatValue(self.get('value'))
+
+        if self.get('value') == None:
+            self['value'] = self.get('default')
 
         if self.get('type')=='flag':
             return formatFlag()
@@ -61,6 +76,8 @@ class AppParameter(dict):
             return formatArray()
         elif self.get('type') in ['integer', 'number', 'float']:
             return formatNumber()
+        else:
+            self.__check()
 
 
 class AppFiles(object):
