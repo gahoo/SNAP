@@ -1,5 +1,8 @@
 import yaml
 import os
+import functools
+import random
+import string
 
 class AppParameter(dict):
     """AppParameter"""
@@ -75,20 +78,16 @@ class AppParameter(dict):
             self.__check()
 
 
-class AppFiles(dict):
-    """AppFiles"""
-    def __init__(self, name, setting):
-        super(AppFiles, self).__init__()
+class AppFile(dict):
+    """AppFile"""
+    def __init__(self, setting):
+        super(AppFile, self).__init__()
         self.update(setting)
-        #name of object
-        self.enid = name
-        self.name = name
-        self.path = None
-        self.setPath()
+        self.enid = self.get('enid', self.randomize_enid())
+        self.updatePath()
 
-    def setPath(self):
+    def updatePath(self):
         if self.get('name') != None:
-            #name form parameter file
             self.path = self.get('name')
         else:
             self.path = "/var/data/%s.%s" % (self.enid, self.__getExt())
@@ -99,6 +98,9 @@ class AppFiles(dict):
             return formats[0]
         elif isinstance(formats, str):
             return formats
+
+    def randomize_enid(self, size=32, chars=string.ascii_lowercase + string.digits):
+        return ''.join(random.choice(chars) for _ in range(size))
 
 class App(object):
     """Everything about App"""
@@ -181,40 +183,41 @@ class App(object):
 
     def setParameters(self):
         def formatParameters(item):
-            (name, parameter) = item
-            parameter = AppParameter(parameter)
+            (name, settings) = item
+            parameter = AppParameter(settings)
             if self.parameters['parameters'].get(name) != None:
                 parameter['value'] = self.parameters['parameters'][name]['value']
             return (name, parameter)
 
+        def formatFiles(item, file_type):
+            (name, settings) = item
+            # settings = settings.copy()
+            files_parameter = self.parameters[file_type].get(name)
+            if files_parameter:
+                files = []
+                for data in files_parameter['data']:
+                    settings.update(data)
+                    files.append(AppFile(settings))
+            else:
+                #when self.parameters is empty
+                files = [AppFile(settings)]
+            return (name, files)
 
-        #
-        # def set_file_parameter(config_in_out):
-        #     file_parameters = {}
-        #     if config_in_out == None:
-        #         file_parameters = None
-        #     else:
-        #         for (file_parameter, settings) in config_in_out.iteritems():
-        #             file_parameters[file_parameter] = {'enid': file_parameter,
-        #                 'name': "/var/data/%s.%s" % (file_parameter,
-        #                     get_ext(settings['formats']))
-        #                 }
-        #     return file_parameters
-        #
-        # self.parameters['inputs'] = set_file_parameter(self.config['app']['inputs'])
-        # self.parameters['outputs'] = set_file_parameter(self.config['app']['outputs'])
-        #
-        # for (parameter, settings) in self.config['app']['parameters'].iteritems():
-        #     self.parameters['parameters'][parameter] = {'value': settings['default'], 'variable': False}
+        formatInputFiles = functools.partial(formatFiles, file_type='inputs')
+        formatOutputFiles = functools.partial(formatFiles, file_type='outputs')
 
-        # formatParameters(self.config['app']['parameters'], self.parameters['parameters'])
-        if self.config['app']['parameters'] != None:
-            self.config['app']['parameters'] = dict(map(
-                formatParameters,
-                self.config['app']['parameters'].iteritems())
-                )
-            print self.config['app']['parameters']
-            print self.config['app']['parameters']['workspace']
+        def mapFormat(item):
+            (name, func) = item
+            if self.config['app'][name] != None:
+                self.config['app'][name] = dict(map(func, self.config['app'][name].iteritems()))
+
+        to_format = [
+            ('parameters', formatParameters),
+            ('inputs', formatInputFiles),
+            ('outputs', formatOutputFiles),
+            ]
+
+        map(mapFormat, to_format)
 
     def new(self):
         createDir = lambda folder : os.makedirs("%s/%s" % (self.app_path, folder))
