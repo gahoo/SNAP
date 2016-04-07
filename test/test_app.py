@@ -1,6 +1,5 @@
 import unittest
-from core.app import App
-from core.app import AppParameter
+from core.app import App, AppParameter, AppFiles
 import shutil
 
 class TestAppParameter(unittest.TestCase):
@@ -115,6 +114,25 @@ class TestAppParameter(unittest.TestCase):
         param = AppParameter(boolean_param)
         self.assertEqual(param.__str__(), "-pe False")
 
+class TestAppFiles(unittest.TestCase):
+    """docstring for TestAppFiles"""
+    def setUp(self):
+        pass
+
+    def test_str(self):
+        output_file = {
+            'type': 'file',
+            'required': True,
+            'minitems': 1,
+            'maxitems': 1,
+            'item':{
+                'separator': " "
+            },
+            'formats': ['tgz']
+        }
+        output = AppFiles('results', output_file)
+        print output.path
+
 class TestApp(unittest.TestCase):
     """docstring for TestApp"""
     def setUp(self):
@@ -130,17 +148,17 @@ class TestApp(unittest.TestCase):
         print "=====load====="
         app = App('test/test_app')
         app.load()
-        print app.config
+        # print app.config
 
     def test_new(self):
         print "=====new====="
-        print self.app.config
+        # print self.app.config
 
     def test_set_default_parameters(self):
         print "=====set_default_parameters====="
         self.app.load()
         self.app.setParameters()
-        print self.app.parameters
+        # print self.app.config['app']['parameters']['workspace']
 
 if __name__ == '__main__':
     unittest.main()
