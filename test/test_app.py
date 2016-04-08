@@ -172,13 +172,17 @@ class TestApp(unittest.TestCase):
         self.app.load()
         # print self.app.config['app']['parameters']['workspace']
 
-        self.app.parameters['inputs']['bam']={'data': [{"name":"/fwefwe/fwef/wef"}, {"name":"/fwe/fwe/2"}]}
+        self.app.parameters['inputs']['bam']={'data': [{"name":"/path/to/data1"}, {"name":"/path/to/data2"}]}
         self.app.setParameters()
-        print self.app.config['app']['inputs']['bam']
-        print self.app.config['app']['inputs']['bam'][0].path
-        print self.app.config['app']['outputs']['results'][0].path
-        print self.app.config['app']['outputs']['results']
-        print self.app.config
+        self.assertEqual(self.app.config['app']['inputs']['bam'][0].path, "/path/to/data1")
+        self.assertEqual(self.app.config['app']['outputs']['results'][0].path[0:10], "/var/data/")
+        self.assertEqual(self.app.config['app']['outputs']['results'][0].path[-3:], 'tgz')
+
+    def test_newParameters(self):
+        self.app.load()
+        # self.app.setParameters()
+        self.app.newParameters('test/test_app/test_parameter.yaml')
+        # print self.app.parameters
 
 if __name__ == '__main__':
     unittest.main()
