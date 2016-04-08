@@ -108,6 +108,7 @@ class App(object):
     def __init__(self, app_path):
         super(App, self).__init__()
         self.type = "genedock"
+        self.appid = ''
         self.app_path = app_path
         self.config_file = app_path + '/config.yaml'
         self.parameters = {'inputs':{}, 'outputs':{}, 'parameters':{}}
@@ -177,7 +178,7 @@ class App(object):
     def load(self):
         with open(self.config_file, 'r') as config_file:
             self.config = yaml.load(config_file)
-        appid_file = app_path + '/.appid'
+        appid_file = self.app_path + '/.appid'
         if os.path.exists(appid_file):
             self.appid = open(appid_file, 'r').read().strip()
         # self.__loadParameters()
@@ -292,7 +293,11 @@ class App(object):
                     files.append(AppFile(settings))
             else:
                 #when self.parameters is empty
-                files = [AppFile(settings)]
+                if isinstance(settings, dict):
+                    files = [AppFile(settings)]
+                elif isinstance(settings, list):
+                    #already setParameters once
+                    files = settings
             return (name, files)
 
         formatInputFiles = functools.partial(formatFiles, file_type='inputs')
