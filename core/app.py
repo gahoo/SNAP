@@ -3,6 +3,7 @@ import os
 import functools
 import random
 import string
+import copy
 
 class AppParameter(dict):
     """AppParameter"""
@@ -176,10 +177,101 @@ class App(object):
     def load(self):
         with open(self.config_file, 'r') as config_file:
             self.config = yaml.load(config_file)
+        appid_file = app_path + '/.appid'
+        if os.path.exists(appid_file):
+            self.appid = open(appid_file, 'r').read().strip()
         # self.__loadParameters()
 
-    def __loadParameters(self, parameter_files=None):
-        pass
+    def newParameters(self, parameter_file):
+        """
+        make parameter template from config after setParameters init
+        """
+        def formatParameters(item):
+            (name, settings) = item
+            new_settings = {
+                'hint': settings['hint'],
+                'required': settings['required'],
+                'type': settings['type'],
+                'value': settings['default'],
+                'variable': True
+                }
+            return (name, new_settings)
+
+        def formatFiles(item, file_type):
+            (name, file_settings) = item
+            if isinstance(file_settings, dict):
+                #not setParameters yet
+                settings = file_settings
+            elif isinstance(file_settings, list):
+                #already setParameters
+                settings = file_settings[0]
+
+            _property = {
+                'block_file':{
+                    'block_name': None,
+                    'is_block': False,
+                    'split_format': 'default'
+                }
+            }
+
+            new_settings = {
+                'alias': 'load %s' % name,
+                'formats': settings['formats'],
+                'maxitems': settings['maxitems'],
+                'minitems': settings['minitems'],
+                'type': 'file'
+            }
+
+            data = {
+                'name': "/path/to/data/to/load/%s" % name,
+                'property': _property
+                }
+
+            if file_type == 'inputs':
+                prefix = 'loaddata'
+                data['enid'] = name
+                new_settings['alias'] = "%s %s" % (prefix, name)
+                new_settings['data'] = [data]
+                new_settings['category'] = prefix
+                new_settings['required'] = settings['required']
+            elif file_type == 'outputs':
+                prefix = 'storedata'
+                data['description'] = "%s file" % name
+                new_settings['alias'] = "%s %s" % (prefix, name)
+                new_settings['data'] = [data]
+            return ("%s_%s" % (prefix, name), new_settings)
+
+        formatInputFiles = functools.partial(formatFiles, file_type='inputs')
+        formatOutputFiles = functools.partial(formatFiles, file_type='outputs')
+
+        def mapFormat(item):
+            (name, func) = item
+            if self.config['app'][name] != None:
+                self.parameters[name] = dict(map(func, self.config['app'][name].iteritems()))
+
+        to_format = [
+            ('parameters', formatParameters),
+            ('inputs', formatInputFiles),
+            ('outputs', formatOutputFiles),
+            ]
+
+        map(mapFormat, to_format)
+        self.parameters['Conditions'] = {'schedule': ""}
+        self.parameters['Property'] = {
+            'CDN': {'required':True},
+            'reference_task': [{'id':None}],
+            'water_mark': {'required':True, 'style':None},
+            'description': "test_%s" % self.config['app']['name'],
+            'name': "test_%s" % self.config['app']['name']
+            }
+        with open(parameter_file, 'w') as parameter_fh:
+            yaml.dump(self.parameters, parameter_fh,
+                      default_flow_style=False)
+
+
+    def loadParameters(self, parameter_file=None):
+        with open(parameter_file, 'r') as parameter_fh:
+            self.parameters = yaml.load(parameter_fh)
 
     def setParameters(self):
         def formatParameters(item):
@@ -245,4 +337,7 @@ class App(object):
         pass
 
     def dump_parameter(self):
+        pass
+
+    def insert_node(self):
         pass
