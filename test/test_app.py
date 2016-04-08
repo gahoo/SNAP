@@ -149,40 +149,58 @@ class TestAppFile(unittest.TestCase):
 class TestApp(unittest.TestCase):
     """docstring for TestApp"""
     def setUp(self):
-        print "=====setUP====="
+        #setUp before each test
         self.app = App('test/test_app')
         self.app.new()
+        self.app.load()
 
     def tearDown(self):
-        print "=====tearDown====="
+        # tearDown after each test
         shutil.rmtree('test/test_app')
 
     def test_load(self):
-        print "=====load====="
-        app = App('test/test_app')
-        app.load()
+        self.assertEqual(self.app.config['app']['name'], 'app name')
         # print app.config
 
     def test_new(self):
-        print "=====new====="
-        # print self.app.config
+        #done in setUP
+        pass
 
     def test_setParameters(self):
-        print "=====set_default_parameters====="
-        self.app.load()
-        # print self.app.config['app']['parameters']['workspace']
-
         self.app.parameters['inputs']['bam']={'data': [{"name":"/path/to/data1"}, {"name":"/path/to/data2"}]}
         self.app.setParameters()
         self.assertEqual(self.app.config['app']['inputs']['bam'][0].path, "/path/to/data1")
         self.assertEqual(self.app.config['app']['outputs']['results'][0].path[0:10], "/var/data/")
         self.assertEqual(self.app.config['app']['outputs']['results'][0].path[-3:], 'tgz')
+        #try setParameters ater newParameters
+        self.app.newParameters('test/test_app/test_parameter.yaml')
+        self.app.parameters['parameters']['workspace']['value'] = '/path/to/data3'
+        self.app.setParameters()
+        self.assertEqual(self.app.config['app']['parameters']['workspace'].__str__(), '/path/to/data3')
 
     def test_newParameters(self):
-        self.app.load()
-        # self.app.setParameters()
         self.app.newParameters('test/test_app/test_parameter.yaml')
         # print self.app.parameters
+
+    def test_newParameters_after_setParameters(self):
+        self.app.setParameters()
+        self.app.newParameters('test/test_app/test_parameter.yaml')
+
+    def test_newParameters_before_setParameters(self):
+        self.app.newParameters('test/test_app/test_parameter.yaml')
+        self.app.setParameters()
+
+    def test_newParameters_and_setParameters_more(self):
+        self.app.newParameters('test/test_app/test_parameter.yaml')
+        self.app.setParameters()
+        self.app.newParameters('test/test_app/test_parameter.yaml')
+        self.app.setParameters()
+
+    def test_newParameters_and_setParameters_more2(self):
+        self.app.setParameters()
+        self.app.newParameters('test/test_app/test_parameter.yaml')
+        self.app.setParameters()
+        self.app.newParameters('test/test_app/test_parameter.yaml')
 
 if __name__ == '__main__':
     unittest.main()
