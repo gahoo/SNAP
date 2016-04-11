@@ -130,21 +130,22 @@ class TestAppFile(unittest.TestCase):
 
     def test_path(self):
         output = AppFile(self.file)
-        print output.path
+        self.assertEqual(output.path[:10], "/var/data/")
+        self.assertEqual(output.path[-3:], "tgz")
 
     def test_enid(self):
         output = AppFile(self.file)
-        print output.enid
+        self.assertEqual(len(output.enid), 32)
 
     def test_format(self):
         self.file['formats'] = 'bam'
         output = AppFile(self.file)
-        print output.path
+        self.assertEqual(output.path[-3:], "bam")
 
     def test_name(self):
         self.file['name'] = '/path/to/data'
         output = AppFile(self.file)
-        print output.path
+        self.assertEqual(output.path, "/path/to/data")
 
 class TestApp(unittest.TestCase):
     """docstring for TestApp"""
@@ -156,7 +157,8 @@ class TestApp(unittest.TestCase):
 
     def tearDown(self):
         # tearDown after each test
-        shutil.rmtree('test/test_app')
+        pass
+        # shutil.rmtree('test/test_app')
 
     def test_load(self):
         self.assertEqual(self.app.config['app']['name'], 'app name')
@@ -201,6 +203,14 @@ class TestApp(unittest.TestCase):
         self.app.newParameters('test/test_app/test_parameter.yaml')
         self.app.setParameters()
         self.app.newParameters('test/test_app/test_parameter.yaml')
+
+    def test_loadParameters(self):
+        self.app.newParameters('test/test_app/test_parameter.yaml')
+        self.app.loadParameters('test/test_app/test_parameter.yaml')
+
+    def test_workflow(self):
+        self.app.buildTestWorkflow()
+        # print self.app.workflow
 
 if __name__ == '__main__':
     unittest.main()
