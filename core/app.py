@@ -400,8 +400,8 @@ class App(object):
             return node
 
         workflow = {
-            'name': "'test_%s'" % self.config['app']['name'],
-            'description': "'test_%s'" % self.config['app']['name'],
+            'name': "test_%s" % self.config['app']['name'],
+            'description': "test_%s" % self.config['app']['name'],
             'account': 'lijiaping@genehealth.com',
             'version': 1,
             'nodelist': []
