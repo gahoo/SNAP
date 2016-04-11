@@ -344,5 +344,80 @@ class App(object):
     def dump_parameter(self):
         pass
 
-    def insert_node(self):
-        pass
+    def buildTestWorkflow(self, test_workflow_file=None):
+        def addLoadNodes(item):
+            (name, settings) = item
+            node = {
+                'node_id': "loaddata_%s" % name,
+                'alias': "load %s" % name,
+                'app_id': '55128c58f6f4067d63b956b5',
+                'inputs': None,
+                'outputs': {'data': {'enid': name}},
+                'parameters': None,
+                'type': "system",
+                'name': 'loaddata'
+            }
+            return node
+
+        def addStoreNodes(item):
+            (name, settings) = item
+            node = {
+                'node_id': "storedata_%s" % name,
+                'alias': "store %s" % name,
+                'app_id': '55128c94f6f4067d63b956b6',
+                'inputs': {'data': {'enid': name}},
+                'outputs': None,
+                'parameters': {
+                    'description':{
+                        'value': None,
+                        'variable': True
+                    },
+                    'name':{
+                        'value': None,
+                        'variable': True
+                    }
+                },
+                'type': "system",
+                'name': 'storedata'
+            }
+            return node
+
+        def addAppNodes():
+            buildEnid = lambda name : (name, [{'enid': name}])
+            buildParameter = lambda name : (name, {'value':None, 'variable':False})
+
+            node = {
+                'node_id': self.config['app']['name'].replace(' ', '_'),
+                'alias': self.config['app']['name'],
+                'app_id': self.appid,
+                'type': "private",
+                'name': self.config['app']['name']
+            }
+
+            node['inputs']=dict(map(buildEnid, self.config['app']['inputs'].keys()))
+            node['outputs']=dict(map(buildEnid, self.config['app']['outputs'].keys()))
+            node['parameters']=dict(map(buildParameter, self.config['app']['parameters'].keys()))
+            return node
+
+        workflow = {
+            'name': "'test_%s'" % self.config['app']['name'],
+            'description': "'test_%s'" % self.config['app']['name'],
+            'account': 'lijiaping@genehealth.com',
+            'version': 1,
+            'nodelist': []
+        }
+
+        loaddata_nodes = map(addLoadNodes, self.config['app']['inputs'].iteritems())
+        storedata_nodes = map(addStoreNodes, self.config['app']['outputs'].iteritems())
+        app_node = addAppNodes()
+
+        workflow['nodelist'].extend(loaddata_nodes)
+        workflow['nodelist'].append(app_node)
+        workflow['nodelist'].extend(storedata_nodes)
+        self.workflow = {'workflow': workflow}
+
+        if test_workflow_file == None:
+            test_workflow_file = '%s/test/test_workflow.yaml' % self.app_path
+
+        with open(test_workflow_file, 'w') as test_workflow_fh:
+            yaml.dump(self.workflow, test_workflow_fh, default_flow_style=False)
