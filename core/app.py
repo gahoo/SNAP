@@ -5,6 +5,8 @@ import random
 import string
 import copy
 
+from yamlRepresenter import folded_unicode, literal_unicode
+
 class AppParameter(dict):
     """AppParameter"""
     def __init__(self, setting):
@@ -170,9 +172,22 @@ class App(object):
                         'default': '/data/project/id',
                         'quotes': False,
                         'hint': 'working space'
+                    },
+                    'is_genedock':{
+                        'separator': "",
+                        'prefix': "",
+                        'type': 'boolean',
+                        'required': True,
+                        'default': True,
+                        'hint': 'on genedock or not'
                     }
                 },
-                'cmd_template': "mkdir -p {{parameters.workspace}};{{'\\n'}}"
+                'cmd_template': literal_unicode(
+                    u'{% if parameters.is_genedock == "True" %}\n'
+                    "mkdir -p {{parameters.workspace}};{{'\\n'}}\n"
+                    "ln -s {{inputs.bam}} {{parameters.workspace}}/samplename.bam;{{'\\n'}}\n"
+                    '{% endif %}\n'
+                )
             }}
 
     def load(self):
@@ -399,25 +414,30 @@ class App(object):
             node['parameters']=dict(map(buildParameter, self.config['app']['parameters'].keys()))
             return node
 
-        workflow = {
-            'name': "test_%s" % self.config['app']['name'],
-            'description': "test_%s" % self.config['app']['name'],
-            'account': 'lijiaping@genehealth.com',
-            'version': 1,
-            'nodelist': []
-        }
+        def makeWorkflow():
+            workflow = {
+                'name': "test_%s" % self.config['app']['name'],
+                'description': "test_%s" % self.config['app']['name'],
+                'account': 'lijiaping@genehealth.com',
+                'version': 1,
+                'nodelist': []
+            }
 
-        loaddata_nodes = map(addLoadNodes, self.config['app']['inputs'].iteritems())
-        storedata_nodes = map(addStoreNodes, self.config['app']['outputs'].iteritems())
-        app_node = addAppNodes()
+            loaddata_nodes = map(addLoadNodes, self.config['app']['inputs'].iteritems())
+            storedata_nodes = map(addStoreNodes, self.config['app']['outputs'].iteritems())
+            app_node = addAppNodes()
 
-        workflow['nodelist'].extend(loaddata_nodes)
-        workflow['nodelist'].append(app_node)
-        workflow['nodelist'].extend(storedata_nodes)
-        self.workflow = {'workflow': workflow}
+            workflow['nodelist'].extend(loaddata_nodes)
+            workflow['nodelist'].append(app_node)
+            workflow['nodelist'].extend(storedata_nodes)
+            return {'workflow': workflow}
 
-        if test_workflow_file == None:
-            test_workflow_file = '%s/test/test_workflow.yaml' % self.app_path
+        def saveTestWorkflow(test_workflow_file):
+            if test_workflow_file == None:
+                test_workflow_file = '%s/test/test_workflow.yaml' % self.app_path
 
-        with open(test_workflow_file, 'w') as test_workflow_fh:
-            yaml.dump(self.workflow, test_workflow_fh, default_flow_style=False)
+            with open(test_workflow_file, 'w') as test_workflow_fh:
+                yaml.dump(self.workflow, test_workflow_fh, default_flow_style=False)
+
+        self.workflow = makeWorkflow()
+        saveTestWorkflow(test_workflow_file)
