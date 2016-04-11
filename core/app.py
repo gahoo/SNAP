@@ -280,10 +280,8 @@ class App(object):
             'description': "test_%s" % self.config['app']['name'],
             'name': "test_%s" % self.config['app']['name']
             }
-        with open(parameter_file, 'w') as parameter_fh:
-            yaml.dump(self.parameters, parameter_fh,
-                      default_flow_style=False)
 
+        self.dumpYaml(self.parameters, parameter_file)
 
     def loadParameters(self, parameter_file=None):
         with open(parameter_file, 'r') as parameter_fh:
@@ -337,9 +335,7 @@ class App(object):
 
         map(createDir, ['bin', 'lib', 'test'])
         map(touchFile, ['Dockerfile', 'README.md'])
-        with open(self.config_file, 'w') as config_file:
-            # config_file.write(self.sample_config)
-            yaml.dump(self.config, config_file, default_flow_style=False)
+        self.dumpYaml(self.config, self.config_file)
 
     def check(self):
         """
@@ -358,6 +354,10 @@ class App(object):
 
     def dump_parameter(self):
         pass
+
+    def dumpYaml(self, obj, filepath):
+        with open(filepath, 'w') as output:
+            yaml.dump(obj, output, default_flow_style=False)
 
     def buildTestWorkflow(self, test_workflow_file=None):
         def addLoadNodes(item):
@@ -436,8 +436,7 @@ class App(object):
             if test_workflow_file == None:
                 test_workflow_file = '%s/test/test_workflow.yaml' % self.app_path
 
-            with open(test_workflow_file, 'w') as test_workflow_fh:
-                yaml.dump(self.workflow, test_workflow_fh, default_flow_style=False)
+            self.dumpYaml(self.workflow, test_workflow_file)
 
         self.workflow = makeWorkflow()
         saveTestWorkflow(test_workflow_file)
