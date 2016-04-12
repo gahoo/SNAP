@@ -114,7 +114,7 @@ class App(dict):
         self.appid = ''
         self.app_path = app_path
         self.config_file = app_path + '/config.yaml'
-        self.parameters = {'inputs':{}, 'outputs':{}, 'parameters':{}}
+        self.parameters = {'Inputs':{}, 'Outputs':{}, 'Parameters':{}}
         self.config = {
             'app':{
                 'package': "package_name",
@@ -238,32 +238,35 @@ class App(dict):
                 'property': _property
                 }
 
-            if file_type == 'inputs':
+            if file_type == 'Inputs':
                 prefix = 'loaddata'
                 data['enid'] = name
                 new_settings['alias'] = "%s %s" % (prefix, name)
                 new_settings['data'] = [data]
                 new_settings['category'] = prefix
                 new_settings['required'] = settings['required']
-            elif file_type == 'outputs':
+            elif file_type == 'Outputs':
                 prefix = 'storedata'
                 data['description'] = "%s file" % name
                 new_settings['alias'] = "%s %s" % (prefix, name)
                 new_settings['data'] = [data]
+            else:
+                raise TypeError, "file_type can only be Inputs or Outputs"
             return ("%s_%s" % (prefix, name), new_settings)
 
-        formatInputFiles = functools.partial(formatFiles, file_type='inputs')
-        formatOutputFiles = functools.partial(formatFiles, file_type='outputs')
+        formatInputFiles = functools.partial(formatFiles, file_type='Inputs')
+        formatOutputFiles = functools.partial(formatFiles, file_type='Outputs')
 
         def mapFormat(item):
             (name, func) = item
-            if self.config['app'][name] != None:
-                self.parameters[name] = dict(map(func, self.config['app'][name].iteritems()))
+            lower_name = name.lower()
+            if self.config['app'][lower_name] != None:
+                self.parameters[name] = dict(map(func, self.config['app'][lower_name].iteritems()))
 
         to_format = [
-            ('parameters', formatParameters),
-            ('inputs', formatInputFiles),
-            ('outputs', formatOutputFiles),
+            ('Parameters', formatParameters),
+            ('Inputs', formatInputFiles),
+            ('Outputs', formatOutputFiles),
             ]
 
         map(mapFormat, to_format)
@@ -286,8 +289,8 @@ class App(dict):
         def formatParameters(item):
             (name, settings) = item
             parameter = AppParameter(settings)
-            if self.parameters['parameters'].get(name) != None:
-                parameter['value'] = self.parameters['parameters'][name]['value']
+            if self.parameters['Parameters'].get(name) != None:
+                parameter['value'] = self.parameters['Parameters'][name]['value']
             return (name, parameter)
 
         def formatFiles(item, file_type):
@@ -303,8 +306,8 @@ class App(dict):
                 files = [AppFile(settings)]
             return (name, files)
 
-        formatInputFiles = functools.partial(formatFiles, file_type='inputs')
-        formatOutputFiles = functools.partial(formatFiles, file_type='outputs')
+        formatInputFiles = functools.partial(formatFiles, file_type='Inputs')
+        formatOutputFiles = functools.partial(formatFiles, file_type='Outputs')
 
         def mapFormat(item):
             (name, func) = item
