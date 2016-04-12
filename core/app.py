@@ -4,6 +4,7 @@ import functools
 import random
 import string
 import copy
+import pdb
 
 from yamlRepresenter import folded_unicode, literal_unicode
 
@@ -359,7 +360,7 @@ class App(object):
         with open(filepath, 'w') as output:
             yaml.dump(obj, output, default_flow_style=False)
 
-    def buildTestWorkflow(self, test_workflow_file=None):
+    def nodes(self, node_type):
         def addLoadNodes(item):
             (name, settings) = item
             node = {
@@ -372,7 +373,7 @@ class App(object):
                 'type': "system",
                 'name': 'loaddata'
             }
-            return node
+            return (name, node)
 
         def addStoreNodes(item):
             (name, settings) = item
@@ -395,7 +396,7 @@ class App(object):
                 'type': "system",
                 'name': 'storedata'
             }
-            return node
+            return (name, node)
 
         def addAppNodes():
             buildEnid = lambda name : (name, [{'enid': name}])
@@ -412,8 +413,20 @@ class App(object):
             node['inputs']=dict(map(buildEnid, self.config['app']['inputs'].keys()))
             node['outputs']=dict(map(buildEnid, self.config['app']['outputs'].keys()))
             node['parameters']=dict(map(buildParameter, self.config['app']['parameters'].keys()))
-            return node
+            return (self.config['app']['name'], node)
 
+        if node_type == 'load':
+            nodes = dict(map(addLoadNodes, self.config['app']['inputs'].iteritems()))
+        elif node_type == 'store':
+            nodes = dict(map(addStoreNodes, self.config['app']['outputs'].iteritems()))
+        elif node_type == 'app':
+            nodes = dict([addAppNodes()])
+        else:
+            raise TypeError, "node type error"
+
+        return nodes
+
+    def buildTestWorkflow(self, test_workflow_file=None):
         def makeWorkflow():
             workflow = {
                 'name': "test_%s" % self.config['app']['name'],
@@ -423,13 +436,9 @@ class App(object):
                 'nodelist': []
             }
 
-            loaddata_nodes = map(addLoadNodes, self.config['app']['inputs'].iteritems())
-            storedata_nodes = map(addStoreNodes, self.config['app']['outputs'].iteritems())
-            app_node = addAppNodes()
+            for node_type in ('load', 'app', 'store'):
+                workflow['nodelist'].extend(self.nodes(node_type).values())
 
-            workflow['nodelist'].extend(loaddata_nodes)
-            workflow['nodelist'].append(app_node)
-            workflow['nodelist'].extend(storedata_nodes)
             return {'workflow': workflow}
 
         def saveTestWorkflow(test_workflow_file):
