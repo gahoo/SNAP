@@ -157,8 +157,7 @@ class TestApp(unittest.TestCase):
 
     def tearDown(self):
         # tearDown after each test
-        pass
-        # shutil.rmtree('test/test_app')
+        shutil.rmtree('test/test_app')
 
     def test_load(self):
         self.assertEqual(self.app.config['app']['name'], 'app name')
@@ -208,9 +207,18 @@ class TestApp(unittest.TestCase):
         self.app.newParameters('test/test_app/test_parameter.yaml')
         self.app.loadParameters('test/test_app/test_parameter.yaml')
 
+    def test_nodes(self):
+        load_case = {'bam': {'alias': 'load bam', 'node_id': 'loaddata_bam', 'name': 'loaddata', 'parameters': None, 'inputs': None, 'outputs': {'data': {'enid': 'bam'}}, 'type': 'system', 'app_id': '55128c58f6f4067d63b956b5'}}
+        self.assertEqual(cmp(self.app.nodes('load'), load_case), 0)
+        store_case = {'results': {'alias': 'store results', 'node_id': 'storedata_results', 'name': 'storedata', 'parameters': {'description': {'variable': True, 'value': None}, 'name': {'variable': True, 'value': None}}, 'inputs': {'data': {'enid': 'results'}}, 'outputs': None, 'type': 'system', 'app_id': '55128c94f6f4067d63b956b6'}}
+        self.assertEqual(cmp(self.app.nodes('store'), store_case), 0)
+        app_case = {'app name': {'inputs': {'bam': [{'enid': 'bam'}]}, 'name': 'app name', 'parameters': {'workspace': {'variable': False, 'value': None}, 'is_genedock': {'variable': False, 'value': None}}, 'outputs': {'results': [{'enid': 'results'}]}, 'app_id': '', 'alias': 'app name', 'node_id': 'app_name', 'type': 'private'}}
+        self.assertEqual(cmp(self.app.nodes('app'), app_case), 0)
+
     def test_workflow(self):
         self.app.buildTestWorkflow()
-        # print self.app.workflow
+        test_case = {'workflow': {'account': 'lijiaping@genehealth.com', 'version': 1, 'nodelist': [{'alias': 'load bam', 'node_id': 'loaddata_bam', 'name': 'loaddata', 'parameters': None, 'inputs': None, 'outputs': {'data': {'enid': 'bam'}}, 'type': 'system', 'app_id': '55128c58f6f4067d63b956b5'}, {'inputs': {'bam': [{'enid': 'bam'}]}, 'name': 'app name', 'parameters': {'workspace': {'variable': False, 'value': None}, 'is_genedock': {'variable': False, 'value': None}}, 'outputs': {'results': [{'enid': 'results'}]}, 'app_id': '', 'alias': 'app name', 'node_id': 'app_name', 'type': 'private'}, {'alias': 'store results', 'node_id': 'storedata_results', 'name': 'storedata', 'parameters': {'description': {'variable': True, 'value': None}, 'name': {'variable': True, 'value': None}}, 'inputs': {'data': {'enid': 'results'}}, 'outputs': None, 'type': 'system', 'app_id': '55128c94f6f4067d63b956b6'}], 'name': 'test_app name', 'description': 'test_app name'}}
+        self.assertEqual(cmp(self.app.workflow, test_case), 0)
 
 if __name__ == '__main__':
     unittest.main()
