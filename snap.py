@@ -13,6 +13,16 @@ def new_app(args):
     else:
         print >> sys.stderr, "app name is not optional."
 
+def preview_script(args):
+    if(args.name):
+        app = App(args.name)
+        app.load()
+        app.setParameters()
+        app.renderScript()
+        print app.script
+    else:
+        print >> sys.stderr, "app name is not optional."
+
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
         description = "SNAP is Not A Pipeline.",
@@ -35,6 +45,14 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_app_new.add_argument('-name', help = "app name")
     subparsers_app_new.set_defaults(func=new_app)
+    #app preview
+    subparsers_app_preview = subparsers_app.add_parser('preview',
+        help='preview APP template',
+        description="",
+        prog='snap app preview',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_app_preview.add_argument('-name', help = "app name")
+    subparsers_app_preview.set_defaults(func=preview_script)
 
 if __name__ == '__main__':
     argslist = sys.argv[1:]
