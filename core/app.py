@@ -192,8 +192,7 @@ class App(dict):
             }}
 
     def load(self):
-        with open(self.config_file, 'r') as config_file:
-            self.config = yaml.load(config_file)
+        self.config = self.loadYaml(self.config_file)
         appid_file = self.app_path + '/.appid'
         if os.path.exists(appid_file):
             self.appid = open(appid_file, 'r').read().strip()
@@ -282,8 +281,7 @@ class App(dict):
         self.dumpYaml(self.parameters, parameter_file)
 
     def loadParameters(self, parameter_file=None):
-        with open(parameter_file, 'r') as parameter_fh:
-            self.parameters = yaml.load(parameter_fh)
+        self.parameters = self.loadYaml(parameter_file)
 
     def setParameters(self):
         def formatParameters(item):
@@ -348,9 +346,13 @@ class App(dict):
     def dump_parameter(self):
         pass
 
+    def loadYaml(self, filepath):
+        with open(filepath, 'r') as yaml_file:
+            return yaml.load(yaml_file)
+
     def dumpYaml(self, obj, filepath):
-        with open(filepath, 'w') as output:
-            yaml.dump(obj, output, default_flow_style=False)
+        with open(filepath, 'w') as yaml_file:
+            yaml.dump(obj, yaml_file, default_flow_style=False)
 
     def nodes(self, node_type):
         def addLoadNodes(item):
