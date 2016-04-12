@@ -2,9 +2,9 @@ import yaml
 import os
 import functools
 import md5
-import string
 import copy
 import pdb
+import sys
 from jinja2 import Template
 from yamlRepresenter import folded_unicode, literal_unicode
 
@@ -116,6 +116,7 @@ class App(dict):
         self.appid = ''
         self.app_path = app_path
         self.config_file = app_path + '/config.yaml'
+        self.parameter_file = None
         self.parameters = {'Inputs':{}, 'Outputs':{}, 'Parameters':{}}
         self.config = {
             'app':{
@@ -200,7 +201,7 @@ class App(dict):
             self.appid = open(appid_file, 'r').read().strip()
         # self.__loadParameters()
 
-    def newParameters(self, parameter_file):
+    def newParameters(self, parameter_file=None):
         """
         make parameter template from config after setParameters init
         """
@@ -280,10 +281,18 @@ class App(dict):
             'name': "test_%s" % self.config['app']['name']
             }
 
-        self.dumpYaml(self.parameters, parameter_file)
+        if parameter_file != None:
+            self.parameter_file = parameter_file
+            self.dumpYaml(self.parameters, parameter_file)
 
     def loadParameters(self, parameter_file=None):
-        self.parameters = self.loadYaml(parameter_file)
+        if parameter_file != None:
+            self.parameter_file = parameter_file
+
+        if parameter_file == None and self.parameters_file == None:
+            raise ValueError, "no parameter file to load."
+
+        self.parameters = self.loadYaml(self.parameter_file)
 
     def setParameters(self):
         def formatParameters(item):
@@ -336,8 +345,15 @@ class App(dict):
         """
         pass
 
-    def build(self):
-        pass
+    def build(self, parameter_file=None, output=None):
+        self.load()
+        if self.parameter_file == None:
+            self.newParameters()
+        else:
+            self.loadParameters(parameter_file)
+        self.setParameters()
+        self.renderScript()
+        self.write(self.script, output)
 
     def renderScript(self):
         template=Template(self.config['app']['cmd_template'])
@@ -345,6 +361,13 @@ class App(dict):
             inputs = self['inputs'],
             outputs =  self['outputs'],
             parameters =  self['parameters'])
+
+    def write(self, content, filename=None):
+        if filename == None:
+            sys.stdout.write(content)
+        else:
+            with open(filename) as f:
+                f.write(content)
 
     def test(self):
         pass
