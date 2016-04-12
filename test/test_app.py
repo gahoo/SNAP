@@ -171,8 +171,7 @@ class TestApp(unittest.TestCase):
         self.app.parameters['Inputs']['bam']={'data': [{"name":"/path/to/data1"}, {"name":"/path/to/data2"}]}
         self.app.setParameters()
         self.assertEqual(self.app['inputs']['bam'][0].path, "/path/to/data1")
-        self.assertEqual(self.app['outputs']['results'][0].path[0:10], "/var/data/")
-        self.assertEqual(self.app['outputs']['results'][0].path[-3:], 'tgz')
+        self.assertEqual(self.app['outputs']['results'][0].path, "/var/data/80bad55acc41d5fde324415808d0a700.tgz")
         #try setParameters ater newParameters
         self.app.newParameters('test/test_app/test_parameter.yaml')
         self.app.parameters['Parameters']['workspace']['value'] = '/path/to/data3'
@@ -219,6 +218,14 @@ class TestApp(unittest.TestCase):
         self.app.buildTestWorkflow()
         test_case = {'workflow': {'account': 'lijiaping@genehealth.com', 'version': 1, 'nodelist': [{'alias': 'load bam', 'node_id': 'loaddata_bam', 'name': 'loaddata', 'parameters': None, 'inputs': None, 'outputs': {'data': {'enid': 'bam'}}, 'type': 'system', 'app_id': '55128c58f6f4067d63b956b5'}, {'inputs': {'bam': [{'enid': 'bam'}]}, 'name': 'app name', 'parameters': {'workspace': {'variable': False, 'value': None}, 'is_genedock': {'variable': False, 'value': None}}, 'outputs': {'results': [{'enid': 'results'}]}, 'app_id': '', 'alias': 'app name', 'node_id': 'app_name', 'type': 'private'}, {'alias': 'store results', 'node_id': 'storedata_results', 'name': 'storedata', 'parameters': {'description': {'variable': True, 'value': None}, 'name': {'variable': True, 'value': None}}, 'inputs': {'data': {'enid': 'results'}}, 'outputs': None, 'type': 'system', 'app_id': '55128c94f6f4067d63b956b6'}], 'name': 'test_app name', 'description': 'test_app name'}}
         self.assertEqual(cmp(self.app.workflow, test_case), 0)
+
+    def test_renderScript(self):
+        self.app.newParameters('test/test_app/test_parameter.yaml')
+        self.app.parameters['Parameters']['is_genedock']['value']=True
+        self.app.setParameters()
+        self.app.renderScript()
+        # print [self.app.script]
+        self.assertEqual(self.app.script, u'\nmkdir -p /data/project/id;\n\nln -s /var/data/540ef712ea55aa2db8a4cfea4782c74d.bam /data/project/id/samplename.bam;\n\n')
 
 if __name__ == '__main__':
     unittest.main()

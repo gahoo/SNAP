@@ -1,11 +1,11 @@
 import yaml
 import os
 import functools
-import random
+import md5
 import string
 import copy
 import pdb
-
+from jinja2 import Template
 from yamlRepresenter import folded_unicode, literal_unicode
 
 class AppParameter(dict):
@@ -87,7 +87,7 @@ class AppFile(dict):
     def __init__(self, setting):
         super(AppFile, self).__init__()
         self.update(setting)
-        self.enid = self.get('enid', self.randomize_enid())
+        self.enid = self.get('enid', self.md5_enid(setting))
         self.updatePath()
 
     def updatePath(self):
@@ -103,8 +103,10 @@ class AppFile(dict):
         elif isinstance(formats, str):
             return formats
 
-    def randomize_enid(self, size=32, chars=string.ascii_lowercase + string.digits):
-        return ''.join(random.choice(chars) for _ in range(size))
+    def md5_enid(self, setting):
+        enid_md5 = md5.new()
+        enid_md5.update(str(setting))
+        return enid_md5.hexdigest()
 
 class App(dict):
     """Everything about App"""
@@ -183,10 +185,10 @@ class App(dict):
                         'hint': 'on genedock or not'
                     }
                 },
-                'cmd_template': literal_unicode(
-                    u'{% if parameters.is_genedock == "True" %}\n'
+                'cmd_template': folded_unicode(
+                    u'{% if parameters.is_genedock|string() == "True" %}\n'
                     "mkdir -p {{parameters.workspace}};{{'\\n'}}\n"
-                    "ln -s {{inputs.bam}} {{parameters.workspace}}/samplename.bam;{{'\\n'}}\n"
+                    "ln -s {{inputs.bam[0].path}} {{parameters.workspace}}/samplename.bam;{{'\\n'}}\n"
                     '{% endif %}\n'
                 )
             }}
@@ -336,6 +338,13 @@ class App(dict):
 
     def build(self):
         pass
+
+    def renderScript(self):
+        template=Template(self.config['app']['cmd_template'])
+        self.script = template.render(
+            inputs = self['inputs'],
+            outputs =  self['outputs'],
+            parameters =  self['parameters'])
 
     def test(self):
         pass
