@@ -106,7 +106,7 @@ class AppFile(dict):
     def randomize_enid(self, size=32, chars=string.ascii_lowercase + string.digits):
         return ''.join(random.choice(chars) for _ in range(size))
 
-class App(object):
+class App(dict):
     """Everything about App"""
     def __init__(self, app_path):
         super(App, self).__init__()
@@ -215,13 +215,7 @@ class App(object):
             return (name, new_settings)
 
         def formatFiles(item, file_type):
-            (name, file_settings) = item
-            if isinstance(file_settings, dict):
-                #not setParameters yet
-                settings = file_settings
-            elif isinstance(file_settings, list):
-                #already setParameters
-                settings = file_settings[0]
+            (name, settings) = item
 
             _property = {
                 'block_file':{
@@ -306,12 +300,7 @@ class App(object):
                     settings.update(data)
                     files.append(AppFile(settings))
             else:
-                #when self.parameters is empty
-                if isinstance(settings, dict):
-                    files = [AppFile(settings)]
-                elif isinstance(settings, list):
-                    #already setParameters once
-                    files = settings
+                files = [AppFile(settings)]
             return (name, files)
 
         formatInputFiles = functools.partial(formatFiles, file_type='inputs')
@@ -320,7 +309,7 @@ class App(object):
         def mapFormat(item):
             (name, func) = item
             if self.config['app'][name] != None:
-                self.config['app'][name] = dict(map(func, self.config['app'][name].iteritems()))
+                self[name] = dict(map(func, self.config['app'][name].iteritems()))
 
         to_format = [
             ('parameters', formatParameters),

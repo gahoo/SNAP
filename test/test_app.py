@@ -170,14 +170,14 @@ class TestApp(unittest.TestCase):
     def test_setParameters(self):
         self.app.parameters['inputs']['bam']={'data': [{"name":"/path/to/data1"}, {"name":"/path/to/data2"}]}
         self.app.setParameters()
-        self.assertEqual(self.app.config['app']['inputs']['bam'][0].path, "/path/to/data1")
-        self.assertEqual(self.app.config['app']['outputs']['results'][0].path[0:10], "/var/data/")
-        self.assertEqual(self.app.config['app']['outputs']['results'][0].path[-3:], 'tgz')
+        self.assertEqual(self.app['inputs']['bam'][0].path, "/path/to/data1")
+        self.assertEqual(self.app['outputs']['results'][0].path[0:10], "/var/data/")
+        self.assertEqual(self.app['outputs']['results'][0].path[-3:], 'tgz')
         #try setParameters ater newParameters
         self.app.newParameters('test/test_app/test_parameter.yaml')
         self.app.parameters['parameters']['workspace']['value'] = '/path/to/data3'
         self.app.setParameters()
-        self.assertEqual(self.app.config['app']['parameters']['workspace'].__str__(), '/path/to/data3')
+        self.assertEqual(self.app['parameters']['workspace'].__str__(), '/path/to/data3')
 
     def test_newParameters(self):
         self.app.newParameters('test/test_app/test_parameter.yaml')
