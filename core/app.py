@@ -288,11 +288,11 @@ class App(dict):
     def loadParameters(self, parameter_file=None):
         if parameter_file != None:
             self.parameter_file = parameter_file
-
-        if parameter_file == None and self.parameters_file == None:
+            self.parameters = self.loadYaml(parameter_file)
+        elif parameter_file == None and self.parameter_file == None:
             raise ValueError, "no parameter file to load."
-
-        self.parameters = self.loadYaml(self.parameter_file)
+        elif parameter_file == None and self.parameter_file != None:
+            self.parameters = self.loadYaml(self.parameter_file)
 
     def setParameters(self):
         def formatParameters(item):
@@ -347,7 +347,7 @@ class App(dict):
 
     def build(self, parameter_file=None, output=None):
         self.load()
-        if self.parameter_file == None:
+        if parameter_file == None and self.parameter_file == None:
             self.newParameters()
         else:
             self.loadParameters(parameter_file)
@@ -365,8 +365,11 @@ class App(dict):
     def write(self, content, filename=None):
         if filename == None:
             sys.stdout.write(content)
+        elif filename == '/dev/null':
+            #for windows users
+            pass
         else:
-            with open(filename) as f:
+            with open(filename, 'w') as f:
                 f.write(content)
 
     def test(self):
