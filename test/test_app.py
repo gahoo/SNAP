@@ -179,7 +179,9 @@ class TestApp(unittest.TestCase):
         self.assertEqual(self.app['parameters']['workspace'].__str__(), '/path/to/data3')
 
     def test_newParameters(self):
+        self.app.newParameters()
         self.app.newParameters('test/test_app/test_parameter.yaml')
+        self.app.newParameters()
         # print self.app.parameters
 
     def test_newParameters_after_setParameters(self):
@@ -206,6 +208,9 @@ class TestApp(unittest.TestCase):
         self.app.newParameters('test/test_app/test_parameter.yaml')
         self.app.loadParameters('test/test_app/test_parameter.yaml')
 
+    def test_loadParameters_None(self):
+        self.assertRaises(ValueError, self.app.loadParameters)
+
     def test_nodes(self):
         load_case = {'bam': {'alias': 'load bam', 'node_id': 'loaddata_bam', 'name': 'loaddata', 'parameters': None, 'inputs': None, 'outputs': {'data': {'enid': 'bam'}}, 'type': 'system', 'app_id': '55128c58f6f4067d63b956b5'}}
         self.assertEqual(cmp(self.app.nodes('load'), load_case), 0)
@@ -226,6 +231,14 @@ class TestApp(unittest.TestCase):
         self.app.renderScript()
         # print [self.app.script]
         self.assertEqual(self.app.script, u'\nmkdir -p /data/project/id;\n\nln -s /var/data/540ef712ea55aa2db8a4cfea4782c74d.bam /data/project/id/samplename.bam;\n\n')
+
+    def test_build(self):
+        test_case = u'\nmkdir -p /data/project/id;\n\nln -s /var/data/540ef712ea55aa2db8a4cfea4782c74d.bam /data/project/id/samplename.bam;\n\n'
+        self.app.build(None, '/dev/null')
+        self.assertEqual(self.app.script, test_case)
+        self.app.newParameters('test/test_app/test_parameter.yaml')
+        self.app.build('test/test_app/test_parameter.yaml', '/dev/null')
+        self.assertEqual(self.app.script, test_case)
 
 if __name__ == '__main__':
     unittest.main()
