@@ -381,13 +381,18 @@ class App(dict):
     def dump_parameter(self):
         pass
 
-    def loadYaml(self, filepath):
-        with open(filepath, 'r') as yaml_file:
+    def loadYaml(self, filename):
+        with open(filename, 'r') as yaml_file:
             return yaml.load(yaml_file)
 
-    def dumpYaml(self, obj, filepath):
-        with open(filepath, 'w') as yaml_file:
-            yaml.dump(obj, yaml_file, default_flow_style=False)
+    def dumpYaml(self, obj, filename):
+        if filename == None:
+            yaml.dump(obj, sys.stdout, default_flow_style=False)
+        elif isinstance(filename, file):
+            yaml.dump(obj, filename, default_flow_style=False)
+        else:
+            with open(filename, 'w') as yaml_file:
+                yaml.dump(obj, yaml_file, default_flow_style=False)
 
     def nodes(self, node_type):
         def addLoadNodes(item):
