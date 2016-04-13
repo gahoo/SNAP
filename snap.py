@@ -11,17 +11,22 @@ def new_app(args):
         app = App(args.name)
         app.new()
     else:
+        subparsers_app.print_help()
         print >> sys.stderr, "app name is not optional."
 
-def preview_script(args):
+def build_app(args):
     if(args.name):
         app = App(args.name)
-        app.load()
-        app.setParameters()
-        app.renderScript()
-        print app.script
+    elif(args.config):
+        name = os.path.dirname(args.config)
+        app = App(name)
+        app.config_file = args.config
     else:
-        print >> sys.stderr, "app name is not optional."
+        subparsers_app_build.print_help()
+        print >> sys.stderr, "app name or config.yaml must be specified."
+        os._exit(0)
+
+    app.build(args.param, args.out)
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -45,14 +50,20 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_app_new.add_argument('-name', help = "app name")
     subparsers_app_new.set_defaults(func=new_app)
-    #app preview
-    subparsers_app_preview = subparsers_app.add_parser('preview',
-        help='preview APP template',
-        description="",
-        prog='snap app preview',
+    #app build
+    subparsers_app_build = subparsers_app.add_parser('build',
+        help='build APP template',
+        description="This command can render config.yaml into *.sh with parameter.yaml file."
+        "Without `-param`, default value in config.yaml will be used to render scripts."
+        "`-name` or `-config` argument must be specified. "
+        "Without `-out`, script will be writed to STDOUT",
+        prog='snap app build',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_app_preview.add_argument('-name', help = "app name")
-    subparsers_app_preview.set_defaults(func=preview_script)
+    subparsers_app_build.add_argument('-name', help = "app name")
+    subparsers_app_build.add_argument('-config', help = "config.yaml file")
+    subparsers_app_build.add_argument('-param', help = "render from parameter.yaml file")
+    subparsers_app_build.add_argument('-out', help = "output render result to file. default write to stdout")
+    subparsers_app_build.set_defaults(func=build_app)
 
 if __name__ == '__main__':
     argslist = sys.argv[1:]
