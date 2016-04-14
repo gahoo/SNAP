@@ -5,6 +5,7 @@ import md5
 import copy
 import pdb
 import sys
+import errno
 from jinja2 import Template
 from yamlRepresenter import folded_unicode, literal_unicode
 
@@ -332,7 +333,16 @@ class App(dict):
         map(mapFormat, to_format)
 
     def new(self):
-        createDir = lambda folder : os.makedirs("%s/%s" % (self.app_path, folder))
+        def mkdir_p(path):
+            try:
+                os.makedirs(path)
+            except OSError as exc:  # Python >2.5
+                if exc.errno == errno.EEXIST and os.path.isdir(path):
+                    pass
+                else:
+                    raise
+
+        createDir = lambda folder : mkdir_p("%s/%s" % (self.app_path, folder))
         touchFile = lambda filename: open("%s/%s" % (self.app_path, filename), 'a').close()
 
         map(createDir, ['bin', 'lib', 'test'])
