@@ -226,8 +226,9 @@ class TestApp(unittest.TestCase):
         self.assertEqual(cmp(self.app.workflow, test_case), 0)
 
     def test_renderScript(self):
-        self.app.newParameters('test/test_app/test_parameter.yaml')
+        self.app.newParameters()
         self.app.parameters['Parameters']['is_genedock']['value']=True
+        self.app.config['app']['outputs']=None
         self.app.setParameters()
         self.app.renderScript()
         # print [self.app.script]
