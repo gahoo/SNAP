@@ -61,5 +61,5 @@ snap app node -name appname -type load -node bam
       args: (context) -> ['app', 'build', '-config', context.filepath]
 ```
 
-3.保存为`.yaml`后缀文件，`cmd ＋ i`即可生成预览脚本
+3. 保存为`.yaml`后缀文件，`cmd ＋ i`即可生成预览脚本
 > 自动补全：修改[~/.atom/snippets.cson](http://123.56.188.74:10080/gitlab/lijiaping/atom/blob/master/snippets.cson)
