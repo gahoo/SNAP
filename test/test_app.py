@@ -1,6 +1,7 @@
-import unittest
 from core.app import App, AppParameter, AppFile
+import unittest
 import shutil
+import pdb
 
 class TestAppParameter(unittest.TestCase):
     """
@@ -243,7 +244,8 @@ class TestApp(unittest.TestCase):
     def test_dumpYaml(self):
         self.app.setParameters()
         self.app.renderScript()
-        self.app.dumpYaml(self.app.script, None)
+        # pdb.set_trace()
+        # self.app.dumpYaml(self.app.script, None)
 
 if __name__ == '__main__':
     unittest.main()
