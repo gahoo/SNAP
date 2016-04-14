@@ -368,9 +368,10 @@ class App(dict):
     def renderScript(self):
         template=Template(self.config['app']['cmd_template'])
         self.script = template.render(
-            inputs = self['inputs'],
-            outputs =  self['outputs'],
-            parameters =  self['parameters'])
+            inputs = self.get('inputs'),
+            outputs =  self.get('outputs'),
+            parameters =  self.get('parameters')
+            )
 
     def write(self, content, filename=None):
         if filename == None:
