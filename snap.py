@@ -38,6 +38,7 @@ def node_app(args):
     else:
         nodes = app.nodes(args.type)
         if(args.node):
+            #select node
             app.dumpYaml([nodes[args.node]], args.out)
         else:
             app.dumpYaml(nodes.values(), args.out)
