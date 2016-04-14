@@ -11,7 +11,7 @@ def new_app(args):
         app = App(args.name)
         app.new()
     else:
-        subparsers_app.print_help()
+        subparsers_app_new.print_help()
         print >> sys.stderr, "app name is not optional."
 
 def init_app(args):
@@ -22,7 +22,7 @@ def init_app(args):
         app = App(name)
         app.config_file = args.config
     else:
-        subparsers_app_build.print_help()
+        # subparsers_app_build.print_help()
         print >> sys.stderr, "app name or config.yaml must be specified."
         os._exit(0)
     return app
@@ -37,7 +37,10 @@ def node_app(args):
         app.buildTestWorkflow(sys.stdout)
     else:
         nodes = app.nodes(args.type)
-        app.dumpYaml(nodes, args.out)
+        if(args.node):
+            app.dumpYaml([nodes[args.node]], args.out)
+        else:
+            app.dumpYaml(nodes.values(), args.out)
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -89,6 +92,11 @@ if __name__ == "__main__":
         "`app`: app node only; "
         "`load`: load node only; "
         "`store`: store node only; ")
+    subparsers_app_node.add_argument('-node',
+        help = "select node to output"
+        "load: inputs name"
+        "store: outputs name"
+        "app: app name")
     subparsers_app_node.add_argument('-out', help = "output render result to file. default write to stdout")
     subparsers_app_node.set_defaults(func=node_app)
 
