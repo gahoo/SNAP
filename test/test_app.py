@@ -240,5 +240,10 @@ class TestApp(unittest.TestCase):
         self.app.build('test/test_app/test_parameter.yaml', '/dev/null')
         self.assertEqual(self.app.script, test_case)
 
+    def test_dumpYaml(self):
+        self.app.setParameters()
+        self.app.renderScript()
+        self.app.dumpYaml(self.app.script, None)
+
 if __name__ == '__main__':
     unittest.main()
