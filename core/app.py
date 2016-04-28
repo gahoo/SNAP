@@ -116,7 +116,7 @@ class App(dict):
         self.type = "genedock"
         self.appid = ''
         self.app_path = app_path
-        self.config_file = app_path + '/config.yaml'
+        self.config_file = os.path.join(app_path, 'config.yaml')
         self.parameter_file = None
         self.parameters = {'Inputs':{}, 'Outputs':{}, 'Parameters':{}}
         self.config = {
@@ -196,11 +196,13 @@ class App(dict):
             }}
 
     def load(self):
+        if self.app_path == '':
+            self.app_path = os.path.dirname(self.config_file)
+
         self.config = self.loadYaml(self.config_file)
-        appid_file = self.app_path + '/.appid'
+        appid_file = os.path.join(self.app_path, '.appid')
         if os.path.exists(appid_file):
             self.appid = open(appid_file, 'r').read().strip()
-        # self.__loadParameters()
 
     def newParameters(self, parameter_file=None):
         """
@@ -460,6 +462,7 @@ class App(dict):
             node['parameters']=dict(map(buildParameter, self.config['app']['parameters'].keys()))
             return (self.config['app']['name'], node)
 
+        self.load()
         if node_type == 'load':
             nodes = dict(map(addLoadNodes, self.config['app']['inputs'].iteritems()))
         elif node_type == 'store':
@@ -486,11 +489,5 @@ class App(dict):
 
             return {'workflow': workflow}
 
-        def saveTestWorkflow(test_workflow_file):
-            if test_workflow_file == None:
-                test_workflow_file = '%s/test/test_workflow.yaml' % self.app_path
-
-            self.dumpYaml(self.workflow, test_workflow_file)
-
         self.workflow = makeWorkflow()
-        saveTestWorkflow(test_workflow_file)
+        self.dumpYaml(self.workflow, test_workflow_file)
