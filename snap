@@ -1,3 +1,9 @@
+#!/bin/bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source $DIR/.env/bin/activate
+host=$(hostname)
+if [ "$host" == "ubuntu" ]; then
+  source $DIR/uenv/bin/activate
+else
+  source $DIR/.env/bin/activate
+fi
 python $DIR/snap.py $*
