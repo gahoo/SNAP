@@ -34,7 +34,7 @@ def build_app(args):
 def node_app(args):
     app = init_app(args)
     if args.type == 'all':
-        app.buildTestWorkflow(sys.stdout)
+        app.buildTestWorkflow(args.out)
     else:
         nodes = app.nodes(args.type)
         if(args.node):
