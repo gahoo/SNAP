@@ -476,6 +476,7 @@ class App(dict):
 
     def buildTestWorkflow(self, test_workflow_file=None):
         def makeWorkflow():
+            self.load()
             workflow = {
                 'name': "test_%s" % self.config['app']['name'],
                 'description': "test_%s" % self.config['app']['name'],
