@@ -41,6 +41,10 @@ class WorkflowParameter(object):
         with open(filename, 'w') as output_file:
                 output_file.write(content)
 
+    def writeMap(self, name_content):
+        (filename, content) = name_content
+        self.write(filename, content)
+
     def save(self, filename, content):
         if filename is None:
             print content
@@ -54,7 +58,14 @@ class WorkflowParameter(object):
             print "\n----------\n".join(contents)
         else:
             filenames = ["%s/%s_%s_parameters.yaml" % (prefix, sample['sample_name'], self.workflow_name) for sample in self.values['Samples']]
-            map(self.write, zip(filenames, contents))
+            map(self.writeMap, zip(filenames, contents))
+
+    def savePlans(self, plan_names, contents, prefix=None):
+        if prefix is None:
+            print "\n----------\n".join(contents)
+        else:
+            filenames = ["%s/%s_parameters.yaml" % (prefix, plan_name) for plan_name in plan_names]
+            map(self.writeMap, zip(filenames, contents))
 
     def render(self, output_path):
         def prepareData():
@@ -75,20 +86,34 @@ class WorkflowParameter(object):
             return map(makeSingleSampleContent, self.values['Samples'])
 
         def makePlanContents(plan_type_app, data4template):
-            if len(plan_type_app) > 1:
-                raise Exception, "The number of app with plan greater than 1"
-            the_plans = {}
-            for app_name, parameters in plan_type_app.iteritems():
-                for parameter_name, plans in parameters.iteritems():
-                    for i, plan in enumerate(plans):
-                        if not the_plans.has_key(i):
-                            the_plans[i]=dict()
-                            the_plans[i][app_name] = dict()
-                        the_plans[i][app_name][parameter_name] = plan
-            pdb.set_trace()
-            print the_plans
+            def plan2Name(parameters_dict):
+                return "__".join(["%s.%s" % (k,v) for k,v in parameters_dict.items()]).replace(':', "@").replace('&', '-VS-')
 
-            return self.template.render(data)
+            def makeSinglePlanName(app_dict):
+                return plan2Name(app_dict.values()[0])
+
+            def makeSinglePlanContent(app_dict):
+                data = data4template.copy()
+                data.update(app_dict)
+                return self.template.render(data)
+
+            def planDict2List(plan_type_app):
+                if len(plan_type_app) > 1:
+                    raise Exception, "The number of app with plan greater than 1"
+                plan_dict = {}
+                for app_name, parameters in plan_type_app.iteritems():
+                    for parameter_name, plans in parameters.iteritems():
+                        for i, plan in enumerate(plans):
+                            if not plan_dict.has_key(i):
+                                plan_dict[i] = dict()
+                                plan_dict[i][app_name] = dict()
+                            plan_dict[i][app_name][parameter_name] = plan
+                return plan_dict.values()
+
+            plans = planDict2List(plan_type_app)
+            plan_names = map(makeSinglePlanName, plans)
+            contents = map(makeSinglePlanContent, plans)
+            return plan_names, contents
 
         def findPlanType(data4template):
             def getPlanType(parameters):
@@ -114,7 +139,8 @@ class WorkflowParameter(object):
             contents = makeAllSamplesContents(data4template)
             self.saveSamples(contents, output_path)
         elif plan_type_app:
-            contents = makePlanContents(plan_type_app, data4template)
+            (plan_names, contents) = makePlanContents(plan_type_app, data4template)
+            self.savePlans(plan_names, contents, output_path)
         else:
             content = self.template.render(data4template)
             self.save(output_path, content)
