@@ -5,9 +5,11 @@ import yaml
 import sys
 import os
 from core.app import App
+from core.pipe import WorkflowParameter
+
 
 def new_app(args):
-    if(args.name):
+    if args.name:
         app = App(args.name)
         app.new()
     else:
@@ -15,7 +17,7 @@ def new_app(args):
         print >> sys.stderr, "app name is not optional."
 
 def init_app(args):
-    if(args.name):
+    if args.name:
         app = App(args.name)
     elif(args.config):
         name = os.path.dirname(args.config)
@@ -42,6 +44,14 @@ def node_app(args):
             app.dumpYaml([nodes[args.node]], args.out)
         else:
             app.dumpYaml(nodes.values(), args.out)
+
+def parameter_pipe(args):
+    if args.name:
+        parameter = WorkflowParameter(args.name, args.project_path, args.values)
+        parameter.render(args.out)
+    else:
+        print >> sys.stderr, "workflow name must be specified."
+        os._exit(0)
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -100,6 +110,25 @@ if __name__ == "__main__":
         "app: app name")
     subparsers_app_node.add_argument('-out', help = "output render result to file. default write to stdout")
     subparsers_app_node.set_defaults(func=node_app)
+    #pipe
+    parsers_pipe = subparsers.add_parser('pipe',
+        help = "Operations of PIPE.",
+        description = "New, Build, Test, Run",
+        prog = 'snap pipe',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_pipe = parsers_pipe.add_subparsers()
+    # pipe parameter
+    subparsers_pipe_parameter = subparsers_pipe.add_parser('parameter',
+        help='PIPE workflow parameter template',
+        description="This command can render template.yaml into workflow parameters."
+        "Without `-out`, result will be writed to STDOUT",
+        prog='snap pipe parameter',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_pipe_parameter.add_argument('-name', help="pipe name")
+    subparsers_pipe_parameter.add_argument('-project_path', help="project output path in parameter", default='testPIPE/RNA_ref')
+    subparsers_pipe_parameter.add_argument('-values', help="file contains values to be replace in template.yaml")
+    subparsers_pipe_parameter.add_argument('-out', help="output render result to file. default write to stdout")
+    subparsers_pipe_parameter.set_defaults(func=parameter_pipe)
 
 if __name__ == '__main__':
     argslist = sys.argv[1:]
