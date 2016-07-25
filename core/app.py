@@ -457,20 +457,25 @@ class App(dict):
                 'name': self.config['app']['name']
             }
 
-            node['inputs']=dict(map(buildEnid, self.config['app']['inputs'].keys()))
-            node['outputs']=dict(map(buildEnid, self.config['app']['outputs'].keys()))
-            node['parameters']=dict(map(buildParameter, self.config['app']['parameters'].keys()))
+            if self.config['app']['inputs']:
+                node['inputs']=dict(map(buildEnid, self.config['app']['inputs'].keys()))
+            if self.config['app']['outputs']:
+                node['outputs']=dict(map(buildEnid, self.config['app']['outputs'].keys()))
+            if self.config['app']['parameters']:
+                node['parameters']=dict(map(buildParameter, self.config['app']['parameters'].keys()))
             return (self.config['app']['name'], node)
 
         self.load()
-        if node_type == 'load':
+        nodes = None
+        if node_type == 'load' and self.config['app']['inputs']:
             nodes = dict(map(addLoadNodes, self.config['app']['inputs'].iteritems()))
-        elif node_type == 'store':
+        elif node_type == 'store' and self.config['app']['outputs']:
             nodes = dict(map(addStoreNodes, self.config['app']['outputs'].iteritems()))
         elif node_type == 'app':
             nodes = dict([addAppNodes()])
         else:
-            raise TypeError, "node type error"
+            pass
+            #raise TypeError, "node type error"
 
         return nodes
 
@@ -486,7 +491,9 @@ class App(dict):
             }
 
             for node_type in ('load', 'app', 'store'):
-                workflow['nodelist'].extend(self.nodes(node_type).values())
+                nodes = self.nodes(node_type)
+                if nodes:
+                    workflow['nodelist'].extend(nodes.values())
 
             return {'workflow': workflow}
 
