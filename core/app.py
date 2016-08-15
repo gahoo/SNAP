@@ -9,6 +9,7 @@ import errno
 from jinja2 import Template
 from yamlRepresenter import folded_unicode, literal_unicode
 
+
 class AppParameter(dict):
     """AppParameter"""
     def __init__(self, setting):
@@ -21,6 +22,7 @@ class AppParameter(dict):
         check if parameter was correct or not
         """
         types = ['integer', 'number', 'float', 'string', 'flag', 'boolean', 'array']
+
         def checkType():
             if self.get('type') not in types:
                 raise TypeError('type must be one of: %s' % types)
@@ -28,6 +30,7 @@ class AppParameter(dict):
         checkType()
 
     def __str__(self):
+
         def formatValue(value, string = "%s%s%s"):
             return string % (self.get('prefix'), self.get('separator'), value)
 
@@ -69,13 +72,13 @@ class AppParameter(dict):
         if self.get('value') == None:
             self['value'] = self.get('default')
 
-        if self.get('type')=='flag':
+        if self.get('type') == 'flag':
             return formatFlag()
-        elif self.get('type')=='boolean':
+        elif self.get('type') == 'boolean':
             return formatBoolean()
-        elif self.get('type')=='string':
+        elif self.get('type') == 'string':
             return formatString()
-        elif self.get('type')=='array':
+        elif self.get('type') == 'array':
             return formatArray()
         elif self.get('type') in ['integer', 'number', 'float']:
             return formatNumber()
@@ -109,18 +112,21 @@ class AppFile(dict):
         enid_md5.update(str(setting))
         return enid_md5.hexdigest()
 
+
 class App(dict):
     """Everything about App"""
     def __init__(self, app_path):
         super(App, self).__init__()
         self.type = "genedock"
         self.appid = ''
+        self.appname = ''
         self.app_path = app_path
         self.config_file = os.path.join(app_path, 'config.yaml')
         self.parameter_file = None
-        self.parameters = {'Inputs':{}, 'Outputs':{}, 'Parameters':{}}
+        self.parameters = {'Inputs': {}, 'Outputs': {}, 'Parameters': {}}
+        self.isGDParameters = True
         self.config = {
-            'app':{
+            'app': {
                 'package': "package_name",
                 'category': "category of tools",
                 'homepage': None,
@@ -131,7 +137,7 @@ class App(dict):
                 'tutorial': "",
                 'document_author': "",
                 'requirements': {
-                    'container':{
+                    'container': {
                         'type': "docker",
                         'image': 'user/image_name'
                     },
@@ -143,32 +149,32 @@ class App(dict):
                         'disk': '10000m'
                     }
                 },
-                'inputs':{
-                    'bam':{
+                'inputs': {
+                    'bam': {
                         'hint': "bwa mem bam",
                         'type': 'file',
                         'required': True,
                         'minitems': 1,
                         'maxitems': 1,
-                        'item':{
+                        'item': {
                             'separator': " "
                         },
                         'formats': ['bam']
                     }
                 },
-                'outputs':{
+                'outputs': {
                     'results': {
                         'type': 'file',
                         'required': True,
                         'minitems': 1,
                         'maxitems': 1,
-                        'item':{
+                        'item': {
                             'separator': " "
                         },
                         'formats': ['tgz']
                     }
                 },
-                'parameters':{
+                'parameters': {
                     'workspace': {
                         'separator': "",
                         'prefix': "",
@@ -178,7 +184,7 @@ class App(dict):
                         'quotes': False,
                         'hint': 'working space'
                     },
-                    'is_genedock':{
+                    'is_genedock': {
                         'separator': "",
                         'prefix': "",
                         'type': 'boolean',
@@ -200,6 +206,7 @@ class App(dict):
             self.app_path = os.path.dirname(self.config_file)
 
         self.config = self.loadYaml(self.config_file)
+        self.appname = self.config['app']['name']
         appid_file = os.path.join(self.app_path, '.appid')
         if os.path.exists(appid_file):
             self.appid = open(appid_file, 'r').read().strip()
@@ -223,7 +230,7 @@ class App(dict):
             (name, settings) = item
 
             _property = {
-                'block_file':{
+                'block_file': {
                     'block_name': None,
                     'is_block': False,
                     'split_format': 'default'
@@ -256,7 +263,7 @@ class App(dict):
                 new_settings['alias'] = "%s %s" % (prefix, name)
                 new_settings['data'] = [data]
             else:
-                raise TypeError, "file_type can only be Inputs or Outputs"
+                raise TypeError("file_type can only be Inputs or Outputs")
             return ("%s_%s" % (prefix, name), new_settings)
 
         formatInputFiles = functools.partial(formatFiles, file_type='Inputs')
@@ -277,9 +284,9 @@ class App(dict):
         map(mapFormat, to_format)
         self.parameters['Conditions'] = {'schedule': ""}
         self.parameters['Property'] = {
-            'CDN': {'required':True},
-            'reference_task': [{'id':None}],
-            'water_mark': {'required':True, 'style':None},
+            'CDN': {'required': True},
+            'reference_task': [{'id': None}],
+            'water_mark': {'required': True, 'style': None},
             'description': "test_%s" % self.config['app']['name'],
             'name': "test_%s" % self.config['app']['name']
             }
@@ -293,22 +300,36 @@ class App(dict):
             self.parameter_file = parameter_file
             self.parameters = self.loadYaml(parameter_file)
         elif parameter_file == None and self.parameter_file == None:
-            raise ValueError, "no parameter file to load."
+            raise ValueError("no parameter file to load.")
         elif parameter_file == None and self.parameter_file != None:
             self.parameters = self.loadYaml(self.parameter_file)
+
+        self.isGDParameters = 'Inputs' in self.parameters.keys()
+
+        if not self.isGDParameters:
+            self.newParameters()
 
     def setParameters(self):
         def formatParameters(item):
             (name, settings) = item
             parameter = AppParameter(settings)
-            if self.parameters['Parameters'].get(name) != None:
-                parameter['value'] = self.parameters['Parameters'][name]['value']
+            pdb.set_trace()
+            param_dict = self.parameters['Parameters'][self.appname]['parameters'].get(name)
+            if param_dict:
+                parameter['value'] = param_dict['value']
             return (name, parameter)
 
         def formatFiles(item, file_type):
             (name, settings) = item
             # settings = settings.copy()
-            files_parameter = self.parameters[file_type].get(name)
+            if file_type == 'Inputs':
+                block_name = "loaddata_%s" % name
+            elif file_type == 'Outputs':
+                block_name = "storedata_%s" % name
+            else:
+                raise TypeError("file_type shold be Inputs or Outputs")
+
+            files_parameter = self.parameters[file_type].get(block_name)
             if files_parameter:
                 files = []
                 for data in files_parameter['data']:
@@ -368,11 +389,12 @@ class App(dict):
         self.write(self.script, output)
 
     def renderScript(self):
-        template=Template(self.config['app']['cmd_template'])
+        template = Template(self.config['app']['cmd_template'])
+        pdb.set_trace()
         self.script = template.render(
             inputs = self.get('inputs'),
-            outputs =  self.get('outputs'),
-            parameters =  self.get('parameters')
+            outputs = self.get('outputs'),
+            parameters = self.get('parameters')
             )
 
     def write(self, content, filename=None):
@@ -431,11 +453,11 @@ class App(dict):
                 'inputs': {'data': {'enid': name}},
                 'outputs': None,
                 'parameters': {
-                    'description':{
+                    'description': {
                         'value': None,
                         'variable': True
                     },
-                    'name':{
+                    'name': {
                         'value': None,
                         'variable': True
                     }
@@ -458,11 +480,11 @@ class App(dict):
             }
 
             if self.config['app']['inputs']:
-                node['inputs']=dict(map(buildEnid, self.config['app']['inputs'].keys()))
+                node['inputs'] = dict(map(buildEnid, self.config['app']['inputs'].keys()))
             if self.config['app']['outputs']:
-                node['outputs']=dict(map(buildEnid, self.config['app']['outputs'].keys()))
+                node['outputs'] = dict(map(buildEnid, self.config['app']['outputs'].keys()))
             if self.config['app']['parameters']:
-                node['parameters']=dict(map(buildParameter, self.config['app']['parameters'].keys()))
+                node['parameters'] = dict(map(buildParameter, self.config['app']['parameters'].keys()))
             return (self.config['app']['name'], node)
 
         self.load()
