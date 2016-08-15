@@ -14,9 +14,9 @@ class WorkflowParameter(object):
     """docstring for WorkflowParameter"""
     def __init__(self, workflow_path, project_path, value_file=None):
         super(WorkflowParameter, self).__init__()
-        self.workflow_path = workflow_path
+        self.workflow_path = os.path.abspath(workflow_path)
         self.project_path = project_path
-        self.workflow_name = os.path.basename(workflow_path)
+        self.workflow_name = os.path.basename(self.workflow_path)
         self.default_file = os.path.join(workflow_path, 'default.yaml')
         self.values = self.loadValues(value_file)
         self.template_file = os.path.join(workflow_path, 'template.yaml')
@@ -39,7 +39,7 @@ class WorkflowParameter(object):
 
     def write(self, filename, content):
         with open(filename, 'w') as output_file:
-                output_file.write(content)
+            output_file.write(content)
 
     def writeMap(self, name_content):
         (filename, content) = name_content
@@ -70,11 +70,13 @@ class WorkflowParameter(object):
     def render(self, output_path):
         def prepareData():
             data4template = dict(project_path=self.project_path)
-            for block_name in self.values.keys():
+            for block_name in ['Samples', 'CommonData', 'CommonParameters', self.workflow_name]:
+            # for block_name in self.values.keys():
                 if block_name == 'Samples':
                     data4template['Samples'] = self.values['Samples']
                 else:
-                    data4template.update(self.values[block_name])
+                    if block_name in self.values.keys():
+                        data4template.update(self.values[block_name])
             return data4template
 
         def makeAllSamplesContents(data4template):
@@ -99,6 +101,7 @@ class WorkflowParameter(object):
 
             def planDict2List(plan_type_app):
                 if len(plan_type_app) > 1:
+                    pdb.set_trace()
                     raise Exception, "The number of app with plan greater than 1"
                 plan_dict = {}
                 for app_name, parameters in plan_type_app.iteritems():
@@ -143,4 +146,8 @@ class WorkflowParameter(object):
             self.savePlans(plan_names, contents, output_path)
         else:
             content = self.template.render(data4template)
-            self.save(output_path, content)
+            if output_path is None:
+                filename = None
+            else:
+                filename = os.path.join(output_path, "%s_parameters.yaml" % self.workflow_name)
+            self.save(filename, content)
