@@ -125,6 +125,7 @@ class App(dict):
         self.parameter_file = None
         self.parameters = {'Inputs': {}, 'Outputs': {}, 'Parameters': {}}
         self.isGDParameters = True
+        self.scripts = []
         self.shell_path = ''
         self.config = {
             'app': {
@@ -431,26 +432,51 @@ class App(dict):
         pass
 
     def build(self, parameter_file=None, output=None):
+        self.shell_path = output
         self.load()
         if parameter_file == None and self.parameter_file == None:
             self.newParameters()
         else:
             self.loadParameters(parameter_file)
         self.setParameters()
-        self.renderScript()
-        self.write(self.script, output)
+        if self.isGDParameters:
+            script = self.renderScript()
+            self.write(script, output)
+        else:
+            self.renderScripts()
+            self.writeScripts()
 
-    def renderScript(self):
-        template = Template(self.config['app']['cmd_template'])
-        self.script = template.render(
+    def renderScript(self, cmd_template=None):
+        if not cmd_template:
+            cmd_template = self.config['app']['cmd_template']
+        template = Template(cmd_template)
+        return template.render(
             inputs = self.get('inputs'),
             outputs = self.get('outputs'),
             parameters = self.get('parameters')
             )
 
+    def renderScripts(self):
+        pdb.set_trace()
+        if 'sample_name' in self.config['app']['parameters'].keys():
+            cmd_template = self.renderScript()
+            for sample in self.parameters['Samples']:
+                self['parameters']['sample_name']['value'] = sample['sample_name']
+                if self.shell_path:
+                    script_file = self.renderScript(self.shell_path)
+                else:
+                    script_file = None
+                script = self.renderScript(cmd_template)
+                self.scripts.append({"filename": script_file, "content": script})
+
+    def writeScripts(self):
+        for script in self.scripts:
+            self.write(script['content'], script['filename'])
+
     def write(self, content, filename=None):
         if filename == None:
             sys.stdout.write(content)
+            sys.stdout.write('\n-----------------------\n')
         elif filename == '/dev/null':
             #for windows users
             pass
