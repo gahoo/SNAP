@@ -31,7 +31,7 @@ class AppParameter(dict):
 
     def __str__(self):
 
-        def formatValue(value, string = "%s%s%s"):
+        def formatValue(value, string="%s%s%s"):
             return string % (self.get('prefix'), self.get('separator'), value)
 
         def formatFlag():
@@ -125,6 +125,7 @@ class App(dict):
         self.parameter_file = None
         self.parameters = {'Inputs': {}, 'Outputs': {}, 'Parameters': {}}
         self.isGDParameters = True
+        self.shell_path = ''
         self.config = {
             'app': {
                 'package': "package_name",
@@ -217,17 +218,26 @@ class App(dict):
         """
         def formatParameters(item):
             (name, settings) = item
+
+            value = self.getValue(name)
+            if not value:
+                value = settings['default']
+
             new_settings = {
                 'hint': settings['hint'],
                 'required': settings['required'],
                 'type': settings['type'],
-                'value': settings['default'],
+                'value': value,
                 'variable': True
                 }
             return (name, new_settings)
 
         def formatFiles(item, file_type):
             (name, settings) = item
+
+            file_paths = self.getFilePath(name)
+            if not file_paths:
+                file_paths = ["/path/to/data/to/load/%s" % name]
 
             _property = {
                 'block_file': {
@@ -245,23 +255,25 @@ class App(dict):
                 'type': 'file'
             }
 
-            data = {
-                'name': "/path/to/data/to/load/%s" % name,
-                'property': _property
-                }
+            data = []
+            for file_path in file_paths:
+                data.append({
+                    'enid': name,
+                    'name': file_path,
+                    'property': _property,
+                    'description': "%s file" % name
+                })
 
             if file_type == 'Inputs':
                 prefix = 'loaddata'
-                data['enid'] = name
                 new_settings['alias'] = "%s %s" % (prefix, name)
-                new_settings['data'] = [data]
+                new_settings['data'] = data
                 new_settings['category'] = prefix
                 new_settings['required'] = settings['required']
             elif file_type == 'Outputs':
                 prefix = 'storedata'
-                data['description'] = "%s file" % name
                 new_settings['alias'] = "%s %s" % (prefix, name)
-                new_settings['data'] = [data]
+                new_settings['data'] = data
             else:
                 raise TypeError("file_type can only be Inputs or Outputs")
             return ("%s_%s" % (prefix, name), new_settings)
@@ -309,14 +321,54 @@ class App(dict):
         if not self.isGDParameters:
             self.newParameters()
 
+    def getValue(self, name):
+        def getGDvalue(name):
+            param_dict = self.parameters['Parameters'][self.appname]['parameters'].get(name)
+            if param_dict:
+                return param_dict['value']
+            else:
+                return None
+
+        def getGHvalue(name):
+            value = self.parameters[self.appname][self.appname].get(name)
+            if not value:
+                value = self.parameters['CommonParameters'].get(name)
+            return value
+
+        if self.isGDParameters:
+            return getGDvalue(name)
+        else:
+            return getGHvalue(name)
+
+    def getFilePath(self, name):
+        def getGDfilePath(name):
+            pass
+
+        def getGHfilePath(name):
+            file_path = self.parameters[self.appname][self.appname].get(name)
+            if not file_path:
+                file_path = self.parameters['CommonData'].get(name)
+            if not file_path:
+                if name in self.config['app']['inputs'].keys():
+                    file_path = self.config['app']['inputs'][name]['default']
+                if name in self.config['app']['outputs'].keys():
+                    file_path = self.config['app']['outputs'][name]['default']
+
+            if isinstance(file_path, list):
+                return file_path
+            else:
+                return [file_path]
+
+        if self.isGDParameters:
+            return getGDfilePath(name)
+        else:
+            return getGHfilePath(name)
+
     def setParameters(self):
         def formatParameters(item):
             (name, settings) = item
             parameter = AppParameter(settings)
-            pdb.set_trace()
-            param_dict = self.parameters['Parameters'][self.appname]['parameters'].get(name)
-            if param_dict:
-                parameter['value'] = param_dict['value']
+            parameter['value'] = self.getValue(name)
             return (name, parameter)
 
         def formatFiles(item, file_type):
@@ -390,7 +442,6 @@ class App(dict):
 
     def renderScript(self):
         template = Template(self.config['app']['cmd_template'])
-        pdb.set_trace()
         self.script = template.render(
             inputs = self.get('inputs'),
             outputs = self.get('outputs'),
