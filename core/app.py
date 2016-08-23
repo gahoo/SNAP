@@ -324,7 +324,11 @@ class App(dict):
 
     def getValue(self, name):
         def getGDvalue(name):
-            param_dict = self.parameters['Parameters'][self.appname]['parameters'].get(name)
+            if self.appname in self.parameters['Parameters']:
+                param_dict = self.parameters['Parameters'][self.appname]['parameters'].get(name)
+            else:
+                param_dict = None
+
             if param_dict:
                 return param_dict['value']
             else:
@@ -352,7 +356,7 @@ class App(dict):
             if not file_path:
                 if name in self.config['app']['inputs'].keys():
                     file_path = self.config['app']['inputs'][name]['default']
-                if name in self.config['app']['outputs'].keys():
+                if (self.config['app']['outputs']) and (name in self.config['app']['outputs'].keys()):
                     file_path = self.config['app']['outputs'][name]['default']
 
             if isinstance(file_path, list):
@@ -446,19 +450,19 @@ class App(dict):
             self.renderScripts()
             self.writeScripts()
 
-    def renderScript(self, cmd_template=None):
+    def renderScript(self, cmd_template=None, extra=None):
         if not cmd_template:
             cmd_template = self.config['app']['cmd_template']
         template = Template(cmd_template)
         return template.render(
             inputs = self.get('inputs'),
             outputs = self.get('outputs'),
-            parameters = self.get('parameters')
+            parameters = self.get('parameters'),
+            extra = extra,
             )
 
     def renderScripts(self):
-        pdb.set_trace()
-        if 'sample_name' in self.config['app']['parameters'].keys():
+        def renderSamples():
             cmd_template = self.renderScript()
             for sample in self.parameters['Samples']:
                 self['parameters']['sample_name']['value'] = sample['sample_name']
@@ -468,6 +472,66 @@ class App(dict):
                     script_file = None
                 script = self.renderScript(cmd_template)
                 self.scripts.append({"filename": script_file, "content": script})
+
+        def renderListParam(params, list_params_name):
+            def seperateParams(params, list_params_name):
+                new_params = params.copy()
+                list_params = dict()
+                for param_name in list_params_name:
+                    list_params[param_name] = new_params.pop(param_name)
+                return list_params, new_params
+
+            def hasSameLength(list_params):
+                return len(set(map(len, list_params.values()))) == 1
+
+            def paramDict2List(list_params, new_params):
+                '''
+                {A:[1, ...], B:[2, ...]} => [{A:1, B:2}, ...]
+                '''
+                def updateDict(idx):
+                    d = new_params.copy()
+                    d.update(getIndDict(idx))
+                    return d
+
+                def getIndDict(idx):
+                    '''
+                    make each {A:1, B:2}
+                    '''
+                    return dict([(k, list_params[k][idx]) for k in list_params.keys()])
+
+                cnt = len(list_params.values()[0])
+                return map(updateDict, range(cnt))
+
+            (list_params, new_params) = seperateParams(params, list_params_name)
+            if hasSameLength(list_params):
+                params_list = paramDict2List(list_params, new_params)
+            else:
+                raise ValueError('%s has different length' % list_params_name)
+
+            for n, param_dict in enumerate(params_list):
+                for param_name, value in param_dict.iteritems():
+                    self['parameters'][param_name]['value'] = value
+                if self.shell_path:
+                    # /path/to/script.{{extra.i}}.{{extra.rMATS_VS}}
+                    param_dict['i'] = n
+                    script_file = self.renderScript(self.shell_path, extra=param_dict)
+                else:
+                    script_file = None
+                script = self.renderScript(extra=param_dict)
+                self.scripts.append({"filename": script_file, "content": script})
+
+
+        def findListParams(params):
+            isList = lambda value: isinstance(value, list)
+            param_names = params.keys()
+            return [param_names[i] for i, v in enumerate(params.values()) if isList(v)]
+
+        params = self.parameters[self.appname][self.appname]
+        list_params_name = findListParams(params)
+        if 'sample_name' in self.config['app']['parameters'].keys():
+            renderSamples()
+        elif list_params_name:
+            renderListParam(params, list_params_name)
 
     def writeScripts(self):
         for script in self.scripts:
