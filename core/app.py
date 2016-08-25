@@ -120,10 +120,11 @@ class App(dict):
         self.type = "genedock"
         self.appid = ''
         self.appname = ''
+        self.module = ''
         self.app_path = app_path
         self.config_file = os.path.join(app_path, 'config.yaml')
         self.parameter_file = None
-        self.parameters = {'Inputs': {}, 'Outputs': {}, 'Parameters': {}}
+        self.parameters = {}
         self.isGDParameters = True
         self.scripts = []
         self.shell_path = ''
@@ -294,6 +295,7 @@ class App(dict):
             ('Outputs', formatOutputFiles),
             ]
 
+        self.setModule()
         map(mapFormat, to_format)
         self.parameters['Conditions'] = {'schedule': ""}
         self.parameters['Property'] = {
@@ -308,19 +310,50 @@ class App(dict):
             self.parameter_file = parameter_file
             self.dumpYaml(self.parameters, parameter_file)
 
-    def loadParameters(self, parameter_file=None):
-        if parameter_file != None:
-            self.parameter_file = parameter_file
-            self.parameters = self.loadYaml(parameter_file)
-        elif parameter_file == None and self.parameter_file == None:
-            raise ValueError("no parameter file to load.")
-        elif parameter_file == None and self.parameter_file != None:
-            self.parameters = self.loadYaml(self.parameter_file)
+    def loadParameters(self, parameters=None, parameter_file=None):
+        def loadParametersFromFile(parameter_file):
+            if parameter_file is not None:
+                self.parameter_file = parameter_file
+                self.parameters = self.loadYaml(parameter_file)
+            elif parameter_file is None and self.parameter_file is not None:
+                self.parameters = self.loadYaml(self.parameter_file)
+            elif parameter_file is None and self.parameter_file is None:
+                raise ValueError("no parameter file to load.")
 
-        self.isGDParameters = 'Inputs' in self.parameters.keys()
+        def checkParametersType():
+            self.isGDParameters = 'Inputs' in self.parameters.keys()
+            if not self.isGDParameters:
+                self.newParameters()
 
-        if not self.isGDParameters:
-            self.newParameters()
+        if parameters:
+            self.parameters = parameters
+        elif parameter_file or self.parameter_file:
+            loadParametersFromFile(parameter_file)
+        else:
+            self.parameters.update({'Inputs': {}, 'Outputs': {}, 'Parameters': {}})
+
+        checkParametersType()
+
+    def setModule(self, module=None):
+        def findModule(k, v):
+            if not isinstance(v, dict):
+                return False
+            elif self.appname in v.keys():
+                return k
+            else:
+                return False
+
+        if module:
+            self.module = module
+        else:
+            modules = [findModule(k, v) for k, v in self.parameters.iteritems()]
+            modules = filter(lambda x: x, modules)
+            if len(modules) > 1:
+                raise ValueError('modules:%s length > 1' % modules)
+            elif len(modules) == 1:
+                self.module = modules[0]
+            elif len(modules) == 0:
+                self.module = None
 
     def getValue(self, name):
         def getGDvalue(name):
@@ -335,7 +368,11 @@ class App(dict):
                 return None
 
         def getGHvalue(name):
-            value = self.parameters[self.appname][self.appname].get(name)
+            try:
+                value = self.parameters[self.module][self.appname].get(name)
+            except KeyError as e:
+                value = None
+
             if not value:
                 value = self.parameters['CommonParameters'].get(name)
             return value
@@ -350,14 +387,18 @@ class App(dict):
             pass
 
         def getGHfilePath(name):
-            file_path = self.parameters[self.appname][self.appname].get(name)
+            try:
+                file_path = self.parameters[self.module][self.appname].get(name)
+            except KeyError as e:
+                file_path = None
+
             if not file_path:
                 file_path = self.parameters['CommonData'].get(name)
             if not file_path:
                 if name in self.config['app']['inputs'].keys():
-                    file_path = self.config['app']['inputs'][name]['default']
+                    file_path = self.config['app']['inputs'][name].get('default')
                 if (self.config['app']['outputs']) and (name in self.config['app']['outputs'].keys()):
-                    file_path = self.config['app']['outputs'][name]['default']
+                    file_path = self.config['app']['outputs'][name].get('default')
 
             if isinstance(file_path, list):
                 return file_path
@@ -413,21 +454,21 @@ class App(dict):
         map(mapFormat, to_format)
 
     def new(self):
-        def mkdir_p(path):
-            try:
-                os.makedirs(path)
-            except OSError as exc:  # Python >2.5
-                if exc.errno == errno.EEXIST and os.path.isdir(path):
-                    pass
-                else:
-                    raise
-
-        createDir = lambda folder : mkdir_p("%s/%s" % (self.app_path, folder))
+        createDir = lambda folder : self.mkdir_p("%s/%s" % (self.app_path, folder))
         touchFile = lambda filename: open("%s/%s" % (self.app_path, filename), 'a').close()
 
         map(createDir, ['bin', 'lib', 'test'])
         map(touchFile, ['Dockerfile', 'README.md'])
         self.dumpYaml(self.config, self.config_file)
+
+    def mkdir_p(self, path):
+        try:
+            os.makedirs(path)
+        except OSError as exc:  # Python >2.5
+            if exc.errno == errno.EEXIST and os.path.isdir(path):
+                pass
+            else:
+                raise
 
     def check(self):
         """
@@ -435,13 +476,12 @@ class App(dict):
         """
         pass
 
-    def build(self, parameter_file=None, output=None):
+    def build(self, parameters=None, parameter_file=None, output=None):
         self.shell_path = output
         self.load()
-        if parameter_file == None and self.parameter_file == None:
+        self.loadParameters(parameters, parameter_file)
+        if not self.parameters:
             self.newParameters()
-        else:
-            self.loadParameters(parameter_file)
         self.setParameters()
         if self.isGDParameters:
             script = self.renderScript()
@@ -520,18 +560,35 @@ class App(dict):
                 script = self.renderScript(extra=param_dict)
                 self.scripts.append({"filename": script_file, "content": script})
 
+        def renderEachParam(template=None, extra=None):
+            if self.shell_path:
+                script_file = self.renderScript(self.shell_path, extra=extra)
+            else:
+                script_file = None
+            script = self.renderScript(template, extra=extra)
+            self.scripts.append({"filename": script_file, "content": script})
 
         def findListParams(params):
             isList = lambda value: isinstance(value, list)
             param_names = params.keys()
             return [param_names[i] for i, v in enumerate(params.values()) if isList(v)]
 
-        params = self.parameters[self.appname][self.appname]
-        list_params_name = findListParams(params)
+        try:
+            print self.config['app']['parameters'].keys()
+            params = self.parameters[self.module][self.appname]
+            list_params_name = findListParams(params)
+        except KeyError as e:
+            print self.module, self.appname
+            params = None
+            list_params_name =None
+
         if 'sample_name' in self.config['app']['parameters'].keys():
+            #something wrong around here
             renderSamples()
         elif list_params_name:
             renderListParam(params, list_params_name)
+        elif not self.module and params is None:
+            renderEachParam()
 
     def writeScripts(self):
         for script in self.scripts:
@@ -545,6 +602,7 @@ class App(dict):
             #for windows users
             pass
         else:
+            self.mkdir_p(os.path.dirname(filename))
             with open(filename, 'w') as f:
                 f.write(content)
 
