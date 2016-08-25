@@ -35,7 +35,7 @@ class AppParameter(dict):
             return string % (self.get('prefix'), self.get('separator'), value)
 
         def formatFlag():
-            if self.get('value') == True:
+            if self.get('value') is True:
                 string = self.get('prefix')
             else:
                 string = ""
@@ -45,7 +45,7 @@ class AppParameter(dict):
             return formatValue(self.get('value'))
 
         def formatString():
-            if self.get('quotes') == True:
+            if self.get('quotes') is True:
                 string = "%s%s'%s'"
             else:
                 string = "%s%s%s"
@@ -53,7 +53,7 @@ class AppParameter(dict):
 
         def formatArray():
             item_setting = self.get('item')
-            if item_setting['type'] == 'string' and item_setting['item_quotes'] == True:
+            if item_setting['type'] == 'string' and item_setting['item_quotes'] is True:
                 values = ["'%s'" % value for value in self.get('value')]
             else:
                 values = self.get('value')
@@ -69,7 +69,7 @@ class AppParameter(dict):
         def formatNumber():
             return formatValue(self.get('value'))
 
-        if self.get('value') == None:
+        if self.get('value') is None:
             self['value'] = self.get('default')
 
         if self.get('type') == 'flag':
@@ -95,7 +95,7 @@ class AppFile(dict):
         self.updatePath()
 
     def updatePath(self):
-        if self.get('name') != None:
+        if self.get('name') is not None:
             self.path = self.get('name')
         else:
             self.path = "/var/data/%s.%s" % (self.enid, self.__getExt())
@@ -286,7 +286,7 @@ class App(dict):
         def mapFormat(item):
             (name, func) = item
             lower_name = name.lower()
-            if self.config['app'][lower_name] != None:
+            if self.config['app'][lower_name] is not None:
                 self.parameters[name] = dict(map(func, self.config['app'][lower_name].iteritems()))
 
         to_format = [
@@ -306,7 +306,7 @@ class App(dict):
             'name': "test_%s" % self.config['app']['name']
             }
 
-        if parameter_file != None:
+        if parameter_file is not None:
             self.parameter_file = parameter_file
             self.dumpYaml(self.parameters, parameter_file)
 
@@ -335,19 +335,18 @@ class App(dict):
         checkParametersType()
 
     def setModule(self, module=None):
-        def findModule(k, v):
+        def inModule(k, v):
             if not isinstance(v, dict):
                 return False
             elif self.appname in v.keys():
-                return k
+                return True
             else:
                 return False
 
         if module:
             self.module = module
         else:
-            modules = [findModule(k, v) for k, v in self.parameters.iteritems()]
-            modules = filter(lambda x: x, modules)
+            modules = [k for k, v in self.parameters.iteritems() if inModule(k, v)]
             if len(modules) > 1:
                 raise ValueError('modules:%s length > 1' % modules)
             elif len(modules) == 1:
@@ -442,7 +441,7 @@ class App(dict):
 
         def mapFormat(item):
             (name, func) = item
-            if self.config['app'][name] != None:
+            if self.config['app'][name] is not None:
                 self[name] = dict(map(func, self.config['app'][name].iteritems()))
 
         to_format = [
@@ -570,7 +569,7 @@ class App(dict):
         except KeyError as e:
             # print self.module, self.appname
             params = None
-            list_params_name =None
+            list_params_name = None
 
         if 'sample_name' in self.config['app']['parameters'].keys():
             #something wrong around here
@@ -585,7 +584,7 @@ class App(dict):
             self.write(script['content'], script['filename'])
 
     def write(self, content, filename=None):
-        if filename == None:
+        if filename is None:
             sys.stdout.write(content)
             sys.stdout.write('\n-----------------------\n')
         elif filename == '/dev/null':
@@ -657,8 +656,8 @@ class App(dict):
             return (name, node)
 
         def addAppNodes():
-            buildEnid = lambda name : (name, [{'enid': name}])
-            buildParameter = lambda name : (name, {'value':None, 'variable':False})
+            buildEnid = lambda name: (name, [{'enid': name}])
+            buildParameter = lambda name: (name, {'value': None, 'variable': False})
 
             node = {
                 'node_id': self.config['app']['name'].replace(' ', '_'),
