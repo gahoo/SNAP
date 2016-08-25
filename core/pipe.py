@@ -8,6 +8,7 @@ import sys
 import errno
 from jinja2 import Template
 from yamlRepresenter import folded_unicode, literal_unicode
+from app import App
 
 
 class WorkflowParameter(object):
@@ -151,3 +152,66 @@ class WorkflowParameter(object):
             else:
                 filename = os.path.join(output_path, "%s_parameters.yaml" % self.workflow_name)
             self.save(filename, content)
+
+
+class Pipe(dict):
+    """The Pipe related things."""
+    def __init__(self, pipe_path):
+        super(Pipe, self).__init__()
+        self.pipe_path = pipe_path
+        self.proj_path = ''
+        self.apps = {}
+        self.parameter_file = ''
+        self.parameters = {}
+
+    def new(self):
+        pass
+
+    def loadAllApps(self):
+        def isApp(files):
+            return 'config.yaml' in files
+
+        def loadAPP(app_path):
+            app = App(app_path)
+            try:
+                app.load()
+            # except (yaml.scanner.ScannerError, yaml.parser.ParserError) as e:
+            except Exception as e:
+                print app_path
+                print e
+            app.shell_path = os.path.basename(os.path.dirname(app_path))
+            return app
+
+        excludes = ['example', 'database', '.git']
+        for root, dirs, files in os.walk(self.pipe_path, topdown=True, followlinks=True):
+            dirs[:] = [d for d in dirs if d not in excludes]
+            if isApp(files):
+                app = loadAPP(root)
+                if app.appname:
+                    self.apps[app.appname] = app
+                    dirs[:] = []
+                    continue
+
+    def build(self, parameter_file=None, proj_path=None):
+        self.proj_path = os.path.abspath(proj_path)
+        self.loadAllApps()
+        self.loadParameters(parameter_file)
+        for app in self.apps.values():
+            sh_file = os.path.join(self.proj_path, 'shell', app.shell_path, app.config['app']['sh_name'])
+            print app.appname, sh_file
+            parameters = self.parameters.copy()
+            app.build(parameters=parameters, output=sh_file)
+
+    def loadYaml(self, filename):
+        with open(filename, 'r') as yaml_file:
+            return yaml.load(yaml_file)
+
+    def loadParameters(self, parameter_file=None):
+        if parameter_file:
+            self.parameter_file = parameter_file
+            self.parameters = self.loadYaml(parameter_file)
+        else:
+            raise ValueError("no parameter file to load.")
+
+    def run(self):
+        pass
