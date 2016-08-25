@@ -159,15 +159,17 @@ class Pipe(dict):
     def __init__(self, pipe_path):
         super(Pipe, self).__init__()
         self.pipe_path = pipe_path
-        self.proj_path = ''
+        self.proj_path = '.'
         self.apps = {}
         self.parameter_file = ''
         self.parameters = {}
+        self.dependencies = {}
+        self.pymonitor_conf = []
 
     def new(self):
         pass
 
-    def loadAllApps(self):
+    def loadPipe(self):
         def isApp(files):
             return 'config.yaml' in files
 
@@ -182,6 +184,13 @@ class Pipe(dict):
             app.shell_path = os.path.basename(os.path.dirname(app_path))
             return app
 
+        def isDependency(files):
+            return 'dependencies.yaml' in files
+
+        def loadDependency(root):
+            depend = self.loadYaml(os.path.join(root, 'dependencies.yaml'))
+            self.dependencies.update(depend)
+
         excludes = ['example', 'database', '.git']
         for root, dirs, files in os.walk(self.pipe_path, topdown=True, followlinks=True):
             dirs[:] = [d for d in dirs if d not in excludes]
@@ -191,25 +200,65 @@ class Pipe(dict):
                     self.apps[app.appname] = app
                     dirs[:] = []
                     continue
+                else:
+                    raise IOError("%s is not valid app" % root)
+
+            if isDependency(files):
+                loadDependency(root)
 
     def build(self, parameter_file=None, proj_path=None):
-        self.proj_path = os.path.abspath(proj_path)
-        self.loadAllApps()
+        if proj_path:
+            self.proj_path = os.path.abspath(proj_path)
         self.loadParameters(parameter_file)
+        self.loadPipe()
+        self.buildApps()
+        self.buildDepends()
+
+    def buildApps(self):
         for app in self.apps.values():
-            sh_file = os.path.join(self.proj_path, 'shell', app.shell_path, app.config['app']['sh_name'])
-            print app.appname, sh_file
             parameters = self.parameters.copy()
+            sh_file = os.path.join(self.proj_path, self.dependencies[app.appname]['sh_file'])
+            # print app.appname, sh_file
             app.build(parameters=parameters, output=sh_file)
+
+    def buildDepends(self):
+        def getAppScripts(appname):
+            return [sh['filename'] for sh in self.apps[appname].scripts]
+
+        def makeAppPymonitorConf(appname):
+            for script in scripts[appname]:
+                for dep_appname in self.dependencies[appname]['depends']:
+                    for dep_script in scripts[dep_appname]:
+                        line = "%s:%s\t%s:%s" % (
+                            dep_script,
+                            self.apps[dep_appname].config['app']['requirements']['resources']['mem'],
+                            script,
+                            self.apps[appname].config['app']['requirements']['resources']['mem'])
+                        self.pymonitor_conf.append(line)
+
+        scripts = {}
+        for appname in self.dependencies.keys():
+            scripts[appname] = getAppScripts(appname)
+
+        map(makeAppPymonitorConf, self.dependencies.keys())
+        pymonitor_conf = os.path.join(self.proj_path, 'monitor.conf')
+        content = "\n".join(self.pymonitor_conf)
+        self.write(pymonitor_conf, content)
 
     def loadYaml(self, filename):
         with open(filename, 'r') as yaml_file:
             return yaml.load(yaml_file)
 
+    def write(self, filename, content):
+        with open(filename, 'w') as output_file:
+            output_file.write(content)
+
     def loadParameters(self, parameter_file=None):
         if parameter_file:
             self.parameter_file = parameter_file
             self.parameters = self.loadYaml(parameter_file)
+            if not self.proj_path:
+                self.proj_path = self.parameters['CommonParameters']['WORKSPACE']
         else:
             raise ValueError("no parameter file to load.")
 
