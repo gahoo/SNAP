@@ -226,15 +226,36 @@ class Pipe(dict):
             return [sh['filename'] for sh in self.apps[appname].scripts]
 
         def makeAppPymonitorConf(appname):
-            for script in scripts[appname]:
-                for dep_appname in self.dependencies[appname]['depends']:
-                    for dep_script in scripts[dep_appname]:
-                        line = "%s:%s\t%s:%s" % (
-                            dep_script,
-                            self.apps[dep_appname].config['app']['requirements']['resources']['mem'],
-                            script,
-                            self.apps[appname].config['app']['requirements']['resources']['mem'])
+            def buildLines(dep_appname):
+                def buildOneLine(dep_script, script):
+                    return "%s:%s\t%s:%s" % (
+                        dep_script,
+                        self.apps[dep_appname].config['app']['requirements']['resources']['mem'],
+                        script,
+                        self.apps[appname].config['app']['requirements']['resources']['mem'])
+
+                def makeSampleLines():
+                    for sample in self.parameters['Samples']:
+                        sample_dict = {'sample_name': sample['sample_name']}
+                        script = self.apps[appname].shell_path
+                        script = self.apps[appname].renderScript(script, parameters=sample_dict)
+                        dep_script = self.apps[dep_appname].shell_path
+                        dep_script = self.apps[dep_appname].renderScript(dep_script, sample_dict)
+                        line = buildOneLine(dep_script, script)
                         self.pymonitor_conf.append(line)
+
+                def combLines():
+                    for script in scripts[appname]:
+                        for dep_script in scripts[dep_appname]:
+                            line = buildOneLine(dep_script, script)
+                            self.pymonitor_conf.append(line)
+
+                if self.apps[appname].type == 'sample' and self.apps[dep_appname].type == 'sample':
+                    makeSampleLines()
+                else:
+                    combLines()
+
+            map(buildLines, self.dependencies[appname]['depends'])
 
         scripts = {}
         for appname in self.dependencies.keys():
