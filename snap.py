@@ -6,6 +6,7 @@ import sys
 import os
 from core.app import App
 from core.pipe import WorkflowParameter
+from core.pipe import Pipe
 
 
 def new_app(args):
@@ -31,7 +32,7 @@ def init_app(args):
 
 def build_app(args):
     app = init_app(args)
-    app.build(args.param, args.out)
+    app.build(parameter_file=args.param, output=args.out)
 
 def node_app(args):
     app = init_app(args)
@@ -40,7 +41,7 @@ def node_app(args):
     else:
         nodes = app.nodes(args.type)
         if(args.node):
-            #select node
+            # select node
             app.dumpYaml([nodes[args.node]], args.out)
         else:
             app.dumpYaml(nodes.values(), args.out)
@@ -51,6 +52,19 @@ def parameter_pipe(args):
         parameter.render(args.out)
     else:
         print >> sys.stderr, "workflow name must be specified."
+        os._exit(0)
+
+def build_pipe(args):
+    if args.pipe_path and os.path.isdir(args.pipe_path):
+        pipe = Pipe(args.pipe_path)
+    else:
+        print >> sys.stderr, "Pipeline path is invalid"
+        os._exit(0)
+
+    if args.param:
+        pipe.build(parameter_file=args.param, proj_path=args.out)
+    else:
+        print >> sys.stderr, "parameters.conf is missing."
         os._exit(0)
 
 if __name__ == "__main__":
@@ -129,6 +143,19 @@ if __name__ == "__main__":
     subparsers_pipe_parameter.add_argument('-values', help="file contains values to be replace in template.yaml")
     subparsers_pipe_parameter.add_argument('-out', help="output render result to file. default write to stdout")
     subparsers_pipe_parameter.set_defaults(func=parameter_pipe)
+
+    # pipe build
+    subparsers_pipe_build = subparsers_pipe.add_parser('build',
+        help='PIPE build shell and dependencies',
+        description="This command render all app config.yaml into *.sh with parameters.conf. "
+        "Build dependencies and everything needed to run a pipe",
+        prog='snap pipe build',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_pipe_build.add_argument('-pipe_path', help="the path to the pipeline")
+    subparsers_pipe_build.add_argument('-param', help = "render from parameter.yaml file. default will be use if not specified.")
+    subparsers_pipe_build.add_argument('-out', help="output everything needed for a project")
+    subparsers_pipe_build.set_defaults(func=build_pipe)
+
 
 if __name__ == '__main__':
     argslist = sys.argv[1:]
