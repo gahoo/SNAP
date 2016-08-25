@@ -117,7 +117,7 @@ class App(dict):
     """Everything about App"""
     def __init__(self, app_path):
         super(App, self).__init__()
-        self.type = "genedock"
+        self.type = ''
         self.appid = ''
         self.appname = ''
         self.module = ''
@@ -489,14 +489,16 @@ class App(dict):
             self.renderScripts()
             self.writeScripts()
 
-    def renderScript(self, cmd_template=None, extra=None):
+    def renderScript(self, cmd_template=None, parameters=None, extra=None):
         if not cmd_template:
             cmd_template = self.config['app']['cmd_template']
+        if not parameters:
+            parameters = self.get('parameters')
         template = Template(cmd_template)
         return template.render(
             inputs = self.get('inputs'),
             outputs = self.get('outputs'),
-            parameters = self.get('parameters'),
+            parameters = parameters,
             extra = extra,
             )
 
@@ -574,10 +576,13 @@ class App(dict):
         if 'sample_name' in self.config['app']['parameters'].keys():
             #something wrong around here
             renderSamples()
+            self.type = 'sample'
         elif list_params_name:
             renderListParam(params, list_params_name)
+            self.type = 'list'
         elif not self.module and params is None:
             renderEachParam()
+            self.type = 'single'
 
     def writeScripts(self):
         for script in self.scripts:
