@@ -506,12 +506,7 @@ class App(dict):
             cmd_template = self.renderScript()
             for sample in self.parameters['Samples']:
                 self['parameters']['sample_name']['value'] = sample['sample_name']
-                if self.shell_path:
-                    script_file = self.renderScript(self.shell_path)
-                else:
-                    script_file = None
-                script = self.renderScript(cmd_template)
-                self.scripts.append({"filename": script_file, "content": script})
+                renderEachParam(cmd_template, extra=None)
 
         def renderListParam(params, list_params_name):
             def seperateParams(params, list_params_name):
@@ -542,6 +537,9 @@ class App(dict):
                 cnt = len(list_params.values()[0])
                 return map(updateDict, range(cnt))
 
+            def setParam(param_name, value):
+                self['parameters'][param_name]['value'] = value
+
             (list_params, new_params) = seperateParams(params, list_params_name)
             if hasSameLength(list_params):
                 params_list = paramDict2List(list_params, new_params)
@@ -549,16 +547,9 @@ class App(dict):
                 raise ValueError('%s has different length' % list_params_name)
 
             for n, param_dict in enumerate(params_list):
-                for param_name, value in param_dict.iteritems():
-                    self['parameters'][param_name]['value'] = value
-                if self.shell_path:
-                    # /path/to/script.{{extra.i}}.{{extra.rMATS_VS}}
-                    param_dict['i'] = n
-                    script_file = self.renderScript(self.shell_path, extra=param_dict)
-                else:
-                    script_file = None
-                script = self.renderScript(extra=param_dict)
-                self.scripts.append({"filename": script_file, "content": script})
+                map(setParam, param_dict.keys(), param_dict.values())
+                param_dict['i'] = n
+                renderEachParam(extra=param_dict)
 
         def renderEachParam(template=None, extra=None):
             if self.shell_path:
@@ -574,11 +565,10 @@ class App(dict):
             return [param_names[i] for i, v in enumerate(params.values()) if isList(v)]
 
         try:
-            print self.config['app']['parameters'].keys()
             params = self.parameters[self.module][self.appname]
             list_params_name = findListParams(params)
         except KeyError as e:
-            print self.module, self.appname
+            # print self.module, self.appname
             params = None
             list_params_name =None
 
