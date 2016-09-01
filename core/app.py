@@ -462,7 +462,8 @@ class App(dict):
 
     def mkdir_p(self, path):
         try:
-            os.makedirs(path)
+            if path:
+                os.makedirs(path)
         except OSError as exc:  # Python >2.5
             if exc.errno == errno.EEXIST and os.path.isdir(path):
                 pass
@@ -504,9 +505,9 @@ class App(dict):
 
     def renderScripts(self):
         def renderSamples():
-            cmd_template = self.renderScript()
             for sample in self.parameters['Samples']:
                 self['parameters']['sample_name']['value'] = sample['sample_name']
+                cmd_template = self.renderScript()
                 renderEachParam(cmd_template, extra=None)
 
         def renderListParam(params, list_params_name):
