@@ -7,7 +7,7 @@ import pdb
 import sys
 import errno
 from jinja2 import Template
-from yamlRepresenter import folded_unicode, literal_unicode
+from customizedYAML import folded_unicode, literal_unicode, include_constructor
 from app import App
 
 

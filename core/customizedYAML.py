@@ -1,4 +1,5 @@
 import yaml
+import os
 from collections import OrderedDict
 
 # codes form stackoverflow.com
@@ -28,3 +29,17 @@ yaml.add_representer(literal_unicode, literal_unicode_representer)
 yaml.add_representer(quoted, quoted_presenter)
 yaml.add_representer(literal, literal_presenter)
 yaml.add_representer(OrderedDict, ordered_dict_presenter)
+
+
+def include_constructor(loader, node):
+    filename = loader.construct_scalar(node)
+    if not os.path.exists(filename):
+        stream_filename = os.path.abspath(loader.stream.name)
+        stream_dirname = os.path.dirname(stream_filename)
+        filename = os.path.join(stream_dirname, filename)
+
+    with open(filename) as f:
+        data = yaml.load(f)
+    return data
+
+yaml.add_constructor(u'!include', include_constructor)
