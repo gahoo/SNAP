@@ -386,23 +386,42 @@ class App(dict):
             pass
 
         def getGHfilePath(name):
-            try:
+            # Parameters App
+            if self.module in self.parameters.keys():
                 file_path = self.parameters[self.module][self.appname].get(name)
-            except KeyError as e:
+            else:
                 file_path = None
-
+            # Parameters CommonData
             if not file_path:
                 file_path = self.parameters['CommonData'].get(name)
+            # Parameters defaults
             if not file_path:
                 if name in self.config['app']['inputs'].keys():
-                    file_path = self.config['app']['inputs'][name].get('default')
+                    file_path = renderDefaultPath('inputs')
                 if (self.config['app']['outputs']) and (name in self.config['app']['outputs'].keys()):
-                    file_path = self.config['app']['outputs'][name].get('default')
+                    file_path = renderDefaultPath('outputs')
 
             if isinstance(file_path, list):
                 return file_path
             else:
                 return [file_path]
+
+        def renderDefaultPath(file_type):
+            def renderPath(sample=None):
+                parameters = {'WORKSPACE': WORKSPACE}
+                if sample:
+                    extra = {'sample_name': sample['sample_name']}
+                else:
+                    extra = None
+                return self.renderScript(path_template, parameters=parameters, extra=extra)
+
+            # notice: this WORKSPACE might cause inconsistance with -out using pipe build
+            WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
+            path_template = self.config['app'][file_type][name].get('default')
+            if path_template.count('{{extra.sample_name}}'):
+                return map(renderPath, self.parameters['Samples'])
+            else:
+                return [renderPath()]
 
         if self.isGDParameters:
             return getGDfilePath(name)
