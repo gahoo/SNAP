@@ -609,6 +609,11 @@ class App(dict):
             renderListParam(params, list_params_name)
             self.type = 'list'
         elif not self.module and params is None:
+            msg = "%s not in any module, and has no params"
+            print dyeWARNING(msg)
+            renderEachParam()
+            self.type = 'single'
+        else:
             renderEachParam()
             self.type = 'single'
 
