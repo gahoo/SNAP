@@ -8,6 +8,7 @@ import sys
 import errno
 from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
+from colorMessage import dyeWARNING
 
 
 class AppParameter(dict):
@@ -418,7 +419,15 @@ class App(dict):
             # notice: this WORKSPACE might cause inconsistance with -out using pipe build
             WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
             path_template = self.config['app'][file_type][name].get('default')
-            if path_template.count('{{extra.sample_name}}'):
+            if path_template is None:
+                raise KeyError('%s:%s.%s has no default' % (self.appname, file_type, name))
+
+            if path_template == '':
+                msg = 'Warning: %s:%s.%s has empty default' % (self.appname, file_type, name)
+                print dyeWARNING(msg)
+                return ['']
+
+            if '{{extra.sample_name}}' in path_template:
                 return map(renderPath, self.parameters['Samples'])
             else:
                 return [renderPath()]
@@ -510,7 +519,7 @@ class App(dict):
             self.writeScripts()
 
     def renderScript(self, cmd_template=None, parameters=None, extra=None):
-        if not cmd_template:
+        if cmd_template is None:
             cmd_template = self.config['app']['cmd_template']
         if not parameters:
             parameters = self.get('parameters')
@@ -526,8 +535,7 @@ class App(dict):
         def renderSamples():
             for sample in self.parameters['Samples']:
                 self['parameters']['sample_name']['value'] = sample['sample_name']
-                cmd_template = self.renderScript()
-                renderEachParam(cmd_template, extra=None)
+                renderEachParam(extra=None)
 
         def renderListParam(params, list_params_name):
             def seperateParams(params, list_params_name):
