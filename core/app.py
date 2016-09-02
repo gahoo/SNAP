@@ -215,102 +215,6 @@ class App(dict):
         if os.path.exists(appid_file):
             self.appid = open(appid_file, 'r').read().strip()
 
-    def newParameters(self, parameter_file=None):
-        """
-        make parameter template from config after setParameters init
-        """
-        def formatParameters(item):
-            (name, settings) = item
-
-            value = self.getValue(name)
-            if not value:
-                value = settings['default']
-
-            new_settings = {
-                'hint': settings['hint'],
-                'required': settings['required'],
-                'type': settings['type'],
-                'value': value,
-                'variable': True
-                }
-            return (name, new_settings)
-
-        def formatFiles(item, file_type):
-            (name, settings) = item
-
-            file_paths = self.getFilePath(name)
-            if not file_paths:
-                file_paths = ["/path/to/data/to/load/%s" % name]
-
-            _property = {
-                'block_file': {
-                    'block_name': None,
-                    'is_block': False,
-                    'split_format': 'default'
-                }
-            }
-
-            new_settings = {
-                'alias': 'load %s' % name,
-                'formats': settings['formats'],
-                'maxitems': settings['maxitems'],
-                'minitems': settings['minitems'],
-                'type': 'file'
-            }
-
-            data = []
-            for file_path in file_paths:
-                data.append({
-                    'enid': name,
-                    'name': file_path,
-                    'property': _property,
-                    'description': "%s file" % name
-                })
-
-            if file_type == 'Inputs':
-                prefix = 'loaddata'
-                new_settings['alias'] = "%s %s" % (prefix, name)
-                new_settings['data'] = data
-                new_settings['category'] = prefix
-                new_settings['required'] = settings['required']
-            elif file_type == 'Outputs':
-                prefix = 'storedata'
-                new_settings['alias'] = "%s %s" % (prefix, name)
-                new_settings['data'] = data
-            else:
-                raise TypeError("file_type can only be Inputs or Outputs")
-            return ("%s_%s" % (prefix, name), new_settings)
-
-        formatInputFiles = functools.partial(formatFiles, file_type='Inputs')
-        formatOutputFiles = functools.partial(formatFiles, file_type='Outputs')
-
-        def mapFormat(item):
-            (name, func) = item
-            lower_name = name.lower()
-            if self.config['app'][lower_name] is not None:
-                self.parameters[name] = dict(map(func, self.config['app'][lower_name].iteritems()))
-
-        to_format = [
-            ('Parameters', formatParameters),
-            ('Inputs', formatInputFiles),
-            ('Outputs', formatOutputFiles),
-            ]
-
-        self.setModule()
-        map(mapFormat, to_format)
-        self.parameters['Conditions'] = {'schedule': ""}
-        self.parameters['Property'] = {
-            'CDN': {'required': True},
-            'reference_task': [{'id': None}],
-            'water_mark': {'required': True, 'style': None},
-            'description': "test_%s" % self.config['app']['name'],
-            'name': "test_%s" % self.config['app']['name']
-            }
-
-        if parameter_file is not None:
-            self.parameter_file = parameter_file
-            self.dumpYaml(self.parameters, parameter_file)
-
     def loadParameters(self, parameters=None, parameter_file=None):
         def loadParametersFromFile(parameter_file):
             if parameter_file is not None:
@@ -323,8 +227,6 @@ class App(dict):
 
         def checkParametersType():
             self.isGDParameters = 'Inputs' in self.parameters.keys()
-            if not self.isGDParameters:
-                self.newParameters()
 
         if parameters:
             self.parameters = parameters
@@ -368,10 +270,7 @@ class App(dict):
                 return None
 
         def getGHvalue(name):
-            try:
-                value = self.parameters[self.module][self.appname].get(name)
-            except KeyError as e:
-                value = None
+            value = self.loadParameterValue(name)
 
             if not value:
                 value = self.parameters['CommonParameters'].get(name)
@@ -382,16 +281,20 @@ class App(dict):
         else:
             return getGHvalue(name)
 
+    def loadParameterValue(self, name):
+        try:
+            value = self.parameters[self.module][self.appname].get(name)
+        except (KeyError, AttributeError) as e:
+            value = None
+        return value
+
     def getFilePath(self, name):
         def getGDfilePath(name):
             pass
 
         def getGHfilePath(name):
             # Parameters App
-            if self.module in self.parameters.keys():
-                file_path = self.parameters[self.module][self.appname].get(name)
-            else:
-                file_path = None
+            file_path = self.loadParameterValue(name)
             # Parameters CommonData
             if not file_path:
                 file_path = self.parameters['CommonData'].get(name)
@@ -438,6 +341,81 @@ class App(dict):
             return getGHfilePath(name)
 
     def setParameters(self):
+        def newParameters(item):
+            (name, settings) = item
+
+            value = self.getValue(name)
+            if not value:
+                value = settings['default']
+
+            new_settings = {
+                'hint': settings['hint'],
+                'required': settings['required'],
+                'type': settings['type'],
+                'value': value,
+                'variable': True
+                }
+            return (name, new_settings)
+
+        def newFiles(item, file_type):
+            (name, settings) = item
+
+            file_paths = self.getFilePath(name)
+            if not file_paths:
+                file_paths = ["/path/to/data/to/load/%s" % name]
+
+            _property = {
+                'block_file': {
+                    'block_name': None,
+                    'is_block': False,
+                    'split_format': 'default'
+                }
+            }
+
+            new_settings = {
+                'alias': 'load %s' % name,
+                'formats': settings['formats'],
+                'maxitems': settings['maxitems'],
+                'minitems': settings['minitems'],
+                'type': 'file'
+            }
+
+            data = []
+            for file_path in file_paths:
+                data.append({
+                    'enid': name,
+                    'name': file_path,
+                    'property': _property,
+                    'description': "%s file" % name
+                })
+
+            if file_type == 'Inputs':
+                prefix = 'loaddata'
+                new_settings['alias'] = "%s %s" % (prefix, name)
+                new_settings['data'] = data
+                new_settings['category'] = prefix
+                new_settings['required'] = settings['required']
+            elif file_type == 'Outputs':
+                prefix = 'storedata'
+                new_settings['alias'] = "%s %s" % (prefix, name)
+                new_settings['data'] = data
+            else:
+                raise TypeError("file_type can only be Inputs or Outputs")
+            return ("%s_%s" % (prefix, name), new_settings)
+
+        newInputFiles = functools.partial(newFiles, file_type='Inputs')
+        newOutputFiles = functools.partial(newFiles, file_type='Outputs')
+
+        def newOthers():
+            self.parameters['Conditions'] = {'schedule': ""}
+            self.parameters['Property'] = {
+                'CDN': {'required': True},
+                'reference_task': [{'id': None}],
+                'water_mark': {'required': True, 'style': None},
+                'description': "test_%s" % self.config['app']['name'],
+                'name': "test_%s" % self.config['app']['name']
+                }
+
         def formatParameters(item):
             (name, settings) = item
             parameter = AppParameter(settings)
@@ -467,18 +445,32 @@ class App(dict):
         formatInputFiles = functools.partial(formatFiles, file_type='Inputs')
         formatOutputFiles = functools.partial(formatFiles, file_type='Outputs')
 
-        def mapFormat(item):
-            (name, func) = item
-            if self.config['app'][name] is not None:
-                self[name] = dict(map(func, self.config['app'][name].iteritems()))
+        def makeParameters(name):
+            lower_name = name.lower()
+            if self.config['app'][lower_name] is not None and needNew:
+                new_params = map(newFunc[name], self.config['app'][lower_name].iteritems())
+                self.parameters[name] = dict(new_params)
+            if self.config['app'][lower_name] is not None:
+                params = map(formatFunc[lower_name], self.config['app'][lower_name].iteritems())
+                self[lower_name] = dict(params)
 
-        to_format = [
-            ('parameters', formatParameters),
-            ('inputs', formatInputFiles),
-            ('outputs', formatOutputFiles),
-            ]
+        newFunc = {
+            'Parameters': newParameters,
+            'Inputs': newInputFiles,
+            'Outputs': newOutputFiles,
+            }
 
-        map(mapFormat, to_format)
+        formatFunc = {
+            'parameters': formatParameters,
+            'inputs': formatInputFiles,
+            'outputs': formatOutputFiles,
+            }
+
+        needNew = not self.parameters or not self.isGDParameters
+        self.setModule()
+        map(makeParameters, ['Parameters', 'Inputs', 'Outputs'])
+        if needNew:
+            newOthers()
 
     def new(self):
         createDir = lambda folder : self.mkdir_p("%s/%s" % (self.app_path, folder))
@@ -508,8 +500,6 @@ class App(dict):
         self.shell_path = output
         self.load()
         self.loadParameters(parameters, parameter_file)
-        if not self.parameters:
-            self.newParameters()
         self.setParameters()
         if self.isGDParameters:
             script = self.renderScript()
@@ -596,7 +586,7 @@ class App(dict):
         try:
             params = self.parameters[self.module][self.appname]
             list_params_name = findListParams(params)
-        except KeyError as e:
+        except (KeyError, AttributeError) as e:
             # print self.module, self.appname
             params = None
             list_params_name = None
@@ -608,8 +598,8 @@ class App(dict):
         elif list_params_name:
             renderListParam(params, list_params_name)
             self.type = 'list'
-        elif not self.module and params is None:
-            msg = "%s not in any module, and has no params"
+        elif not self.module:
+            msg = "%s not in any module" % self.appname
             print dyeWARNING(msg)
             renderEachParam()
             self.type = 'single'
@@ -639,8 +629,10 @@ class App(dict):
     def run(self):
         pass
 
-    def dump_parameter(self):
-        pass
+    def dump_parameter(self, parameter_file=None):
+        if parameter_file is not None:
+            self.parameter_file = parameter_file
+            self.dumpYaml(self.parameters, parameter_file)
 
     def loadYaml(self, filename):
         with open(filename, 'r') as yaml_file:
