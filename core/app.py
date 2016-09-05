@@ -518,7 +518,7 @@ class App(dict):
     def renderScripts(self):
         def renderSamples():
             def updateFq(fq):
-                if self['inputs'][fq][0]['name'] is '':
+                if fq in self['inputs'] and self['inputs'][fq][0]['name'] is '':
                     self['inputs'][fq][0]['name'] = sample[fq]
                     self['inputs'][fq][0].updatePath()
 
