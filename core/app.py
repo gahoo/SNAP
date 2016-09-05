@@ -311,13 +311,9 @@ class App(dict):
                 return [file_path]
 
         def renderDefaultPath(file_type):
-            def renderPath(sample=None):
-                parameters = {'WORKSPACE': WORKSPACE}
-                if sample:
-                    extra = {'sample_name': sample['sample_name']}
-                else:
-                    extra = None
-                return self.renderScript(path_template, parameters=parameters, extra=extra)
+            def renderPath(sample):
+                extra = {'sample_name': sample['sample_name']}
+                return self.renderScript(path_template, extra=extra)
 
             # notice: this WORKSPACE might cause inconsistance with -out using pipe build
             WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
@@ -333,7 +329,7 @@ class App(dict):
             if '{{extra.sample_name}}' in path_template:
                 return map(renderPath, self.parameters['Samples'])
             else:
-                return [renderPath()]
+                return [path_template]
 
         if self.isGDParameters:
             return getGDfilePath(name)
@@ -576,6 +572,8 @@ class App(dict):
             else:
                 script_file = None
             script = self.renderScript(template, extra=extra)
+            if script.count('{{parameters'):
+                script = self.renderScript(script, extra=extra)
             self.scripts.append({"filename": script_file, "content": script})
 
         def findListParams(params):
@@ -599,7 +597,7 @@ class App(dict):
             renderListParam(params, list_params_name)
             self.type = 'list'
         elif not self.module:
-            msg = "%s not in any module" % self.appname
+            msg = "Warning: %s not in any module" % self.appname
             print dyeWARNING(msg)
             renderEachParam()
             self.type = 'single'
