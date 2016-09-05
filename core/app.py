@@ -288,7 +288,7 @@ class App(dict):
             value = None
         return value
 
-    def getFilePath(self, name):
+    def getFilePath(self, name, file_type):
         def getGDfilePath(name):
             pass
 
@@ -299,11 +299,8 @@ class App(dict):
             if not file_path:
                 file_path = self.parameters['CommonData'].get(name)
             # Parameters defaults
-            if not file_path:
-                if name in self.config['app']['inputs'].keys():
-                    file_path = renderDefaultPath('inputs')
-                if (self.config['app']['outputs']) and (name in self.config['app']['outputs'].keys()):
-                    file_path = renderDefaultPath('outputs')
+            if not file_path and (self.config['app'][file_type]) and (name in self.config['app'][file_type].keys()):
+                file_path = renderDefaultPath(file_type)
 
             if isinstance(file_path, list):
                 return file_path
@@ -322,8 +319,9 @@ class App(dict):
                 raise KeyError('%s:%s.%s has no default' % (self.appname, file_type, name))
 
             if path_template == '':
-                msg = 'Warning: %s:%s.%s has empty default' % (self.appname, file_type, name)
-                print dyeWARNING(msg)
+                if name not in ['fq1', 'fq2']:
+                    msg = 'Warning: %s:%s.%s has empty default' % (self.appname, file_type, name)
+                    print dyeWARNING(msg)
                 return ['']
 
             if '{{extra.sample_name}}' in path_template:
@@ -356,7 +354,7 @@ class App(dict):
         def newFiles(item, file_type):
             (name, settings) = item
 
-            file_paths = self.getFilePath(name)
+            file_paths = self.getFilePath(name, file_type.lower())
             if not file_paths:
                 file_paths = ["/path/to/data/to/load/%s" % name]
 
@@ -519,7 +517,14 @@ class App(dict):
 
     def renderScripts(self):
         def renderSamples():
+            def updateFq(fq):
+                if self['inputs'][fq][0]['name'] is '':
+                    self['inputs'][fq][0]['name'] = sample[fq]
+                    self['inputs'][fq][0].updatePath()
+
             for sample in self.parameters['Samples']:
+                updateFq('fq1')
+                updateFq('fq2')
                 self['parameters']['sample_name']['value'] = sample['sample_name']
                 renderEachParam(extra=None)
 
