@@ -255,6 +255,12 @@ class App(dict):
             elif len(modules) == 1:
                 self.module = modules[0]
             elif len(modules) == 0:
+                if self.parameter_file:
+                    parameter_file = self.parameter_file
+                else:
+                    parameter_file = 'parameters.conf'
+                msg = 'Warning: no sign of %s in %s' % (self.appname, self.parameter_file)
+                print dyeWARNING(msg)
                 self.module = None
 
     def getValue(self, name):
@@ -518,6 +524,7 @@ class App(dict):
     def renderScripts(self):
         def renderSamples():
             def updateFq(fq):
+                # when name is '' indicates fq should be load from self.parameters['Samples']
                 if fq in self['inputs'] and self['inputs'][fq][0]['name'] is '':
                     self['inputs'][fq][0]['name'] = sample[fq]
                     self['inputs'][fq][0].updatePath()
