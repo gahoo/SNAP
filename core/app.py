@@ -494,7 +494,15 @@ class App(dict):
         """
         check if the config file is good to go.
         """
-        pass
+
+        def checkInputs(input_name):
+            def isExists(app_file):
+                path = app_file.path
+                if (path is not '') and ('{{' not in path) and (not os.path.exists(path)):
+                    print dyeWARNING('%s: %s not found' % (self.appname, path))
+            map(isExists, self['inputs'][input_name])
+
+        map(checkInputs, self['inputs'])
 
     def build(self, parameters=None, parameter_file=None, output=None):
         self.shell_path = output
@@ -583,6 +591,7 @@ class App(dict):
                 script_file = self.renderScript(self.shell_path, extra=extra)
             else:
                 script_file = None
+            self.check()
             script = self.renderScript(template, extra=extra)
             if script.count('{{parameters'):
                 script = self.renderScript(script, extra=extra)
