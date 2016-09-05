@@ -531,12 +531,16 @@ class App(dict):
 
     def renderScripts(self):
         def renderSamples():
-            def updateFq(fq):
+            def isFqFromSamples(fq):
                 # when name is '' indicates fq should be load from self.parameters['Samples']
-                if fq in self['inputs'] and self['inputs'][fq][0]['name'] is '':
+                return fq in self['inputs'] and self['inputs'][fq][0]['name'] is ''
+
+            def updateFq(fq):
+                if FqFromSamples[fq]:
                     self['inputs'][fq][0]['name'] = sample[fq]
                     self['inputs'][fq][0].updatePath()
 
+            FqFromSamples = {'fq1': isFqFromSamples('fq1'), 'fq2': isFqFromSamples('fq2')}
             for sample in self.parameters['Samples']:
                 updateFq('fq1')
                 updateFq('fq2')
