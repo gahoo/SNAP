@@ -8,6 +8,7 @@ import sys
 import errno
 from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
+from colorMessage import dyeWARNING
 from app import App
 
 
@@ -249,6 +250,10 @@ class Pipe(dict):
                         for dep_script in scripts[dep_appname]:
                             line = buildOneLine(dep_script, script)
                             self.pymonitor_conf.append(line)
+
+                if dep_appname not in self.apps:
+                    print dyeWARNING('Warning: Pipeline has no APP: %s' % dep_appname)
+                    return
 
                 if self.apps[appname].type == 'sample' and self.apps[dep_appname].type == 'sample':
                     makeSampleLines()
