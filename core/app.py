@@ -603,8 +603,9 @@ class App(dict):
 
         def findListParams(params):
             isList = lambda value: isinstance(value, list)
+            inParam = lambda key: key in self['parameters']
             param_names = params.keys()
-            return [param_names[i] for i, v in enumerate(params.values()) if isList(v)]
+            return [param_names[i] for i, (k, v) in enumerate(params.iteritems()) if isList(v) and inParam(k)]
 
         try:
             params = self.parameters[self.module][self.appname]
