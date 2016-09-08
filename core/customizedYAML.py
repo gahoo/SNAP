@@ -1,5 +1,6 @@
 import yaml
 import os
+import re
 from collections import OrderedDict
 
 # codes form stackoverflow.com
@@ -43,3 +44,17 @@ def include_constructor(loader, node):
     return data
 
 yaml.add_constructor(u'!include', include_constructor)
+
+
+def range_constructor(loader, node):
+    data = loader.construct_scalar(node)
+    match = range_regex.match(data)
+    if match:
+        start, stop = map(int, match.groups())
+        return range(start, stop + 1)
+    else:
+        raise ValueError('Invalid range')
+
+range_regex = re.compile(r'^\s*(\d+)\s*\.\.\s*(\d+)\s*$')
+yaml.add_constructor(u'!range', range_constructor)
+yaml.add_implicit_resolver(u'!range', range_regex)
