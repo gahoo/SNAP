@@ -513,6 +513,7 @@ class App(dict):
             script = self.renderScript()
             self.write(script, output)
         else:
+            # add debug mode: add *.sh.variable file telling the value of inputs. outputs. parameters. making debug easier
             self.renderScripts()
             self.writeScripts()
 
@@ -577,7 +578,12 @@ class App(dict):
                 return map(updateDict, range(cnt))
 
             def setParam(param_name, value):
-                self['parameters'][param_name]['value'] = value
+                if param_name in self['parameters']:
+                    self['parameters'][param_name]['value'] = value
+                elif param_name in self['inputs']:
+                    pass
+                else:
+                    print dyeWARNING('Warning: %s is neither parameters nor inputs')
 
             (list_params, new_params) = seperateParams(params, list_params_name)
             if hasSameLength(list_params):
