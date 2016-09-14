@@ -216,11 +216,26 @@ class Pipe(dict):
         self.buildDepends()
 
     def buildApps(self):
-        for app in self.apps.values():
+        def getAppnames(source='param'):
+            if source == 'param':
+                appnames = []
+                for k, v in self.parameters.iteritems():
+                    if k not in ('Samples', 'CommonData', 'CommonParameters'):
+                        appnames.extend(v.keys())
+            elif source == 'all':
+                appnames = self.apps.keys()
+            else:
+                raise ValueError('appname source "{source}" invalid'.format(source=source))
+            return appnames
+
+        for appname in getAppnames(source='param'):
             parameters = self.parameters.copy()
-            sh_file = os.path.join(self.proj_path, self.dependencies[app.appname]['sh_file'])
+            try:
+                sh_file = os.path.join(self.proj_path, self.dependencies[appname]['sh_file'])
+            except KeyError:
+                raise KeyError('dependencies.yaml has no {appname}'.format(appname=appname))
             # print app.appname, sh_file
-            app.build(parameters=parameters, output=sh_file)
+            self.apps[appname].build(parameters=parameters, output=sh_file)
 
     def buildDepends(self):
         def getAppScripts(appname):
