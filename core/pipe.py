@@ -207,13 +207,16 @@ class Pipe(dict):
             if isDependency(files):
                 loadDependency(root)
 
-    def build(self, parameter_file=None, proj_path=None):
+    def build(self, parameter_file=None, proj_path=None,
+              pymonitor_path='monitor', proj_name=None,
+              queue='all.q', priority='RD_test'):
         if proj_path:
             self.proj_path = os.path.abspath(proj_path)
         self.loadParameters(parameter_file)
         self.loadPipe()
         self.buildApps()
         self.buildDepends()
+        self.makePymonitorSH(pymonitor_path, proj_name, queue, priority)
 
     def buildApps(self):
         def getAppnames(source='param'):
@@ -267,7 +270,8 @@ class Pipe(dict):
                             self.pymonitor_conf.append(line)
 
                 if dep_appname not in self.apps:
-                    print dyeWARNING('Warning: Pipeline has no APP: %s' % dep_appname)
+                    msg = 'Warning: dependencies.yaml: {appname} dependence {dep_appname} not found'.format(appname=appname, dep_appname=dep_appname)
+                    print dyeWARNING(msg)
                     return
 
                 if self.apps[appname].type == 'sample' and self.apps[dep_appname].type == 'sample':
@@ -285,6 +289,18 @@ class Pipe(dict):
         pymonitor_conf = os.path.join(self.proj_path, 'monitor.conf')
         content = "\n".join(self.pymonitor_conf)
         self.write(pymonitor_conf, content)
+
+    def makePymonitorSH(self, pymonitor_path='monitor', proj_name=None, queue='all.q', priority='RD_test'):
+        if proj_name is None:
+            proj_name = os.path.basename(self.proj_path)
+        pymonitor_conf = os.path.join(self.proj_path, 'monitor.conf')
+        content = '{pymonitor_path} taskmonitor -q {queue} -P {priority} -p {proj_name} -i {pymonitor_conf}'
+        content = content.format(
+            pymonitor_path=pymonitor_path, queue=queue, priority=priority,
+            proj_name=proj_name, pymonitor_conf=pymonitor_conf)
+        print content
+        script_file = os.path.join(self.proj_path, 'pymonitor.sh')
+        self.write(script_file, content)
 
     def loadYaml(self, filename):
         with open(filename, 'r') as yaml_file:
