@@ -717,7 +717,9 @@ class App(dict):
 
         def addAppNodes():
             buildEnid = lambda name: (name, [{'enid': name}])
-            buildParameter = lambda name: (name, {'value': None, 'variable': False})
+            buildParameter = lambda name: (name, {'value': None, 'variable': True})
+            if not self.appid:
+                sys.stderr.write(dyeWARNING('Warning: no app id'))
 
             node = {
                 'node_id': self.config['app']['name'].replace(' ', '_'),
