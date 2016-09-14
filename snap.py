@@ -62,7 +62,12 @@ def build_pipe(args):
         os._exit(0)
 
     if args.param:
-        pipe.build(parameter_file=args.param, proj_path=args.out)
+        pipe.build(parameter_file=args.param,
+                   proj_path=args.out,
+                   pymonitor_path=args.pymonitor_path,
+                   proj_name=args.proj_name,
+                   queue=args.queue,
+                   priority=args.priority)
     else:
         print >> sys.stderr, "parameters.conf is missing."
         os._exit(0)
@@ -152,7 +157,11 @@ if __name__ == "__main__":
         prog='snap pipe build',
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_pipe_build.add_argument('-pipe_path', help="the path to the pipeline")
+    subparsers_pipe_build.add_argument('-proj_name', help = "the name of project")
     subparsers_pipe_build.add_argument('-param', help = "render from parameter.yaml file. default will be use if not specified.")
+    subparsers_pipe_build.add_argument('-pymonitor_path', help = "path to pymonitor", default='/data/pipeline/RNA_pipeline/RNA_ref/RNA_ref_v1.0/software/monitor')
+    subparsers_pipe_build.add_argument('-priority', help = "priority of qsub", default='RD_test')
+    subparsers_pipe_build.add_argument('-queue', help = "queue of qsub", default='all.q')
     subparsers_pipe_build.add_argument('-out', help="output everything needed for a project")
     subparsers_pipe_build.set_defaults(func=build_pipe)
 
