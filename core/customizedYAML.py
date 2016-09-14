@@ -53,7 +53,7 @@ def range_constructor(loader, node):
         start, stop = map(int, match.groups())
         return range(start, stop + 1)
     else:
-        raise ValueError('Invalid range')
+        raise ValueError('Invalid range: %s' % data)
 
 range_regex = re.compile(r'^\s*(\d+)\s*\.\.\s*(\d+)\s*$')
 yaml.add_constructor(u'!range', range_constructor)
