@@ -298,7 +298,6 @@ class Pipe(dict):
         content = content.format(
             pymonitor_path=pymonitor_path, queue=queue, priority=priority,
             proj_name=proj_name, pymonitor_conf=pymonitor_conf)
-        print content
         script_file = os.path.join(self.proj_path, 'pymonitor.sh')
         self.write(script_file, content)
 
