@@ -160,7 +160,7 @@ class Pipe(dict):
     def __init__(self, pipe_path):
         super(Pipe, self).__init__()
         self.pipe_path = pipe_path
-        self.proj_path = '.'
+        self.proj_path = None
         self.apps = {}
         self.parameter_file = ''
         self.parameters = {}
