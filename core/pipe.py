@@ -223,6 +223,8 @@ class Pipe(dict):
             if source == 'param':
                 appnames = []
                 for k, v in self.parameters.iteritems():
+                    if v is None:
+                        raise ValueError('Module "{module}" contains no app!'.format(module=k))
                     if k not in ('Samples', 'CommonData', 'CommonParameters'):
                         appnames.extend(v.keys())
             elif source == 'all':
