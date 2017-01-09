@@ -583,7 +583,7 @@ class App(dict):
                 elif param_name in self['inputs']:
                     pass
                 else:
-                    print dyeWARNING('Warning: %s is neither parameters nor inputs')
+                    print dyeWARNING('Warning: %s is neither parameters nor inputs' % param_name )
 
             (list_params, new_params) = seperateParams(params, list_params_name)
             if hasSameLength(list_params):
