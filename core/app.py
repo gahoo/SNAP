@@ -502,7 +502,7 @@ class App(dict):
                     print dyeWARNING('%s: %s not found' % (self.appname, path))
             map(isExists, self['inputs'][input_name])
 
-        map(checkInputs, self.get('inputs'))
+        map(checkInputs, self.get('inputs', []))
 
     def build(self, parameters=None, parameter_file=None, output=None):
         self.shell_path = output
