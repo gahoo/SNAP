@@ -325,7 +325,7 @@ class App(dict):
                 raise KeyError('%s:%s.%s has no default' % (self.appname, file_type, name))
 
             if path_template == '':
-                if name not in ['fq1', 'fq2']:
+                if name not in ['fq1', 'fq2', 'lib_path']:
                     msg = 'Warning: %s:%s.%s has empty default' % (self.appname, file_type, name)
                     print dyeWARNING(msg)
                 return ['']
@@ -532,21 +532,33 @@ class App(dict):
 
     def renderScripts(self):
         def renderSamples():
-            def isFqFromSamples(fq):
-                # when name is '' indicates fq should be load from self.parameters['Samples']
-                return fq in self['inputs'] and self['inputs'][fq][0]['name'] is ''
+            def needRender(inputs, parameters):
+                if len(inputs) > 0 or len(parameters) > 0:
+                    return True
+                else:
+                    return False
 
-            def updateFq(fq):
-                if FqFromSamples[fq]:
-                    self['inputs'][fq][0]['name'] = sample[fq]
-                    self['inputs'][fq][0].updatePath()
+            def updateInputs(slots):
+                for k in slots:
+                    self['inputs'][k][0]['name'] = data.get(k)
+                    self['inputs'][k][0].updatePath()
 
-            FqFromSamples = {'fq1': isFqFromSamples('fq1'), 'fq2': isFqFromSamples('fq2')}
+            def updateParameters(slots):
+                for k in slots:
+                    self['parameters'][k]['value'] = data.get(k)
+
+            def renderData(data):
+                common_inputs = set(data.keys()) & set(self['inputs'].keys())
+                common_parameters = set(data.keys()) & set(self['parameters'].keys())
+                if needRender(common_inputs, common_parameters):
+                    updateInputs(common_inputs)
+                    updateParameters(common_parameters)
+                    renderEachParam(extra=None)
+
             for sample in self.parameters['Samples']:
-                updateFq('fq1')
-                updateFq('fq2')
                 self['parameters']['sample_name']['value'] = sample['sample_name']
-                renderEachParam(extra=None)
+                for data in sample['data']:
+                    renderData(data)
 
         def renderListParam(params, list_params_name):
             def seperateParams(params, list_params_name):
