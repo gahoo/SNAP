@@ -1,3 +1,4 @@
+hashlib==20081119
 Jinja2==2.8
 MarkupSafe==0.23
 PyYAML==3.11
