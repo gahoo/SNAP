@@ -651,7 +651,7 @@ class App(dict):
         else:
             self.mkdir_p(os.path.dirname(filename))
             with open(filename, 'w') as f:
-                f.write(content)
+                f.write(content.encode('utf-8'))
 
     def test(self):
         pass
