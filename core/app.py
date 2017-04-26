@@ -532,6 +532,9 @@ class App(dict):
 
     def renderScripts(self):
         def renderSamples():
+            def getEmptyNameInputs():
+                return set([k for k in self['inputs'].keys() if self['inputs'][k][0]['name'] == ''])
+
             def needRender(inputs, parameters):
                 if len(inputs) > 0 or len(parameters) > 0:
                     return True
@@ -548,13 +551,14 @@ class App(dict):
                     self['parameters'][k]['value'] = data.get(k)
 
             def renderData(data):
-                common_inputs = set(data.keys()) & set(self['inputs'].keys())
+                common_inputs = set(data.keys()) & empty_inputs
                 common_parameters = set(data.keys()) & set(self['parameters'].keys())
                 if needRender(common_inputs, common_parameters):
                     updateInputs(common_inputs)
                     updateParameters(common_parameters)
                     renderEachParam(extra=None)
 
+            empty_inputs = getEmptyNameInputs()
             for sample in self.parameters['Samples']:
                 self['parameters']['sample_name']['value'] = sample['sample_name']
                 for data in sample['data']:
