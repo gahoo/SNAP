@@ -193,7 +193,7 @@ class Pipe(dict):
             depend = self.loadYaml(os.path.join(root, 'dependencies.yaml'))
             self.dependencies.update(depend)
 
-        excludes = ['example', 'database', '.git']
+        excludes = ['example', 'database', 'software', '.git']
         for root, dirs, files in os.walk(self.pipe_path, topdown=True, followlinks=True):
             dirs[:] = [d for d in dirs if d not in excludes]
             if isApp(files):
