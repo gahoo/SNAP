@@ -58,3 +58,23 @@ def range_constructor(loader, node):
 range_regex = re.compile(r'^\s*(\d+)\s*\.\.\s*(\d+)\s*$')
 yaml.add_constructor(u'!range', range_constructor)
 yaml.add_implicit_resolver(u'!range', range_regex)
+
+
+def refer_constructor(loader, node):
+    def getRefer(content, keys):
+        content = content.replace('!refer ', '')
+        ref = yaml.load(content)
+        for k in keys:
+            ref = ref.get(k)
+        return ref
+
+    data = loader.construct_scalar(node)
+    keys = data.split('.')
+    offset = loader.stream.tell()
+    loader.stream.seek(0)
+    content = loader.stream.read()
+    loader.stream.seek(offset)
+    refer = getRefer(content, keys)
+    return refer
+
+yaml.add_constructor(u'!refer', refer_constructor)
