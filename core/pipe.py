@@ -6,9 +6,10 @@ import copy
 import pdb
 import sys
 import errno
+from collections import defaultdict
 from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
-from colorMessage import dyeWARNING
+from colorMessage import dyeWARNING, dyeFAIL
 from app import App
 
 
@@ -262,6 +263,8 @@ class Pipe(dict):
                         script = self.apps[appname].renderScript(script, parameters=sample_dict)
                         dep_script = self.apps[dep_appname].shell_path
                         dep_script = self.apps[dep_appname].renderScript(dep_script, sample_dict)
+                        sample_scripts[appname].append(script)
+                        sample_scripts[dep_appname].append(dep_script)
                         line = buildOneLine(dep_script, script)
                         self.pymonitor_conf.append(line)
 
@@ -284,6 +287,7 @@ class Pipe(dict):
             map(buildLines, self.dependencies[appname]['depends'])
 
         scripts = {}
+        sample_scripts = defaultdict(list)
         for appname in self.dependencies.keys():
             scripts[appname] = getAppScripts(appname)
 
@@ -291,6 +295,16 @@ class Pipe(dict):
         pymonitor_conf = os.path.join(self.proj_path, 'monitor.conf')
         content = "\n".join(self.pymonitor_conf)
         self.write(pymonitor_conf, content)
+        scripts.update(sample_scripts)
+        self.checkScripts(scripts)
+
+    def checkScripts(self, scripts):
+        def isExist(filename):
+            if not os.path.exists(filename):
+                print dyeFAIL("FATAL: %s: %s is not exist." % (appname, filename))
+
+        for appname, sh_files in scripts.iteritems():
+            map(isExist, set(sh_files))
 
     def makePymonitorSH(self, pymonitor_path='monitor', proj_name=None, queue='all.q', priority='RD_test'):
         if proj_name is None:
