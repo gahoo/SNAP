@@ -6,6 +6,7 @@ import copy
 import pdb
 import sys
 import errno
+import re
 from collections import defaultdict
 from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
@@ -257,16 +258,33 @@ class Pipe(dict):
                         self.apps[appname].config['app']['requirements']['resources']['mem'])
 
                 def makeSampleLines():
+                    def findKeys(shell_path, keys):
+                        param_in_path = re.findall(r'{{(?:parameters|extra)\.(\w+)}}', shell_path)
+                        diff = set(param_in_path) - set(keys)
+                        if(diff):
+                            return True
+                        else:
+                            return False
+
                     for sample in self.parameters['Samples']:
-                        sample_dict = {'sample_name': sample['sample_name']}
-                        script = self.apps[appname].shell_path
-                        script = self.apps[appname].renderScript(script, parameters=sample_dict)
-                        dep_script = self.apps[dep_appname].shell_path
-                        dep_script = self.apps[dep_appname].renderScript(dep_script, sample_dict)
-                        sample_scripts[appname].append(script)
-                        sample_scripts[dep_appname].append(dep_script)
-                        line = buildOneLine(dep_script, script)
-                        self.pymonitor_conf.append(line)
+                        sample_dict = {}
+                        sample_dict.update(sample)
+                        sample_data = sample_dict.pop('data')
+                        for data in sample_data:
+                            sample_dict.update(data)
+                            script = self.apps[appname].shell_path
+                            script = self.apps[appname].renderScript(script, parameters=sample_dict, extra=sample_dict)
+                            dep_script = self.apps[dep_appname].shell_path
+                            dep_script = self.apps[dep_appname].renderScript(dep_script, parameters=sample_dict, extra=sample_dict)
+                            line = buildOneLine(dep_script, script)
+                            keys = data.keys() + sample_dict.keys()
+                            if(findKeys(self.apps[appname].shell_path, keys) | findKeys(self.apps[dep_appname].shell_path, keys)):
+                                print dyeFAIL("Skip: %s" % line)
+                                continue
+                            else:
+                                sample_scripts[appname].append(script)
+                                sample_scripts[dep_appname].append(dep_script)
+                                self.pymonitor_conf.append(line)
 
                 def combLines():
                     for script in scripts[appname]:

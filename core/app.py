@@ -556,12 +556,15 @@ class App(dict):
                 if needRender(common_inputs, common_parameters):
                     updateInputs(common_inputs)
                     updateParameters(common_parameters)
-                    renderEachParam(extra=None)
+                    renderEachParam(extra=sample_dict)
 
             empty_inputs = getEmptyNameInputs()
             for sample in self.parameters['Samples']:
                 self['parameters']['sample_name']['value'] = sample['sample_name']
-                for data in sample['data']:
+                sample_dict = {}
+                sample_dict.update(sample)
+                sample_data = sample_dict.pop('data')
+                for data in sample_data:
                     renderData(data)
 
         def renderListParam(params, list_params_name):
