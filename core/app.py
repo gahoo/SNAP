@@ -522,11 +522,13 @@ class App(dict):
             cmd_template = self.config['app']['cmd_template']
         if not parameters:
             parameters = self.get('parameters')
+        samples = self.parameters['Samples']
         template = Template(cmd_template)
         return template.render(
             inputs = self.get('inputs'),
             outputs = self.get('outputs'),
             parameters = parameters,
+            samples = samples,
             extra = extra,
             )
 
