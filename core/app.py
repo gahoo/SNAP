@@ -533,7 +533,7 @@ class App(dict):
             )
 
     def renderScripts(self):
-        def renderSamples():
+        def renderSamples(list_params_name):
             def getEmptyNameInputs():
                 return set([k for k in self['inputs'].keys() if self['inputs'][k][0]['name'] == ''])
 
@@ -558,7 +558,11 @@ class App(dict):
                 if needRender(common_inputs, common_parameters):
                     updateInputs(common_inputs)
                     updateParameters(common_parameters)
-                    renderEachParam(extra=sample_dict)
+                    if(list_params_name):
+                        params = self.parameters[self.module][self.appname]
+                        renderListParam(params, list_params_name, extra=sample_dict)
+                    else:
+                        renderEachParam(extra=sample_dict)
 
             empty_inputs = getEmptyNameInputs()
             for sample in self.parameters['Samples']:
@@ -569,7 +573,7 @@ class App(dict):
                 for data in sample_data:
                     renderData(data)
 
-        def renderListParam(params, list_params_name):
+        def renderListParam(params, list_params_name, extra=None):
             def seperateParams(params, list_params_name):
                 new_params = params.copy()
                 list_params = dict()
@@ -615,6 +619,8 @@ class App(dict):
             for n, param_dict in enumerate(params_list):
                 map(setParam, param_dict.keys(), param_dict.values())
                 param_dict['i'] = n
+                if(extra):
+                    param_dict.update(extra)
                 renderEachParam(extra=param_dict)
 
         def renderEachParam(template=None, extra=None):
@@ -644,7 +650,7 @@ class App(dict):
 
         if 'sample_name' in self.config['app']['parameters'].keys():
             #something wrong around here
-            renderSamples()
+            renderSamples(list_params_name)
             self.type = 'sample'
         elif list_params_name:
             renderListParam(params, list_params_name)
