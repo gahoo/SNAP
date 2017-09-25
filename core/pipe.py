@@ -105,7 +105,6 @@ class WorkflowParameter(object):
 
             def planDict2List(plan_type_app):
                 if len(plan_type_app) > 1:
-                    pdb.set_trace()
                     raise Exception, "The number of app with plan greater than 1"
                 plan_dict = {}
                 for app_name, parameters in plan_type_app.iteritems():
@@ -191,8 +190,9 @@ class Pipe(dict):
             return 'dependencies.yaml' in files
 
         def loadDependency(root):
+            module = os.path.basename(root)
             depend = self.loadYaml(os.path.join(root, 'dependencies.yaml'))
-            self.dependencies.update(depend)
+            self.dependencies[module] = depend
 
         excludes = ['example', 'database', 'software', '.git']
         for root, dirs, files in os.walk(self.pipe_path, topdown=True, followlinks=True):
@@ -221,34 +221,37 @@ class Pipe(dict):
         self.makePymonitorSH(pymonitor_path, proj_name, queue, priority)
 
     def buildApps(self):
-        def getAppnames(source='param'):
-            if source == 'param':
-                appnames = []
-                for k, v in self.parameters.iteritems():
-                    if v is None:
-                        raise ValueError('Module "{module}" contains no app!'.format(module=k))
-                    if k not in ('Samples', 'CommonData', 'CommonParameters'):
-                        appnames.extend(v.keys())
-            elif source == 'all':
-                appnames = self.apps.keys()
+        def buildEachApp(parameters, module, appname):
+            if not self.dependencies.has_key(module):
+                raise KeyError('dependencies.yaml has no {module}'.format(module=module))
+            if not self.dependencies[module].has_key(appname):
+                raise KeyError('dependencies.yaml {module} has no {appname}'.format(module=module, appname=appname))
+            if parameters[module][appname]:
+                parameters[module][appname].update(self.dependencies[module][appname]['defaults'])
             else:
-                raise ValueError('appname source "{source}" invalid'.format(source=source))
-            return appnames
+                parameters[module][appname] = self.dependencies[module][appname]['defaults']
+            sh_file = os.path.join(self.proj_path, self.dependencies[module][appname]['sh_file'])
+            self.apps[appname].build(parameters=parameters, module=module, output=sh_file)
 
-        for appname in getAppnames(source='param'):
-            parameters = self.parameters.copy()
-            try:
-                sh_file = os.path.join(self.proj_path, self.dependencies[appname]['sh_file'])
-            except KeyError:
-                raise KeyError('dependencies.yaml has no {appname}'.format(appname=appname))
-            # print app.appname, sh_file
-            self.apps[appname].build(parameters=parameters, output=sh_file)
+        def buildEachModule(module):
+            module_param = dict([(k, self.parameters[k]) for k in ('Samples', 'CommonData', 'CommonParameters', module)])
+            for appname in self.parameters[module].keys():
+                buildEachApp(module_param.copy(), module, appname)
+
+        for k, v in self.parameters.iteritems():
+            if v is None:
+                raise ValueError('Module "{module}" contains no app!'.format(module=k))
+            if k not in ('Samples', 'CommonData', 'CommonParameters'):
+                 buildEachModule(k)
 
     def buildDepends(self):
-        def getAppScripts(appname):
-            return [sh['filename'] for sh in self.apps[appname].scripts]
+        def getAppScripts(module, appname):
+            return [sh['filename'] for sh in self.apps[appname].scripts if sh['module'] == module]
 
-        def makeAppPymonitorConf(appname):
+        def getSampleAppScripts(module, appname, sample_name):
+            return [sh['filename'] for sh in self.apps[appname].scripts if sh['module'] == module and sh['extra']['sample_name'] == sample_name]
+
+        def makeAppPymonitorConf(module, appname):
             def buildLines(dep_appname):
                 def buildOneLine(dep_script, script):
                     return "%s:%s\t%s:%s" % (
@@ -257,64 +260,71 @@ class Pipe(dict):
                         script,
                         self.apps[appname].config['app']['requirements']['resources']['mem'])
 
-                def makeSampleLines():
-                    def findKeys(shell_path, keys):
-                        param_in_path = re.findall(r'{{(?:parameters|extra)\.(\w+)}}', shell_path)
-                        diff = set(param_in_path) - set(keys)
-                        if(diff):
-                            return True
-                        else:
-                            return False
-
-                    for sample in self.parameters['Samples']:
-                        sample_dict = {}
-                        sample_dict.update(sample)
-                        sample_data = sample_dict.pop('data')
-                        for data in sample_data:
-                            sample_dict.update(data)
-                            script = self.apps[appname].shell_path
-                            script = self.apps[appname].renderScript(script, parameters=sample_dict, extra=sample_dict)
-                            dep_script = self.apps[dep_appname].shell_path
-                            dep_script = self.apps[dep_appname].renderScript(dep_script, parameters=sample_dict, extra=sample_dict)
-                            line = buildOneLine(dep_script, script)
-                            keys = data.keys() + sample_dict.keys()
-                            if(findKeys(self.apps[appname].shell_path, keys) | findKeys(self.apps[dep_appname].shell_path, keys)):
-                                print dyeFAIL("Skip: %s" % line)
-                                continue
-                            else:
-                                sample_scripts[appname].append(script)
-                                sample_scripts[dep_appname].append(dep_script)
-                                self.pymonitor_conf.append(line)
-
-                def combLines():
-                    for script in scripts[appname]:
-                        for dep_script in scripts[dep_appname]:
+                def combLines(A_scripts, B_scripts):
+                    for script in A_scripts:
+                        for dep_script in B_scripts:
                             line = buildOneLine(dep_script, script)
                             self.pymonitor_conf.append(line)
 
+                def makeSampleLines():
+                    def buildSampleLines(sample_name):
+                        A_scripts  = getSampleAppScripts(module, appname, sample_name)
+                        B_scripts  = getSampleAppScripts(dep_module, dep_appname, sample_name)
+                        combLines(A_scripts, B_scripts)
+                        sample_scripts[appname].extend(A_scripts)
+                        sample_scripts[dep_appname].extend(B_scripts)
+
+                    map(buildSampleLines, [sample['sample_name'] for sample in self.parameters['Samples']])
+
+                def getDepModule(dep_appname):
+                    if scripts[module].has_key(dep_appname):
+                        dep_module = module
+                    else:
+                        dep_modules = [k for k, v in scripts.iteritems() if dep_appname in v.keys()]
+                        if len(dep_modules) == 0:
+                            msg = '{module}{appname} dependence {dep_appname} not in any module'.format(module=module, appname=appname, dep_appname=dep_appname)
+                            raise KeyError(dyeFAIL(msg))
+                        elif len(dep_modules) > 1:
+                            msg = '{module}{appname} dependence {dep_appname} has more than one module: {modules}'.format(module=module, appname=appname, dep_appname=dep_appname, modules=dep_modules)
+                            raise KeyError(dyeFAIL(msg))
+                        elif len(dep_modules) == 1:
+                            dep_module = dep_modules[0]
+                    return dep_module
+
+                def hasSampleName(module, appname):
+                    return self.dependencies[module][appname]['sh_file'].count('sample_name}}') > 0
+
+
                 if dep_appname not in self.apps:
                     msg = 'Warning: dependencies.yaml: {appname} dependence {dep_appname} not found'.format(appname=appname, dep_appname=dep_appname)
-                    print dyeWARNING(msg)
+                    print dyeFAIL(msg)
                     return
 
-                if self.apps[appname].type == 'sample' and self.apps[dep_appname].type == 'sample':
+                dep_module = getDepModule(dep_appname)
+
+                if hasSampleName(module, appname) and hasSampleName(dep_module, dep_appname):
                     makeSampleLines()
                 else:
-                    combLines()
+                    combLines(scripts[module][appname], scripts[dep_module][dep_appname])
 
-            map(buildLines, self.dependencies[appname]['depends'])
+            map(buildLines, self.dependencies[module][appname]['depends'])
 
-        scripts = {}
+        def makeModulePymonitorConf(module):
+            for appname in self.dependencies[module].keys():
+                makeAppPymonitorConf(module, appname)
+
+        scripts = defaultdict(dict)
         sample_scripts = defaultdict(list)
-        for appname in self.dependencies.keys():
-            scripts[appname] = getAppScripts(appname)
+        for module in self.dependencies.keys():
+            for appname in self.dependencies[module].keys():
+                scripts[module][appname] = getAppScripts(module, appname)
+            self.checkScripts(scripts[module])
 
-        map(makeAppPymonitorConf, self.dependencies.keys())
+        map(makeModulePymonitorConf, self.dependencies.keys())
         pymonitor_conf = os.path.join(self.proj_path, 'monitor.conf')
         content = "\n".join(self.pymonitor_conf)
         self.write(pymonitor_conf, content)
-        scripts.update(sample_scripts)
-        self.checkScripts(scripts)
+        self.checkScripts(sample_scripts)
 
     def checkScripts(self, scripts):
         def isExist(filename):
