@@ -8,7 +8,7 @@ import sys
 import errno
 from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
-from colorMessage import dyeWARNING
+from colorMessage import dyeWARNING, dyeFAIL
 
 
 class AppParameter(dict):
@@ -250,16 +250,19 @@ class App(dict):
             self.module = module
         else:
             modules = [k for k, v in self.parameters.iteritems() if inModule(k, v)]
+            if self.parameter_file:
+                parameter_file = self.parameter_file
+            else:
+                parameter_file = 'parameters.conf'
+
             if len(modules) > 1:
-                raise ValueError('modules:%s length > 1' % modules)
+                msg = 'Warning: {appname} has more than one module in {parameter_file}: {modules}, `{module}` will be used'.format(appname=self.appname, parameter_file=parameter_file,  modules=modules, module=modules[0])
+                print dyeFAIL(msg)
+                self.module = modules[0]
             elif len(modules) == 1:
                 self.module = modules[0]
             elif len(modules) == 0:
-                if self.parameter_file:
-                    parameter_file = self.parameter_file
-                else:
-                    parameter_file = 'parameters.conf'
-                msg = 'Warning: no sign of %s in %s' % (self.appname, self.parameter_file)
+                msg = 'Warning: no sign of %s in %s' % (self.appname, parameter_file)
                 print dyeWARNING(msg)
                 self.module = None
 
@@ -450,7 +453,7 @@ class App(dict):
             self.config['app']['parameters']['sample_name'] = {'quotes': False, 'prefix': '', 'separator': '', 'hint': '', 'default': '', 'required': True, 'type': 'string', 'value': None}
 
         def hasSampleName():
-            return self.shell_path.count('sample_name}}') > 0
+            return self.shell_path is not None and self.shell_path.count('sample_name}}') > 0
 
         def makeParameters(name):
             lower_name = name.lower()
@@ -515,9 +518,9 @@ class App(dict):
 
     def build(self, parameters=None, parameter_file=None, module=None, output=None):
         self.shell_path = output
-        self.setModule(module)
         self.load()
         self.loadParameters(parameters, parameter_file)
+        self.setModule(module)
         self.setParameters()
         if self.isGDParameters:
             script = self.renderScript()
