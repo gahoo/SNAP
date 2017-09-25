@@ -450,9 +450,7 @@ class App(dict):
             self.config['app']['parameters']['sample_name'] = {'quotes': False, 'prefix': '', 'separator': '', 'hint': '', 'default': '', 'required': True, 'type': 'string', 'value': None}
 
         def hasSampleName():
-            params = self.parameters[self.module][self.appname].values()
-            cnts = len(filter(lambda x: isinstance(x, str) and x.count('sample_name}}'), params))
-            return cnts > 0
+            return self.shell_path.count('sample_name}}') > 0
 
         def makeParameters(name):
             lower_name = name.lower()
