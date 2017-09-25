@@ -288,8 +288,11 @@ class App(dict):
             return getGHvalue(name)
 
     def loadParameterValue(self, name):
+        WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
         try:
             value = self.parameters[self.module][self.appname].get(name)
+            if not value.startswith('/'):
+                value = os.path.join(WORKSPACE, value)
         except (KeyError, AttributeError) as e:
             value = None
         return value
@@ -321,10 +324,8 @@ class App(dict):
             # notice: this WORKSPACE might cause inconsistance with -out using pipe build
             WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
             path_template = self.config['app'][file_type][name].get('default')
-            if path_template is None:
-                raise KeyError('%s:%s.%s has no default' % (self.appname, file_type, name))
 
-            if path_template == '':
+            if path_template is None:
                 if name not in ['fq1', 'fq2', 'lib_path']:
                     msg = 'Warning: %s:%s.%s has empty default' % (self.appname, file_type, name)
                     print dyeWARNING(msg)
@@ -445,6 +446,14 @@ class App(dict):
         formatInputFiles = functools.partial(formatFiles, file_type='Inputs')
         formatOutputFiles = functools.partial(formatFiles, file_type='Outputs')
 
+        def addSampleNameParam():
+            self.config['app']['parameters']['sample_name'] = {'quotes': False, 'prefix': '', 'separator': '', 'hint': '', 'default': '', 'required': True, 'type': 'string', 'value': None}
+
+        def hasSampleName():
+            params = self.parameters[self.module][self.appname].values()
+            cnts = len(filter(lambda x: isinstance(x, str) and x.count('sample_name}}'), params))
+            return cnts > 0
+
         def makeParameters(name):
             lower_name = name.lower()
             if self.config['app'][lower_name] is not None and needNew:
@@ -467,8 +476,10 @@ class App(dict):
             }
 
         needNew = not self.parameters or not self.isGDParameters
-        self.setModule()
+        if hasSampleName():
+            addSampleNameParam()
         map(makeParameters, ['Parameters', 'Inputs', 'Outputs'])
+
         if needNew:
             newOthers()
 
@@ -504,8 +515,9 @@ class App(dict):
 
         map(checkInputs, self.get('inputs', []))
 
-    def build(self, parameters=None, parameter_file=None, output=None):
+    def build(self, parameters=None, parameter_file=None, module=None, output=None):
         self.shell_path = output
+        self.setModule(module)
         self.load()
         self.loadParameters(parameters, parameter_file)
         self.setParameters()
@@ -605,10 +617,10 @@ class App(dict):
             def setParam(param_name, value):
                 if param_name in self['parameters']:
                     self['parameters'][param_name]['value'] = value
-                elif param_name in self['inputs']:
+                elif param_name in self['inputs'] or param_name in self['outputs']:
                     pass
                 else:
-                    print dyeWARNING('Warning: %s is neither parameters nor inputs' % param_name )
+                    print dyeWARNING('Warning: %s is neither parameters nor inputs outputs' % param_name )
 
             (list_params, new_params) = seperateParams(params, list_params_name)
             if hasSameLength(list_params):
@@ -632,7 +644,7 @@ class App(dict):
             script = self.renderScript(template, extra=extra)
             if script.count('{{parameters'):
                 script = self.renderScript(script, extra=extra)
-            self.scripts.append({"filename": script_file, "content": script})
+            self.scripts.append({"filename": script_file, "content": script, "module": self.module, "extra": extra})
 
         def findListParams(params):
             isList = lambda value: isinstance(value, list)
