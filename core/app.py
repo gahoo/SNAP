@@ -121,7 +121,7 @@ class App(dict):
         self.type = ''
         self.appid = ''
         self.appname = ''
-        self.module = ''
+        self.module = None
         self.app_path = app_path
         self.config_file = os.path.join(app_path, 'config.yaml')
         self.parameter_file = None
@@ -237,6 +237,15 @@ class App(dict):
 
         checkParametersType()
 
+    def loadDefaults(self, dependence_file=None):
+        if dependence_file:
+            depend = self.loadYaml(dependence_file)
+            module = depend.pop('name')
+            self.setModule(module)
+            defaults = depend[self.appname].get('defaults')
+            if defaults:
+                self.parameters[module][self.appname].update(defaults)
+
     def setModule(self, module=None):
         def inModule(k, v):
             if not isinstance(v, dict):
@@ -245,6 +254,9 @@ class App(dict):
                 return True
             else:
                 return False
+
+        if self.module and module is None:
+            return
 
         if module:
             self.module = module
@@ -516,10 +528,11 @@ class App(dict):
 
         map(checkInputs, self.get('inputs', []))
 
-    def build(self, parameters=None, parameter_file=None, module=None, output=None):
+    def build(self, parameters=None, parameter_file=None, dependence_file=None, module=None, output=None):
         self.shell_path = output
         self.load()
         self.loadParameters(parameters, parameter_file)
+        self.loadDefaults(dependence_file)
         self.setModule(module)
         self.setParameters()
         if self.isGDParameters:
