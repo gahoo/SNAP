@@ -125,6 +125,7 @@ class App(dict):
         self.app_path = app_path
         self.config_file = os.path.join(app_path, 'config.yaml')
         self.parameter_file = None
+        self.dependence_file = None
         self.parameters = {}
         self.isGDParameters = True
         self.scripts = []
@@ -239,11 +240,14 @@ class App(dict):
 
     def loadDefaults(self, dependence_file=None):
         if dependence_file:
+            self.dependence_file = dependence_file
             depend = self.loadYaml(dependence_file)
             module = depend.pop('name')
             self.setModule(module)
             if self.shell_path is None:
                 self.shell_path = depend[self.appname].get('sh_file')
+            else:
+                self.dependence_file = None
             defaults = depend[self.appname].get('defaults')
             if defaults:
                 self.parameters[module][self.appname].update(defaults)
@@ -656,7 +660,7 @@ class App(dict):
                 renderEachParam(extra=param_dict)
 
         def renderEachParam(template=None, extra=None):
-            if self.shell_path:
+            if self.shell_path and self.dependence_file is None:
                 script_file = self.renderScript(self.shell_path, extra=extra)
             else:
                 script_file = None
