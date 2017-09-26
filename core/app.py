@@ -303,11 +303,15 @@ class App(dict):
             return getGHvalue(name)
 
     def loadParameterValue(self, name):
-        WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
+        def addWorkspace4FilePath(name, value):
+            if not value.startswith('/') and (name in self.config['app']['inputs'].keys() or name in self.config['app']['outputs'].keys()):
+                WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
+                value = os.path.join(WORKSPACE, value)
+            return value
+
         try:
             value = self.parameters[self.module][self.appname].get(name)
-            if not value.startswith('/'):
-                value = os.path.join(WORKSPACE, value)
+            value = addWorkspace4FilePath(name, value)
         except (KeyError, AttributeError) as e:
             value = None
         return value
