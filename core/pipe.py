@@ -190,8 +190,8 @@ class Pipe(dict):
             return 'dependencies.yaml' in files
 
         def loadDependency(root):
-            module = os.path.basename(root)
             depend = self.loadYaml(os.path.join(root, 'dependencies.yaml'))
+            module = depend.pop('name')
             self.dependencies[module] = depend
 
         excludes = ['example', 'database', 'software', '.git']
