@@ -32,7 +32,7 @@ def init_app(args):
 
 def build_app(args):
     app = init_app(args)
-    app.build(parameter_file=args.param, output=args.out)
+    app.build(parameter_file=args.param, dependence_file=args.depend, output=args.out)
 
 def node_app(args):
     app = init_app(args)
@@ -106,6 +106,7 @@ if __name__ == "__main__":
     subparsers_app_build.add_argument('-name', help = "app name")
     subparsers_app_build.add_argument('-config', help = "config.yaml file")
     subparsers_app_build.add_argument('-param', help = "render from parameter.yaml file. default will be use if not specified.")
+    subparsers_app_build.add_argument('-depend', help = "render defaults from dependencies.yaml file. ")
     subparsers_app_build.add_argument('-out', help = "output render result to file. default write to stdout")
     subparsers_app_build.set_defaults(func=build_app)
     #app node
