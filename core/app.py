@@ -239,18 +239,26 @@ class App(dict):
         checkParametersType()
 
     def loadDefaults(self, dependence_file=None):
+        def setDefault(defaults):
+            if defaults is None:
+                return
+            if self.parameters[module][self.appname]:
+                self.parameters[module][self.appname].update(defaults)
+            else:
+                self.parameters[module][self.appname] = defaults
+
+        def setShellPath():
+            if self.shell_path is None:
+                self.dependence_file = dependence_file
+                self.shell_path = depend[self.appname].get('sh_file')
+
         if dependence_file:
-            self.dependence_file = dependence_file
             depend = self.loadYaml(dependence_file)
             module = depend.pop('name')
             self.setModule(module)
-            if self.shell_path is None:
-                self.shell_path = depend[self.appname].get('sh_file')
-            else:
-                self.dependence_file = None
+            setShellPath()
             defaults = depend[self.appname].get('defaults')
-            if defaults:
-                self.parameters[module][self.appname].update(defaults)
+            setDefault(defaults)
 
     def setModule(self, module=None):
         def inModule(k, v):
