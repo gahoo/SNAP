@@ -226,10 +226,14 @@ class Pipe(dict):
                 raise KeyError('dependencies.yaml has no {module}'.format(module=module))
             if not self.dependencies[module].has_key(appname):
                 raise KeyError('dependencies.yaml {module} has no {appname}'.format(module=module, appname=appname))
-            if parameters[module][appname]:
-                parameters[module][appname].update(self.dependencies[module][appname]['defaults'])
-            else:
-                parameters[module][appname] = self.dependencies[module][appname]['defaults']
+
+            defaults = self.dependencies[module][appname].get('defaults')
+            if defaults:
+                if parameters[module][appname]:
+                    parameters[module][appname].update(defaults)
+                else:
+                    parameters[module][appname] = defaults
+
             sh_file = os.path.join(self.proj_path, self.dependencies[module][appname]['sh_file'])
             self.apps[appname].build(parameters=parameters, module=module, output=sh_file)
 
