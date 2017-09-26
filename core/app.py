@@ -242,7 +242,8 @@ class App(dict):
             depend = self.loadYaml(dependence_file)
             module = depend.pop('name')
             self.setModule(module)
-            self.shell_path = depend[self.appname].get('sh_file')
+            if self.shell_path is None:
+                self.shell_path = depend[self.appname].get('sh_file')
             defaults = depend[self.appname].get('defaults')
             if defaults:
                 self.parameters[module][self.appname].update(defaults)
