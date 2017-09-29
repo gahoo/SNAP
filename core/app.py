@@ -684,8 +684,12 @@ class App(dict):
             param_names = params.keys()
             return [param_names[i] for i, (k, v) in enumerate(params.iteritems()) if isList(v) and inParam(k)]
 
+        def getCommonListParams():
+            return dict([(k, v) for k, v in self.parameters['CommonParameters'].iteritems() if isinstance(v, list)])
+
         try:
             params = self.parameters[self.module][self.appname]
+            params.update(getCommonListParams())
             list_params_name = findListParams(params)
         except (KeyError, AttributeError) as e:
             # print self.module, self.appname
