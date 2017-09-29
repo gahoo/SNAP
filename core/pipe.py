@@ -235,6 +235,7 @@ class Pipe(dict):
                     parameters[module][appname] = defaults
 
             sh_file = os.path.join(self.proj_path, self.dependencies[module][appname]['sh_file'])
+            self.checkAppAlias(module, appname)
             self.apps[appname].build(parameters=parameters, module=module, output=sh_file)
 
         def buildEachModule(module):
@@ -247,6 +248,16 @@ class Pipe(dict):
                 raise ValueError('Module "{module}" contains no app!'.format(module=k))
             if k not in ('Samples', 'CommonData', 'CommonParameters'):
                  buildEachModule(k)
+
+    def checkAppAlias(self, module, appname):
+        if appname not in self.apps:
+            source = self.dependencies[module][appname].get('alias')
+            if source is None:
+                msg = 'Warning: dependencies.yaml: {module} has no {appname} or {appname} has no alias'.format(module=module, appname=appname)
+                print dyeFAIL(msg)
+            else:
+                self.apps[appname] = copy.deepcopy(self.apps[source])
+                self.apps[appname].scripts = []
 
     def buildDepends(self):
         def getAppScripts(module, appname):
