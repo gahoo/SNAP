@@ -258,6 +258,7 @@ class Pipe(dict):
             else:
                 self.apps[appname] = copy.deepcopy(self.apps[source])
                 self.apps[appname].scripts = []
+                self.apps[appname].appname = appname
 
     def buildDepends(self):
         def getAppScripts(module, appname):

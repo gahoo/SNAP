@@ -548,7 +548,8 @@ class App(dict):
 
     def build(self, parameters=None, parameter_file=None, dependence_file=None, module=None, output=None):
         self.shell_path = output
-        self.load()
+        if not self.appname:
+            self.load()
         self.loadParameters(parameters, parameter_file)
         self.loadDefaults(dependence_file)
         self.setModule(module)
