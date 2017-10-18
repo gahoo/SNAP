@@ -544,7 +544,8 @@ class App(dict):
                     print dyeWARNING('%s.%s: %s not found' % (self.appname, input_name, path))
 
             def showFile(data):
-                print dyeWARNING("{input}: {name}".format(input=input_name, name=data['name']))
+                file_path = self.renderScript(data['name'])
+                print dyeWARNING("{input}: {name}".format(input=input_name, name=file_path))
 
             map(isExists, self['inputs'][input_name])
             if self.debug:
@@ -556,7 +557,8 @@ class App(dict):
 
         def checkOutputs(output_name):
             def showFile(data):
-                print dyeWARNING("{output}: {name}".format(output=output_name, name=data['name']))
+                file_path = self.renderScript(data['name'])
+                print dyeWARNING("{output}: {name}".format(output=output_name, name=file_path))
             map(showFile, self['outputs'][output_name])
 
         map(checkInputs, self.get('inputs', []))
