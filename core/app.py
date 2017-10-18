@@ -541,13 +541,35 @@ class App(dict):
             def isExists(app_file):
                 path = app_file.path
                 if (path is not '') and ('{{' not in path) and (not os.path.exists(path)):
-                    print dyeWARNING('%s: %s not found' % (self.appname, path))
+                    print dyeWARNING('%s.%s: %s not found' % (self.appname, input_name, path))
+
+            def showFile(data):
+                print dyeWARNING("{input}: {name}".format(input=input_name, name=data['name']))
+
             map(isExists, self['inputs'][input_name])
+            if self.debug:
+                print "==========inputs==========="
+                map(showFile, self['inputs'][input_name])
+
+        def checkParameters(param_name):
+            print dyeWARNING("{param}: {value}".format(param=param_name, value=self['parameters'][param_name]))
+
+        def checkOutputs(output_name):
+            def showFile(data):
+                print dyeWARNING("{output}: {name}".format(output=output_name, name=data['name']))
+            map(showFile, self['outputs'][output_name])
 
         map(checkInputs, self.get('inputs', []))
+        if self.debug:
+            print "==========outputs=========="
+            map(checkOutputs, self.get('outputs', []))
+            print "========parameters========="
+            map(checkParameters, self.get('parameters', []))
+            print "==========================="
 
-    def build(self, parameters=None, parameter_file=None, dependence_file=None, module=None, output=None):
+    def build(self, parameters=None, parameter_file=None, dependence_file=None, module=None, output=None, debug=False):
         self.shell_path = output
+        self.debug = debug
         if not self.appname:
             self.load()
         self.loadParameters(parameters, parameter_file)
