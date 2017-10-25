@@ -318,7 +318,7 @@ class App(dict):
 
     def loadParameterValue(self, name):
         def addWorkspace4FilePath(name, value):
-            if not value.startswith('/') and (name in self.config['app']['inputs'].keys() or name in self.config['app']['outputs'].keys()):
+            if isinstance(value, str) and not value.startswith('/') and (name in self.config['app']['inputs'].keys() or name in self.config['app']['outputs'].keys()):
                 WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
                 value = os.path.join(WORKSPACE, value)
             return value
