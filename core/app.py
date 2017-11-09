@@ -341,24 +341,25 @@ class App(dict):
             if not file_path:
                 file_path = self.parameters['CommonData'].get(name)
             # Parameters defaults
-            if not file_path and (self.config['app'][file_type]) and (name in self.config['app'][file_type].keys()):
-                file_path = renderDefaultPath(file_type)
+            if (not file_path or '{{extra.sample_name}}' in file_path) and (self.config['app'][file_type]) and (name in self.config['app'][file_type].keys()):
+                file_path = renderDefaultPath(file_path, file_type)
 
             if isinstance(file_path, list):
                 return file_path
             else:
                 return [file_path]
 
-        def renderDefaultPath(file_type):
+        def renderDefaultPath(path_template, file_type):
             def renderPath(sample):
                 extra = {'sample_name': sample['sample_name']}
                 return self.renderScript(path_template, extra=extra)
 
             # notice: this WORKSPACE might cause inconsistance with -out using pipe build
             WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
-            path_template = self.config['app'][file_type][name].get('default')
+            if path_template is None or path_template is '':
+                path_template = self.config['app'][file_type][name].get('default')
 
-            if path_template is None:
+            if path_template is None or path_template is '':
                 if name not in ['fq1', 'fq2', 'lib_path']:
                     msg = 'Warning: %s:%s.%s has empty default' % (self.appname, file_type, name)
                     print dyeWARNING(msg)
