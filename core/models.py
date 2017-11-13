@@ -20,8 +20,8 @@ class Project(Base):
 
     id = Column(String(20), primary_key=True)
     name = Column(String(20), nullable=False)
-    description = Column(String(20))
-    owner = Column(String)
+    description = Column(String)
+    owner = Column(String, nullable=False)
     status = Column(Integer, nullable=False)
     type = Column(Integer)
     pipe = Column(String)
@@ -36,6 +36,9 @@ class Project(Base):
     mns = Column(String)
     task = relationship("Task", back_populates="project")
 
+    def __repr__(self):
+        return "<Project(id={id}, name={name})>".format(id=self.id, name=self.name)
+
 class Module(Base):
     __tablename__ = 'module'
 
@@ -46,6 +49,9 @@ class Module(Base):
 
     app = relationship("App", back_populates="module")
     task = relationship("Task", back_populates="module")
+
+    def __repr__(self):
+        return "<Module(id={id}, name={name})>".format(id=self.id, name=self.name)
 
 class App(Base):
     __tablename__ = 'app'
@@ -62,6 +68,9 @@ class App(Base):
 
     module = relationship("Module", back_populates="app")
     task = relationship("Task", back_populates="app")
+
+    def __repr__(self):
+        return "<App(id={id}, name={name})>".format(id=self.id, name=self.name)
 
 dependence_table = Table('dependence', Base.metadata,
     Column('source_id', Integer, ForeignKey('task.id'), primary_key=True),
@@ -92,7 +101,10 @@ class Task(Base):
     dependence = relationship("Task", secondary=dependence_table,
         primaryjoin=id==dependence_table.c.source_id,
         secondaryjoin=id==dependence_table.c.target_id,
-        backref="followed_by")
+        backref="depends")
+
+    def __repr__(self):
+        return "<Task(id={id} status={status})>".format(id=self.id, status=self.status)
 
 class Bcs(Base):
     __tablename__ = 'bcs'
@@ -112,6 +124,9 @@ class Bcs(Base):
     task = relationship("Task", back_populates="bcs")
     instance = relationship("Instance", back_populates="bcs")
 
+    def __repr__(self):
+        return "<Bcs(id={id} status={status})>".format(id=self.id, status=self.status)
+
 class Instance(Base):
     __tablename__ = 'instance'
 
@@ -124,3 +139,7 @@ class Instance(Base):
 
     task = relationship("Task", back_populates="instance")
     bcs = relationship("Bcs", back_populates="instance")
+
+    def __repr__(self):
+        return "<Instance(id={id} cpu={cpu} mem={mem}, price={price})>".format(
+	    id=self.id, cpu=self.cpu, mem=self.mem, price=self.price)
