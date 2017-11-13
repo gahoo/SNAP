@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey, create_engine
+from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey, create_engine, Table
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -34,6 +34,7 @@ class Project(Base):
     discount = Column(Float)
     email = Column(String(40))
     mns = Column(String)
+    task = relationship("Task", back_populates="project")
 
 class Module(Base):
     __tablename__ = 'module'
@@ -42,6 +43,9 @@ class Module(Base):
     name = Column(String, nullable=False)
     alias = Column(String)
     yaml = Column(String)
+
+    app = relationship("App", back_populates="module")
+    task = relationship("Task", back_populates="module")
 
 class App(Base):
     __tablename__ = 'app'
@@ -56,7 +60,13 @@ class App(Base):
     disk_type = Column(Integer)
     module_id = Column(Integer, ForeignKey('module.id'))
 
-    module = relationship("Module", back_populates="name")
+    module = relationship("Module", back_populates="app")
+    task = relationship("Task", back_populates="app")
+
+dependence_table = Table('dependence', Base.metadata,
+    Column('source_id', Integer, ForeignKey('task.id'), primary_key=True),
+    Column('target_id', Integer, ForeignKey('task.id'), primary_key=True)
+)
 
 class Task(Base):
     __tablename__ = 'task'
@@ -73,10 +83,16 @@ class Task(Base):
     app_id = Column(Integer, ForeignKey('app.id'))
     instance_id = Column(Integer, ForeignKey('instance.id'))
 
-    project = relationship("Project", back_populates="name")
-    module = relationship("Module", back_populates="name")
-    app = relationship("App", back_populates="name")
-    instance = relationship("Instance", back_populates="name")
+    project = relationship("Project", back_populates="task")
+    module = relationship("Module", back_populates="task")
+    app = relationship("App", back_populates="task")
+    bcs = relationship("Bcs", back_populates="task")
+    instance = relationship("Instance", back_populates="task")
+
+    dependence = relationship("Task", secondary=dependence_table,
+        primaryjoin=id==dependence_table.c.source_id,
+        secondaryjoin=id==dependence_table.c.target_id,
+        backref="followed_by")
 
 class Bcs(Base):
     __tablename__ = 'bcs'
@@ -93,17 +109,8 @@ class Bcs(Base):
     task_id = Column(Integer, ForeignKey('task.id'))
     instance_id = Column(Integer, ForeignKey('instance.id'))
 
-    task = relationship("Task", back_populates="name")
-    instance = relationship("Instance", back_populates="name")
-
-class Dependence(Base):
-    __tablename__ = 'dependence'
-
-    source_id = Column(Integer, ForeignKey('task.id'), primary_key=True)
-    #target_id = Column(Integer, ForeignKey('task.id'), primary_key=True)
-
-    source = relationship("Task", back_populates="shell")
-    #target = relationship("Task", back_populates="shell")
+    task = relationship("Task", back_populates="bcs")
+    instance = relationship("Instance", back_populates="bcs")
 
 class Instance(Base):
     __tablename__ = 'instance'
@@ -114,3 +121,6 @@ class Instance(Base):
     mem = Column(Integer)
     disk_type = Column(Integer)
     price = Column(Float)
+
+    task = relationship("Task", back_populates="instance")
+    bcs = relationship("Bcs", back_populates="instance")
