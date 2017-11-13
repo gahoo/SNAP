@@ -1,5 +1,5 @@
-hashlib==20081119
+batchcompute==2.0.8a13
 Jinja2==2.8
 MarkupSafe==0.23
 PyYAML==3.11
-wsgiref==0.1.2
+SQLAlchemy==1.1.15
