@@ -2,6 +2,8 @@ from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey, cre
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
+import getpass
+import datetime
 
 Base = declarative_base()
 
@@ -21,18 +23,18 @@ class Project(Base):
     id = Column(String(20), primary_key=True)
     name = Column(String(20), nullable=False)
     description = Column(String)
-    owner = Column(String, nullable=False)
-    status = Column(Integer, nullable=False)
-    type = Column(Integer)
+    owner = Column(String, nullable=False, default=getpass.getuser())
+    status = Column(Integer, nullable=False, default=CREATED)
+    type = Column(Integer, nullable=False, default=BCS)
     pipe = Column(String)
     path = Column(String)
-    max_job = Column(Integer)
-    run_cnt = Column(Integer)
-    create_date = Column(DateTime)
+    max_job = Column(Integer, default=50)
+    run_cnt = Column(Integer, default=0)
+    create_date = Column(DateTime, default=datetime.datetime.now())
     start_date = Column(DateTime)
     finish_date = Column(DateTime)
-    discount = Column(Float)
-    email = Column(String(40))
+    discount = Column(Float, default=0.1)
+    email = Column(String, default="{user}@igenecode.com".format(user=getpass.getuser()))
     mns = Column(String)
     task = relationship("Task", back_populates="project")
 
@@ -42,7 +44,7 @@ class Project(Base):
 class Module(Base):
     __tablename__ = 'module'
 
-    id = Column(String(20), primary_key=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     alias = Column(String)
     yaml = Column(String)
@@ -56,7 +58,7 @@ class Module(Base):
 class App(Base):
     __tablename__ = 'app'
 
-    id = Column(String(20), primary_key=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     alias = Column(String)
     yaml = Column(String)
