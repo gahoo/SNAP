@@ -96,16 +96,16 @@ class Bcs(Base):
     task = relationship("Task", back_populates="name")
     instance = relationship("Instance", back_populates="name")
 
-class dependence(Base):
+class Dependence(Base):
     __tablename__ = 'dependence'
 
     source_id = Column(Integer, ForeignKey('task.id'), primary_key=True)
-    target_id = Column(Integer, ForeignKey('task.id'), primary_key=True)
+    #target_id = Column(Integer, ForeignKey('task.id'), primary_key=True)
 
     source = relationship("Task", back_populates="shell")
-    target = relationship("Task", back_populates="shell")
+    #target = relationship("Task", back_populates="shell")
 
-class instance(Base):
+class Instance(Base):
     __tablename__ = 'instance'
 
     id = Column(Integer, primary_key=True)
