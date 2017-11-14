@@ -9,13 +9,18 @@ Base = declarative_base()
 
 CREATED = 0
 PENDING = 1
+WAITING = 2
+RUNNING = 3
+FAILED = 4
+FINISHED = 5
 
 BCS = 0
 SGE = 1
 K8S = 2
 
 CLOUD = 0
-CLOUD_SSD = 1
+CLOUD_EFFICIENT = 1
+CLOUD_SSD = 2
 
 class Project(Base):
     __tablename__ = 'project'
@@ -75,21 +80,21 @@ class App(Base):
         return "<App(id={id}, name={name})>".format(id=self.id, name=self.name)
 
 dependence_table = Table('dependence', Base.metadata,
-    Column('source_id', Integer, ForeignKey('task.id'), primary_key=True),
-    Column('target_id', Integer, ForeignKey('task.id'), primary_key=True)
+    Column('task_id', Integer, ForeignKey('task.id'), primary_key=True),
+    Column('depend_task_id', Integer, ForeignKey('task.id'), primary_key=True)
 )
 
 class Task(Base):
     __tablename__ = 'task'
     
     id = Column(Integer, primary_key=True)
-    shell = Column(String)
-    status = Column(Integer)
+    shell = Column(String, nullable=False)
+    status = Column(Integer, default=CREATED)
     cpu = Column(Integer)
     mem = Column(Float)
     disk_size = Column(Integer)
     disk_type = Column(Integer)
-    project_id = Column(Integer, ForeignKey('project.id'))
+    project_id = Column(Integer, ForeignKey('project.id'), nullable=False)
     module_id = Column(Integer, ForeignKey('module.id'))
     app_id = Column(Integer, ForeignKey('app.id'))
     instance_id = Column(Integer, ForeignKey('instance.id'))
@@ -101,8 +106,8 @@ class Task(Base):
     instance = relationship("Instance", back_populates="task")
 
     dependence = relationship("Task", secondary=dependence_table,
-        primaryjoin=id==dependence_table.c.source_id,
-        secondaryjoin=id==dependence_table.c.target_id,
+        primaryjoin=id==dependence_table.c.task_id,
+        secondaryjoin=id==dependence_table.c.depend_task_id,
         backref="depends")
 
     def __repr__(self):
@@ -133,11 +138,12 @@ class Instance(Base):
     __tablename__ = 'instance'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
-    cpu = Column(Integer)
-    mem = Column(Integer)
+    name = Column(String, nullable=False)
+    cpu = Column(Integer, nullable=False)
+    mem = Column(Integer, nullable=False)
     disk_type = Column(Integer)
-    price = Column(Float)
+    disk_size = Column(Integer)
+    price = Column(Float, nullable=False)
 
     task = relationship("Task", back_populates="instance")
     bcs = relationship("Bcs", back_populates="instance")
