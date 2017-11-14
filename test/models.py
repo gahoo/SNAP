@@ -1,5 +1,5 @@
 from core.models import Base, Project, Module, App, Task, Bcs, Instance
-from core.models import CREATED
+from core.models import CREATED, PENDING
 from core.models import BCS
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -21,8 +21,8 @@ class TestProject(unittest.TestCase):
 	self.session = self.Session()
 
     def tearDown(self):
-	map(self.session.delete, self.session.query(Project).all())
-	self.session.flush()
+	self.session.query(Project).delete()
+	#self.session.flush()
         self.session.close()
 
     def test_add(self):
@@ -46,8 +46,8 @@ class TestModule(unittest.TestCase):
 	self.session = self.Session()
 
     def tearDown(self):
-	map(self.session.delete, self.session.query(Module).all())
-	self.session.flush()
+	self.session.query(Module).delete()
+	#self.session.flush()
         self.session.close()
 
     def test_add(self):
@@ -67,6 +67,8 @@ class TestApp(unittest.TestCase):
 	self.session = self.Session()
 
     def tearDown(self):
+	self.session.query(Module).delete()
+	self.session.query(App).delete()
         self.session.close()
 
     def test_add(self):
@@ -85,6 +87,98 @@ class TestApp(unittest.TestCase):
 	self.assertEqual(app.module.alias, "Filter")
 	self.assertEqual(len(module.app), 2)
 	self.assertEqual(module.app[1].name, "RMrRNA_Statistic")
+
+class TestTask(unittest.TestCase):
+    """docstring for TestModule"""
+    def setUp(self):
+	self.Session = sessionmaker(bind=engine)
+	self.session = self.Session()
+
+    def tearDown(self):
+	self.session.query(Project).delete()
+	self.session.query(Module).delete()
+	self.session.query(App).delete()
+	self.session.query(Task).delete()
+        self.session.close()
+
+    def test_add(self):
+	proj = Project(id='proj-id', name='test')
+        module = Module(name = 'Filter_rRNA', alias='Filter')
+        app1 = App(name = 'RMrRNA_SOAP2', cpu=4, mem=8)
+        task1 = Task(shell='test1.sh', module=module, app=app1, project=proj)
+        task2 = Task(shell='test2.sh', module=module, app=app1, project=proj)
+	task2.dependence.append(task1)
+	self.session.add_all([module, app1, task1, task2])
+	self.session.commit()
+
+    def test_query(self):
+        tasks = self.session.query(Task).all()
+	self.assertTrue(tasks[1].dependence[0] is tasks[0])
+	self.assertEqual(tasks[0].shell, 'test1.sh')
+	self.assertEqual(tasks[0].app.name, 'RMrRNA_SOAP2')
+	self.assertEqual(tasks[0].module.name, 'Filter_rRNA')
+
+class TestBcs(unittest.TestCase):
+    """docstring for TestModule"""
+    def setUp(self):
+	self.Session = sessionmaker(bind=engine)
+	self.session = self.Session()
+
+    def tearDown(self):
+	self.session.query(Project).delete()
+	self.session.query(Module).delete()
+	self.session.query(App).delete()
+	self.session.query(Task).delete()
+	self.session.query(Bcs).delete()
+        self.session.close()
+
+    def test_add(self):
+	proj = Project(id='proj-id', name='test')
+        module = Module(name = 'Filter_rRNA', alias='Filter')
+        app = App(name = 'RMrRNA_SOAP2', cpu=4, mem=8)
+        task = Task(shell='test1.sh', module=module, app=app, project=proj)
+	bcs1 = Bcs(id='job-1', task=task)
+	bcs2 = Bcs(id='job-2', task=task)
+	self.session.add_all([bcs1, bcs2])
+	self.session.commit()
+
+    def test_query(self):
+        bcs = self.session.query(Bcs).all()
+	self.assertEqual(bcs[0].id, 'job-1')
+	self.assertEqual(bcs[0].task.shell, 'test1.sh')
+	self.assertEqual(bcs[0].task.module.name, 'Filter_rRNA')
+	self.assertEqual(bcs[0].task.app.name, 'RMrRNA_SOAP2')
+	self.assertEqual(bcs[0].task.bcs[0], bcs[0])
+
+class TestInstance(unittest.TestCase):
+    """docstring for TestModule"""
+    def setUp(self):
+	self.Session = sessionmaker(bind=engine)
+	self.session = self.Session()
+
+    def tearDown(self):
+	self.session.query(Project).delete()
+	self.session.query(Module).delete()
+	self.session.query(App).delete()
+	self.session.query(Task).delete()
+	self.session.query(Bcs).delete()
+        self.session.close()
+
+    def test_add(self):
+	proj = Project(id='proj-id', name='test')
+        instance = Instance(name='bcs.a2.large', cpu=4, mem=8, price=0.4)
+        task = Task(shell='test1.sh', project=proj, instance=instance)
+	bcs = Bcs(id='job-1', task=task, instance=instance)
+	self.session.add(instance)
+	self.session.commit()
+
+    def test_query(self):
+        instance = self.session.query(Instance).first()
+        task = self.session.query(Task).first()
+        bcs = self.session.query(Bcs).first()
+	self.assertTrue(bcs.instance is instance)
+	self.assertTrue(task.instance is instance)
+
 
 if __name__ == '__main__':
     unittest.main()
