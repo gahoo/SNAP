@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey, cre
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
+from state_machine import *
 import getpass
 import datetime
 
@@ -11,8 +12,10 @@ CREATED = 0
 PENDING = 1
 WAITING = 2
 RUNNING = 3
-FAILED = 4
-FINISHED = 5
+STOPPED = 4
+FAILED = 5
+FINISHED = 6
+CLEANED = 7
 
 BCS = 0
 SGE = 1
@@ -84,6 +87,7 @@ dependence_table = Table('dependence', Base.metadata,
     Column('depend_task_id', Integer, ForeignKey('task.id'), primary_key=True)
 )
 
+@acts_as_state_machine
 class Task(Base):
     __tablename__ = 'task'
     
@@ -110,13 +114,35 @@ class Task(Base):
         secondaryjoin=id==dependence_table.c.depend_task_id,
         backref="depends")
 
+    created = State(initial=True)
+    pending = State()
+    waiting = State()
+    running = State()
+    stopped = State()
+    failed = State()
+    finished = State()
+    cleaned = State()
+
+    start = Event(from_states=(created, stopped), to_state=pending)
+    stop = Event(from_states=(pending, waiting, running), to_state=stopped)
+    submit = Event(from_states=pending, to_state=waiting)
+    sync = Event(from_states=(waiting, running), to_state=(running, finished, failed))
+    retry = Event(from_states=failed, to_state=pending)
+    redo = Event(from_states=finished, to_state=pending)
+    clean = Event(from_states=(stopped, finished, failed), to_state=cleaned)
+
     def __repr__(self):
         return "<Task(id={id} status={status})>".format(id=self.id, status=self.status)
+
+    @after('created')
+    def do_nothing(self):
+        pass
 
 class Bcs(Base):
     __tablename__ = 'bcs'
 
     id = Column(String, primary_key=True)
+    name = Column(String)
     status = Column(Integer)
     spot_price = Column(Float)
     stdout = Column(String) # Path
@@ -125,6 +151,7 @@ class Bcs(Base):
     start_date = Column(DateTime)
     finish_date = Column(DateTime)
     spot_price_limit = Column(Float)
+    # could be app_id or module_id even project_id
     task_id = Column(Integer, ForeignKey('task.id'))
     instance_id = Column(Integer, ForeignKey('instance.id'))
 
