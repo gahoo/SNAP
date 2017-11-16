@@ -7,10 +7,13 @@ import pdb
 import sys
 import errno
 import re
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from collections import defaultdict
 from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
 from colorMessage import dyeWARNING, dyeFAIL
+from core import models
 from app import App
 
 
@@ -162,11 +165,15 @@ class Pipe(dict):
         super(Pipe, self).__init__()
         self.pipe_path = pipe_path
         self.proj_path = None
+        self.proj = None
         self.apps = {}
         self.parameter_file = ''
         self.parameters = {}
         self.dependencies = {}
         self.pymonitor_conf = []
+        self.db_path = None
+        self.engine = None
+        self.session = None
 
     def new(self):
         pass
@@ -215,10 +222,119 @@ class Pipe(dict):
         if proj_path:
             self.proj_path = os.path.abspath(proj_path)
         self.loadParameters(parameter_file)
+    #self.initDB()
         self.loadPipe()
         self.buildApps()
+    #self.formatDB()
         self.buildDepends()
         self.makePymonitorSH(pymonitor_path, proj_name, queue, priority)
+
+    def initDB(self):
+        self.db_path = os.path.join(self.proj_path, 'snap.db')
+        print self.db_path
+        self.engine = create_engine('sqlite:///{db_path}'.format(db_path=self.db_path))
+        if not os.path.exists(self.db_path):
+            models.Base.metadata.create_all(self.engine)
+        Session = sessionmaker(bind=self.engine)
+        self.session = Session()
+
+    def formatDB(self):
+        def unifyUnit(size):
+            if isinstance(size, int) or isinstance(size, float):
+                return float(size)
+            elif size.upper().endswith("M"):
+                return float(size.upper().strip('M')) / 1024
+            elif size.upper().endswith("G"):
+                return float(size.upper().strip('G'))
+            else:
+                raise ValueError("Unkown Unit: {size}".format(size=size))
+
+        def getConfig(appconfig, keys):
+            for key in keys:
+                appconfig = appconfig.get(key)
+                if appconfig is None:
+                    break
+            return appconfig
+
+        def getAppConfig(app, keys):
+            appconfig = app.config['app']
+            return getConfig(appconfig, keys)
+
+        def getResourceConfig(key, app):
+            keys = ['requirements', 'resources']
+            keys.append(key)
+            return getAppConfig(app, keys)
+
+        def mkProj():
+            commom_parameters = self.parameters['CommonParameters']
+            return models.Project(
+                id = commom_parameters['ContractID'],
+                name = commom_parameters['project_description'],
+                description = commom_parameters['project_description'],
+                type = commom_parameters.get('BACKEND', models.BCS),
+                pipe = self.pipe_path,
+                path = commom_parameters.get('WORKSPACE', './'),
+                max_job = commom_parameters.get('MAX_JOB', 50),
+                mns = commom_parameters.get('MNS') )
+
+        def mkModule(module_name):
+            return models.Module(name = module_name)
+
+        def mkInstance():
+            instance_list = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'instance.txt')
+            instances = []
+            with open(instance_list, 'r') as instance_file:
+                for line in instance_file:
+                    (Name, CPU, MEM, DiskType, DiskSize, Price) = line.strip().split('\t')
+                    instances.append(models.Instance(
+                    name=Name, cpu=CPU, mem=MEM, price=Price,
+                    disk_type=DiskType, disk_size=DiskSize) )
+            return instances
+
+        def chooseInstance(app):
+            instance_id = getAppConfig(app, ['requirements', 'instance', 'id'])
+            (cpu, mem, disk_size, disk_type) = map(functools.partial(getResourceConfig, app=app), ['cpu', 'mem', 'disk', 'disk_type'])
+
+            if instance_id is None:
+                instance = self.session.query(models.Instance). \
+                filter( models.Instance.cpu >= cpu ). \
+                filter( models.Instance.mem >= unifyUnit(mem) ). \
+                order_by( models.Instance.price ).first()
+            else:
+                instance = self.session.query(models.Instance).filter_by(name = instance_id).one()
+
+            if instance is None:
+                raise LookupError("No proper instance found!")
+
+            return instance
+
+        def mkApp(app):
+            module = self.session.query(models.Module).filter_by(name = app.module).first()
+            mem = getAppConfig(app, ['requirements', 'resources', 'mem'])
+            (cpu, mem, disk_size, disk_type) = map(functools.partial(getResourceConfig, app=app), ['cpu', 'mem', 'disk', 'disk_type'])
+
+            return models.App(
+                name = app.appname,
+                alias = getAppConfig(app, ['name']),
+                docker_image = getAppConfig(app, ['requirements', 'container', 'image']),
+                instance_image = getAppConfig(app, ['requirements', 'instance', 'image']),
+                yaml = app.config_file,
+                cpu = cpu,
+                mem = unifyUnit(mem),
+                disk_size = unifyUnit(disk_size),
+                disk_type = disk_type,
+                module = module,
+                instance = chooseInstance(app)
+            )
+
+        self.session.add(mkProj())
+        instances = mkInstance()
+        self.session.add_all(instances)
+        modules = map(mkModule, self.dependencies.keys())
+        self.session.add_all(modules)
+        apps = map(mkApp, self.apps.itervalues())
+        self.session.add_all(modules)
+        self.session.commit()
 
     def buildApps(self):
         def buildEachApp(parameters, module, appname):
@@ -234,7 +350,11 @@ class Pipe(dict):
                 else:
                     parameters[module][appname] = defaults
 
-            sh_file = os.path.join(self.proj_path, self.dependencies[module][appname]['sh_file'])
+            try:
+                sh_file = os.path.join(self.proj_path, self.dependencies[module][appname]['sh_file'])
+            except KeyError:
+                raise KeyError('dependencies.yaml {module} {appname} has no "sh_file"'.format(module=module, appname=appname))
+
             self.checkAppAlias(module, appname)
             self.apps[appname].build(parameters=parameters, module=module, output=sh_file)
 
