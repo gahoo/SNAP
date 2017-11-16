@@ -28,7 +28,7 @@ CLOUD_SSD = 2
 class Project(Base):
     __tablename__ = 'project'
 
-    id = Column(String(20), primary_key=True)
+    id = Column(String(25), primary_key=True)
     name = Column(String(20), nullable=False)
     description = Column(String)
     owner = Column(String, nullable=False, default=getpass.getuser())
@@ -69,15 +69,19 @@ class App(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     alias = Column(String)
+    docker_image = Column(String)
+    instance_image = Column(String)
     yaml = Column(String)
     cpu = Column(Integer)
     mem = Column(Float)
     disk_size = Column(Integer)
     disk_type = Column(Integer)
     module_id = Column(Integer, ForeignKey('module.id'))
+    instance_id = Column(Integer, ForeignKey('instance.id'))
 
     module = relationship("Module", back_populates="app")
     task = relationship("Task", back_populates="app")
+    instance = relationship("Instance", back_populates="app")
 
     def __repr__(self):
         return "<App(id={id}, name={name})>".format(id=self.id, name=self.name)
@@ -172,6 +176,7 @@ class Instance(Base):
     disk_size = Column(Integer)
     price = Column(Float, nullable=False)
 
+    app = relationship("App", back_populates="instance")
     task = relationship("Task", back_populates="instance")
     bcs = relationship("Bcs", back_populates="instance")
 
