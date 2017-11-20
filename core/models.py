@@ -28,7 +28,7 @@ CLOUD_SSD = 2
 class Project(Base):
     __tablename__ = 'project'
 
-    id = Column(String(25), primary_key=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String(20), nullable=False)
     description = Column(String)
     owner = Column(String, nullable=False, default=getpass.getuser())
@@ -94,6 +94,7 @@ dependence_table = Table('dependence', Base.metadata,
 @acts_as_state_machine
 class Task(Base):
     __tablename__ = 'task'
+    __table_args__ = (UniqueConstraint('shell', 'project_id'), )
     
     id = Column(Integer, primary_key=True)
     shell = Column(String, nullable=False)
