@@ -130,6 +130,7 @@ class App(dict):
         self.isGDParameters = True
         self.scripts = []
         self.shell_path = ''
+        self.model = None
         self.config = {
             'app': {
                 'package': "package_name",
@@ -722,9 +723,11 @@ class App(dict):
             params = None
             list_params_name = None
 
+
         if 'sample_name' in self.config['app']['parameters'].keys():
             #something wrong around here
             renderSamples(list_params_name)
+            self.config['app']['parameters'].pop('sample_name')
             self.type = 'sample'
         elif list_params_name:
             renderListParam(params, list_params_name)
