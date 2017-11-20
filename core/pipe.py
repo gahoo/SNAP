@@ -7,8 +7,9 @@ import pdb
 import sys
 import errno
 import re
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, UniqueConstraint
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import IntegrityError
 from collections import defaultdict
 from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
@@ -268,8 +269,7 @@ class Pipe(dict):
         def mkProj():
             commom_parameters = self.parameters['CommonParameters']
             return models.Project(
-                id = commom_parameters['ContractID'],
-                name = commom_parameters['project_description'],
+                name = commom_parameters['ContractID'],
                 description = commom_parameters['project_description'],
                 type = commom_parameters.get('BACKEND', models.BCS),
                 pipe = self.pipe_path,
@@ -309,11 +309,30 @@ class Pipe(dict):
             return instance
 
         def mkApp(app):
-            module = self.session.query(models.Module).filter_by(name = app.module).first()
+            def mkTask(script):
+                task = models.Task(
+                        shell = script['filename'],
+                        cpu = cpu,
+                        mem = unifyUnit(mem),
+                        disk_size = unifyUnit(disk_size),
+                        disk_type = disk_type,
+                        project = self.proj,
+                        module = module,
+                        app = app.model,
+                        instance = instance)
+                try:
+                    self.session.add(task)
+                    self.session.commit()
+                except IntegrityError:
+                    self.session.rollback()
+                    print dyeWARNING("'{sh}' not unique".format(sh=script['filename']))
+
             mem = getAppConfig(app, ['requirements', 'resources', 'mem'])
             (cpu, mem, disk_size, disk_type) = map(functools.partial(getResourceConfig, app=app), ['cpu', 'mem', 'disk', 'disk_type'])
+            module = self.session.query(models.Module).filter_by(name = app.module).first()
+            instance = chooseInstance(app)
 
-            return models.App(
+            app.model = models.App(
                 name = app.appname,
                 alias = getAppConfig(app, ['name']),
                 docker_image = getAppConfig(app, ['requirements', 'container', 'image']),
@@ -324,16 +343,21 @@ class Pipe(dict):
                 disk_size = unifyUnit(disk_size),
                 disk_type = disk_type,
                 module = module,
-                instance = chooseInstance(app)
-            )
+                instance = instance)
+            self.session.add(app.model)
 
-        self.session.add(mkProj())
+            map(mkTask, app.scripts)
+
+        self.proj = mkProj()
+        self.session.add(self.proj)
+        self.session.commit()
         instances = mkInstance()
         self.session.add_all(instances)
+        self.session.commit()
         modules = map(mkModule, self.dependencies.keys())
         self.session.add_all(modules)
-        apps = map(mkApp, self.apps.itervalues())
-        self.session.add_all(modules)
+        self.session.commit()
+        map(mkApp, self.apps.itervalues())
         self.session.commit()
 
     def buildApps(self):
@@ -367,7 +391,7 @@ class Pipe(dict):
             if v is None:
                 raise ValueError('Module "{module}" contains no app!'.format(module=k))
             if k not in ('Samples', 'CommonData', 'CommonParameters'):
-                 buildEachModule(k)
+                buildEachModule(k)
 
     def checkAppAlias(self, module, appname):
         if appname not in self.apps:
