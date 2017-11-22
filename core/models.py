@@ -5,6 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from state_machine import *
 import getpass
 import datetime
+import os
 
 Base = declarative_base()
 
@@ -29,7 +30,7 @@ class Project(Base):
     __tablename__ = 'project'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(20), nullable=False)
+    name = Column(String(20), nullable=False, unique=True)
     description = Column(String)
     owner = Column(String, nullable=False, default=getpass.getuser())
     status = Column(Integer, nullable=False, default=CREATED)
@@ -65,6 +66,7 @@ class Module(Base):
 
 class App(Base):
     __tablename__ = 'app'
+    __table_args__ = (UniqueConstraint('name', 'module_id'), )
 
     id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
@@ -137,7 +139,7 @@ class Task(Base):
     clean = Event(from_states=(stopped, finished, failed), to_state=cleaned)
 
     def __repr__(self):
-        return "<Task(id={id} status={status})>".format(id=self.id, status=self.status)
+        return "<Task(id={id} sh={shell} status={status})>".format(id=self.id, shell=os.path.basename(self.shell), status=self.status)
 
     @after('created')
     def do_nothing(self):
@@ -170,7 +172,7 @@ class Instance(Base):
     __tablename__ = 'instance'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=False, unique=True)
     cpu = Column(Integer, nullable=False)
     mem = Column(Integer, nullable=False)
     disk_type = Column(Integer)
