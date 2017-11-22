@@ -223,10 +223,10 @@ class Pipe(dict):
         if proj_path:
             self.proj_path = os.path.abspath(proj_path)
         self.loadParameters(parameter_file)
-    #self.initDB()
+        #self.initDB()
         self.loadPipe()
         self.buildApps()
-    #self.formatDB()
+        #self.formatDB()
         self.buildDepends()
         self.makePymonitorSH(pymonitor_path, proj_name, queue, priority)
 
@@ -278,7 +278,10 @@ class Pipe(dict):
                 mns = commom_parameters.get('MNS') )
 
         def mkModule(module_name):
-            return models.Module(name = module_name)
+            module = models.Module(name = module_name)
+            self.session.commit()
+            for appname in self.dependencies[module_name].keys():
+                mkApp(self.apps[appname], module)
 
         def mkInstance():
             instance_list = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'instance.txt')
@@ -308,9 +311,9 @@ class Pipe(dict):
 
             return instance
 
-        def mkApp(app):
+        def mkApp(app, module):
             def mkTask(script):
-                task = models.Task(
+                script['task'] = models.Task(
                         shell = script['filename'],
                         cpu = cpu,
                         mem = unifyUnit(mem),
@@ -318,10 +321,10 @@ class Pipe(dict):
                         disk_type = disk_type,
                         project = self.proj,
                         module = module,
-                        app = app.model,
+                        app = app,
                         instance = instance)
                 try:
-                    self.session.add(task)
+                    self.session.add(script['task'])
                     self.session.commit()
                 except IntegrityError:
                     self.session.rollback()
@@ -329,10 +332,10 @@ class Pipe(dict):
 
             mem = getAppConfig(app, ['requirements', 'resources', 'mem'])
             (cpu, mem, disk_size, disk_type) = map(functools.partial(getResourceConfig, app=app), ['cpu', 'mem', 'disk', 'disk_type'])
-            module = self.session.query(models.Module).filter_by(name = app.module).first()
             instance = chooseInstance(app)
+            scripts = [s for s in app.scripts if s['module'] == module.name]
 
-            app.model = models.App(
+            app = models.App(
                 name = app.appname,
                 alias = getAppConfig(app, ['name']),
                 docker_image = getAppConfig(app, ['requirements', 'container', 'image']),
@@ -344,9 +347,74 @@ class Pipe(dict):
                 disk_type = disk_type,
                 module = module,
                 instance = instance)
-            self.session.add(app.model)
+            self.session.add(app)
+            self.session.commit()
 
-            map(mkTask, app.scripts)
+            map(mkTask, scripts)
+
+        def mkCombTaskDepends(tasks, dep_tasks):
+            for task in tasks:
+                for dep_task in dep_tasks:
+                    task.dependence.append(dep_task)
+            self.session.commit()
+
+        def mkSampleTaskDepends(app, module, dep_app, dep_module):
+            def mkEachSampleTaskDepends(sample_name):
+                tasks = getSampleTask(app, module, sample_name)
+                dep_tasks = getSampleTask(dep_app, dep_module, sample_name)
+                mkCombTaskDepends(tasks, dep_tasks)
+
+            map(mkEachSampleTaskDepends, [sample['sample_name'] for sample in self.parameters['Samples']])
+
+        def mkAppDepends(app, module_name, depends):
+            for dep_appname in depends[app.name]['depends']:
+                if dep_appname in depends:
+                    dep_module_name = module_name
+                    dep_module = self.session.query(models.Module).filter_by(name = dep_module_name).one()
+                    dep_app = self.session.query(models.App).filter_by(name = dep_appname).filter_by(module_id = dep_module.id).one()
+                else:
+                    dep_module_name = getDepModule(dep_appname)
+                    dep_module = self.session.query(models.Module).filter_by(name = dep_module_name).one()
+                    dep_app = self.session.query(models.App).filter_by(name = dep_appname).filter_by(module_id = dep_module.id).one()
+
+                if hasSampleName(module_name, app.name) and hasSampleName(dep_module_name, dep_app.name):
+                    mkSampleTaskDepends(app, module_name, dep_app, dep_module_name)
+                else:
+                    tasks = getModuleAppTask(app, module_name)
+                    dep_tasks = getModuleAppTask(dep_app, dep_module_name)
+                    mkCombTaskDepends(tasks, dep_tasks)
+
+        def getDepModule(dep_appname):
+            dep_modules = [k for k, v in self.dependencies.iteritems() if dep_appname in v]
+            if len(dep_modules) == 0:
+                msg = '{dep_appname} not in any module'.format(dep_appname=dep_appname)
+                print dyeFAIL(msg)
+                raise KeyError(msg)
+            elif len(dep_modules) > 1:
+                msg = '{dep_appname} has more than one module: {modules}'.format(dep_appname=dep_appname, modules=dep_modules)
+                print dyeFAIL(msg)
+                raise KeyError(msg)
+            elif len(dep_modules) == 1:
+                dep_module = dep_modules[0]
+            return dep_module
+
+        def hasSampleName(module, appname):
+            return self.dependencies[module][appname]['sh_file'].count('sample_name}}') > 0
+
+        def getModuleAppTask(app, module):
+            return [t for t in app.task if t.module.name == module]
+
+        def getSampleTask(app, module, sample_name):
+            return [s['task'] for s in self.apps[app.name].scripts if s['task'].module.name == module and s['extra']['sample_name'] == sample_name]
+
+        def mkModuleDepend(name, depends):
+            module = self.session.query(models.Module).filter_by(name = name).one()
+            for app in module.app:
+                mkAppDepends(app, module.name, depends)
+
+        def mkDepends():
+            for name, depends in self.dependencies.iteritems():
+                mkModuleDepend(name, depends)
 
         self.proj = mkProj()
         self.session.add(self.proj)
@@ -355,9 +423,7 @@ class Pipe(dict):
         self.session.add_all(instances)
         self.session.commit()
         modules = map(mkModule, self.dependencies.keys())
-        self.session.add_all(modules)
-        self.session.commit()
-        map(mkApp, self.apps.itervalues())
+        mkDepends()
         self.session.commit()
 
     def buildApps(self):
@@ -467,6 +533,8 @@ class Pipe(dict):
                 else:
                     combLines(scripts[module][appname], scripts[dep_module][dep_appname])
 
+            if not self.dependencies[module][appname].has_key('depends'):
+                raise KeyError("dependencies.yaml: {module}.{appname} 'depends' not found".format(module=module, appname=appname))
             map(buildLines, self.dependencies[module][appname]['depends'])
 
         def makeModulePymonitorConf(module):
