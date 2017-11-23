@@ -313,6 +313,14 @@ class Pipe(dict):
 
         def mkApp(app, module):
             def mkTask(script):
+                def mkMapping(mapping):
+                    return models.Mapping(
+                        name = mapping['name'],
+                        source = mapping['source'],
+                        destination = mapping['destination'],
+                        is_write = mapping['is_write'],
+                        is_immediate = mapping['is_immediate'])
+
                 script['task'] = models.Task(
                         shell = script['filename'],
                         cpu = cpu,
@@ -322,6 +330,7 @@ class Pipe(dict):
                         project = self.proj,
                         module = module,
                         app = app,
+                        mapping = map(mkMapping, script['mappings']),
                         instance = instance)
                 try:
                     self.session.add(script['task'])
