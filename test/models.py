@@ -1,4 +1,4 @@
-from core.models import Base, Project, Module, App, Task, Bcs, Instance
+from core.models import Base, Project, Module, App, Task, Bcs, Instance, Mapping
 from core.models import CREATED, PENDING
 from core.models import BCS
 from sqlalchemy import create_engine
@@ -27,13 +27,13 @@ class TestProject(unittest.TestCase):
         self.session.close()
 
     def test_add_project(self):
-        proj = Project(id='proj-1', name='test')
+        proj = Project(name='proj-1')
         self.session.add(proj)
         self.session.commit()
 
     def test_query_project(self):
-        proj = self.session.query(Project).filter(Project.id == 'proj-1').first()
-        self.assertEqual(str(proj), "<Project(id=proj-1, name=test)>")
+        proj = self.session.query(Project).filter(Project.name == 'proj-1').first()
+        self.assertEqual(proj.name, 'proj-1')
         self.assertEqual(proj.owner, getpass.getuser())
         self.assertEqual(proj.type, BCS)
         self.assertEqual(proj.status, CREATED)
@@ -105,7 +105,7 @@ class TestTask(unittest.TestCase):
         self.session.close()
 
     def test_add_task(self):
-        proj = Project(id='proj-2', name='test')
+        proj = Project(name='proj-2')
         module = Module(name = 'Filter_rRNA', alias='Filter')
         app1 = App(name = 'RMrRNA_SOAP2', cpu=4, mem=8)
         task1 = Task(shell='test1.sh', module=module, app=app1, project=proj)
@@ -137,7 +137,7 @@ class TestBcs(unittest.TestCase):
         self.session.close()
 
     def test_add_bcs(self):
-        proj = Project(id='proj-3', name='test')
+        proj = Project(name='proj-3')
         module = Module(name = 'Filter_rRNA', alias='Filter')
         app = App(name = 'RMrRNA_SOAP2', cpu=4, mem=8)
         task = Task(shell='test3.sh', module=module, app=app, project=proj)
@@ -170,7 +170,7 @@ class TestInstance(unittest.TestCase):
         self.session.close()
 
     def test_add_instance(self):
-        proj = Project(id='proj-4', name='test')
+        proj = Project(name='proj-4')
         instance = Instance(name='bcs.a2.large', cpu=4, mem=8, price=0.4)
         app = App(name = 'RMrRNA_Statistic', cpu=4, mem=8, instance=instance)
         task = Task(shell='test4.sh', project=proj, instance=instance)
@@ -187,6 +187,29 @@ class TestInstance(unittest.TestCase):
         self.assertTrue(bcs.instance is instance)
         self.assertTrue(task.instance is instance)
 
+class TestMapping(unittest.TestCase):
+    """docstring for TestModule"""
+    def setUp(self):
+        self.Session = sessionmaker(bind=engine)
+        self.session = self.Session()
+
+    def tearDown(self):
+        self.session.query(Project).delete()
+        self.session.query(Instance).delete()
+        self.session.query(Mapping).delete()
+
+    def test_add_mapping(self):
+        proj = Project(name='proj-5')
+        instance = Instance(name='bcs.a2.xlarge', cpu=4, mem=8, price=0.4)
+        mapping = Mapping(source='/local/a', destination='oss://test/a')
+        task = Task(shell='test5.sh', project=proj, instance=instance)
+        task.mapping.append(mapping)
+        self.session.add(mapping)
+        self.session.commit()
+
+    def test_query_mapping(self):
+        mapping = self.session.query(Mapping).first()
+        self.assertTrue(not mapping.is_write)
 
 if __name__ == '__main__':
     unittest.main()
