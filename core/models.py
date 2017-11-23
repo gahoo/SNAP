@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey, create_engine, Table
+from sqlalchemy import Column, Integer, Float, String, DateTime, Boolean, ForeignKey, create_engine, Table
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -115,6 +115,7 @@ class Task(Base):
     app = relationship("App", back_populates="task")
     bcs = relationship("Bcs", back_populates="task")
     instance = relationship("Instance", back_populates="task")
+    mapping = relationship("Mapping", back_populates="task")
 
     dependence = relationship("Task", secondary=dependence_table,
         primaryjoin=id==dependence_table.c.task_id,
@@ -186,3 +187,20 @@ class Instance(Base):
     def __repr__(self):
         return "<Instance(id={id} cpu={cpu} mem={mem}, price={price})>".format(
 	    id=self.id, cpu=self.cpu, mem=self.mem, price=self.price)
+
+class Mapping(Base):
+    __tablename__ = 'mapping'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    source = Column(String)
+    destination = Column(String)
+    is_write = Column(Boolean, default=False)
+    is_immediate = Column(Boolean, default=True)
+
+    task_id = Column(Integer, ForeignKey('task.id'))
+    task = relationship("Task", back_populates="mapping")
+
+    def __repr__(self):
+        return "<Mapping(id={id} {source}:{destination} write={is_write})>".format(
+	    id=self.id, source=source, destination=destination, is_write=is_write)
