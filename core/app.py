@@ -317,10 +317,13 @@ class App(dict):
         else:
             return getGHvalue(name)
 
-    def loadParameterValue(self, name):
+    def loadParameterValue(self, name, is_oss=False):
         def addWorkspace4FilePath(name, value):
-            if isinstance(value, str) and not value.startswith('/') and (name in self.config['app']['inputs'].keys() or name in self.config['app']['outputs'].keys()):
-                WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
+            if isinstance(value, str) and not (value.startswith('/') or value.startswith('oss://')) and (name in self.config['app']['inputs'].keys() or name in self.config['app']['outputs'].keys()):
+                if is_oss:
+                    WORKSPACE = os.path.join('oss://igenecode-bcs/project/', self.parameters['CommonParameters'].get('ContractID'))
+                else:
+                    WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
                 value = os.path.join(WORKSPACE, value)
             return value
 
@@ -331,13 +334,19 @@ class App(dict):
             value = None
         return value
 
-    def getFilePath(self, name, file_type):
+    def getFilePath(self, name, file_type, is_oss=False):
         def getGDfilePath(name):
             pass
 
+        def oss2local(path):
+            if not is_oss and path.startswith('oss://'):
+                return path.replace('oss://', '/')
+            else:
+                return path
+
         def getGHfilePath(name):
             # Parameters App
-            file_path = self.loadParameterValue(name)
+            file_path = self.loadParameterValue(name, is_oss)
             # Parameters CommonData
             if not file_path:
                 file_path = self.parameters['CommonData'].get(name)
@@ -346,9 +355,9 @@ class App(dict):
                 file_path = renderDefaultPath(file_path, file_type)
 
             if isinstance(file_path, list):
-                return file_path
+                return map(oss2local, file_path)
             else:
-                return [file_path]
+                return map(oss2local, [file_path])
 
         def renderDefaultPath(path_template, file_type):
             def renderPath(sample):
@@ -397,6 +406,7 @@ class App(dict):
             (name, settings) = item
 
             file_paths = self.getFilePath(name, file_type.lower())
+            oss_paths = self.getFilePath(name, file_type.lower(), True)
             if not file_paths:
                 file_paths = ["/path/to/data/to/load/%s" % name]
 
@@ -417,10 +427,11 @@ class App(dict):
             }
 
             data = []
-            for file_path in file_paths:
+            for file_path,oss_path in zip(file_paths, oss_paths):
                 data.append({
                     'enid': name,
                     'name': file_path,
+                    'oss': oss_path,
                     'property': _property,
                     'description': "%s file" % name
                 })
@@ -703,7 +714,38 @@ class App(dict):
             script = self.renderScript(template, extra=extra)
             if script.count('{{parameters'):
                 script = self.renderScript(script, extra=extra)
-            self.scripts.append({"filename": script_file, "content": script, "module": self.module, "extra": extra})
+
+            mappings = []
+            [mappings.extend(getMappings(f, 'inputs', extra)) for f in self['inputs']]
+            [mappings.extend(getMappings(f, 'outputs', extra)) for f in self['outputs']]
+
+            self.scripts.append({"filename": script_file, "content": script, "module": self.module, "extra": extra, "mappings": mappings})
+
+        def getMappings(name, file_type, extra):
+            if file_type == 'inputs':
+                is_write = False
+            elif file_type == 'outputs':
+                is_write = True
+
+            return [{
+                'name': name,
+                'source': self.renderScript(f['name'], extra=extra),
+                'destination': self.renderScript(f['oss'], extra=extra),
+                'is_write': is_write,
+                'is_immediate': isImmediate(f['name'])
+                } for f in self[file_type][name]]
+
+        def isImmediate(path):
+            if path in self.parameters['CommonData'].values():
+                # in common data
+                return False
+            if path in self.parameters[self.module][self.appname].values():
+                return False
+            for sample in self.parameters['Samples']:
+                for data in sample['data']:
+                    if path in data.values():
+                        return False
+            return True
 
         def findListParams(params):
             isList = lambda value: isinstance(value, list)
