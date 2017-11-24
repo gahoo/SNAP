@@ -715,11 +715,23 @@ class App(dict):
             if script.count('{{parameters'):
                 script = self.renderScript(script, extra=extra)
 
-            mappings = []
+            mappings = [addScriptMapping(script_file)]
             [mappings.extend(getMappings(f, 'inputs', extra)) for f in self['inputs']]
             [mappings.extend(getMappings(f, 'outputs', extra)) for f in self['outputs']]
 
             self.scripts.append({"filename": script_file, "content": script, "module": self.module, "extra": extra, "mappings": mappings})
+
+        def addScriptMapping(script_file):
+            WORKSPACE = os.path.join('oss://igenecode-bcs/project/', self.parameters['CommonParameters'].get('ContractID'))
+            oss_script_file = script_file.replace(self.parameters['CommonParameters']['WORKSPACE'], '')
+            oss_script_file = os.path.join(WORKSPACE, oss_script_file)
+
+            return {
+                'name': 'sh',
+                'source': script_file,
+                'destination': oss_script_file,
+                'is_write': False,
+                'is_immediate': False}
 
         def getMappings(name, file_type, extra):
             if file_type == 'inputs':
