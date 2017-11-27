@@ -7,6 +7,7 @@ import pdb
 import sys
 import errno
 import re
+import glob
 from sqlalchemy import create_engine, UniqueConstraint
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +16,7 @@ from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
 from colorMessage import dyeWARNING, dyeFAIL
 from core import models
+from core.oss import BUCKET
 from app import App
 
 
@@ -434,6 +436,55 @@ class Pipe(dict):
         modules = map(mkModule, self.dependencies.keys())
         mkDepends()
         self.session.commit()
+
+    def mkOSSuploadSH(self):
+        def isDestinationExists(destination):
+            key = getOssKey(destination)
+            return BUCKET.object_exists(key)
+
+        def getOssKey(destination):
+            prefix = os.path.join('oss://', BUCKET.bucket_name)
+            key = destination.replace(prefix, '').strip('/')
+            return key
+
+        def checkSize(source, destination):
+            key = getOssKey(destination)
+            meta = BUCKET.get_object_meta(key)
+            source_size = os.path.getsize(source)
+            if source_size != meta.content_length:
+                msg = '{source} size({source_size} differ from {destination}({destination_size}))'
+                raise ValueError(msg.format(source=source, source_size=source_size, destination=destination, destination_size=meta.content_length))
+
+        def addSource(source, destination):
+            if source in file_size:
+                return
+            if not isDestinationExists(destination):
+                file_size[source] = os.path.getsize(source)
+                cmd.append("ossutil cp %s %s" % (source, destination))
+            else:
+                checkSize(source, destination)
+
+        def tryAddSourceWithPrefix(source, destination):
+            for each_source in glob.glob(source+'*'):
+                each_destination = os.path.join(os.path.dirname(destination), os.path.basename(each_source))
+                addSource(each_source, each_destination)
+
+        cmd = []
+        file_size = {}
+        for m in self.session.query(models.Mapping). \
+                filter_by(is_write = 0, is_immediate = 0). \
+                filter(models.Mapping.name != 'sh').all():
+           if os.path.exists(m.source):
+               addSource(m.source, m.destination)
+           else:
+               msg = "{name}:{source} not exist.".format(name = m.name, source = m.source)
+               print dyeFAIL(msg)
+               tryAddSourceWithPrefix(m.source, m.destination)
+
+        content = "\n".join(list(set(cmd)))
+        print "uploadData2OSS.sh: %d files(%d GB) to upload" % (len(file_size), sum(file_size.values())/2**30)
+        script_file = os.path.join(self.proj_path, 'uploadData2OSS.sh')
+        self.write(script_file, content)
 
     def buildApps(self):
         def buildEachApp(parameters, module, appname):
