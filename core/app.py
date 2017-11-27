@@ -321,7 +321,7 @@ class App(dict):
         def addWorkspace4FilePath(name, value):
             if isinstance(value, str) and not (value.startswith('/') or value.startswith('oss://')) and (name in self.config['app']['inputs'].keys() or name in self.config['app']['outputs'].keys()):
                 if is_oss:
-                    WORKSPACE = os.path.join('oss://igenecode-bcs/project/', self.parameters['CommonParameters'].get('ContractID'))
+                    WORKSPACE = self.oss_path('project')
                 else:
                     WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
                 value = os.path.join(WORKSPACE, value)
@@ -338,12 +338,6 @@ class App(dict):
         def getGDfilePath(name):
             pass
 
-        def oss2local(path):
-            if not is_oss and path.startswith('oss://'):
-                return path.replace('oss://', '/')
-            else:
-                return path
-
         def getGHfilePath(name):
             # Parameters App
             file_path = self.loadParameterValue(name, is_oss)
@@ -355,9 +349,9 @@ class App(dict):
                 file_path = renderDefaultPath(file_path, file_type)
 
             if isinstance(file_path, list):
-                return map(oss2local, file_path)
+                return file_path
             else:
-                return map(oss2local, [file_path])
+                return [file_path]
 
         def renderDefaultPath(path_template, file_type):
             def renderPath(sample):
@@ -626,8 +620,15 @@ class App(dict):
                     return False
 
             def updateInputs(slots):
+                oss_clean_data_path = os.path.join(self.oss_path('clean'), sample_dict['sample_name'])
                 for k in slots:
-                    self['inputs'][k][0]['name'] = data.get(k)
+                    file_path = data.get(k)
+                    if file_path.startswith('oss://'):
+                        self['inputs'][k][0]['name'] = file_path.replace('oss://', '/')
+                        self['inputs'][k][0]['oss'] = file_path
+                    else:
+                        self['inputs'][k][0]['name'] = file_path
+                        self['inputs'][k][0]['oss'] = os.path.join(oss_clean_data_path, os.path.basename(file_path))
                     self['inputs'][k][0].updatePath()
 
             def updateParameters(slots):
@@ -722,9 +723,9 @@ class App(dict):
             self.scripts.append({"filename": script_file, "content": script, "module": self.module, "extra": extra, "mappings": mappings})
 
         def addScriptMapping(script_file):
-            WORKSPACE = os.path.join('oss://igenecode-bcs/project/', self.parameters['CommonParameters'].get('ContractID'))
+            oss_proj_path = self.oss_path('project')
             oss_script_file = script_file.replace(self.parameters['CommonParameters']['WORKSPACE'], '')
-            oss_script_file = os.path.join(WORKSPACE, oss_script_file)
+            oss_script_file = os.path.join(oss_proj_path, oss_script_file)
 
             return {
                 'name': 'sh',
@@ -739,13 +740,40 @@ class App(dict):
             elif file_type == 'outputs':
                 is_write = True
 
+            def checkSource(source):
+                new_source = source
+                if source.startswith('oss://'):
+                    new_source = source.replace('oss://', '/')
+                    #raise ValueError("{name}:{source} should not starts with oss://".format(name=name, source=source))
+                    msg = "Auto Guess Local Path\t{module}.{app}.{name}: {source} => {new_source}"
+                    print dyeWARNING(msg.format(module=self.module, app=self.appname, name=name, source=source, new_source = new_source))
+                return new_source
+
+            def checkDestination(destination):
+                if not destination:
+                    msg = "{app}.{name}: destination is empty"
+                    print dyeFAIL(msg.format(app=self.appname, name=name))
+                    return ''
+
+                new_destination = destination
+                if not destination.startswith('oss://'):
+                    if destination.startswith('/data/database'):
+                        new_destination = destination.replace('/data/', 'oss://igenecode-bcs/')
+                    else:
+                        folder = os.path.basename(os.path.dirname(destination))
+                        filename = os.path.basename(destination)
+                        new_destination = os.path.join(self.oss_path('project'), 'database', folder, filename)
+                    msg = "Auto Guess OSS Path\t{module}.{app}.{name}: {destination} => {new_destination}"
+                    print dyeWARNING(msg.format(module=self.module, app=self.appname, name=name, destination=destination, new_destination = new_destination))
+                return new_destination
+
             return [{
                 'name': name,
-                'source': self.renderScript(f['name'], extra=extra),
-                'destination': self.renderScript(f['oss'], extra=extra),
+                'source': checkSource(self.renderScript(f['name'], extra=extra)),
+                'destination': checkDestination(self.renderScript(f['oss'], extra=extra)),
                 'is_write': is_write,
                 'is_immediate': isImmediate(f['name'])
-                } for f in self[file_type][name]]
+                } for f in self[file_type][name] if f['name'] != '']
 
         def isImmediate(path):
             if path in self.parameters['CommonData'].values():
@@ -810,6 +838,9 @@ class App(dict):
             self.mkdir_p(os.path.dirname(filename))
             with open(filename, 'w') as f:
                 f.write(content.encode('utf-8'))
+
+    def oss_path(self, type):
+        return os.path.join('oss://igenecode-bcs/', type, self.parameters['CommonParameters'].get('ContractID'))
 
     def test(self):
         pass
