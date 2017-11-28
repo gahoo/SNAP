@@ -772,7 +772,7 @@ class App(dict):
                 'source': checkSource(self.renderScript(f['name'], extra=extra)),
                 'destination': checkDestination(self.renderScript(f['oss'], extra=extra)),
                 'is_write': is_write,
-                'is_immediate': isImmediate(f['name'])
+                'is_immediate': isImmediate(f['name']) and isImmediate(f['oss'])
                 } for f in self[file_type][name] if f['name'] != '']
 
         def isImmediate(path):
