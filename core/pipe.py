@@ -316,12 +316,24 @@ class Pipe(dict):
         def mkApp(app, module):
             def mkTask(script):
                 def mkMapping(mapping):
-                    return models.Mapping(
+                    m = models.Mapping(
                         name = mapping['name'],
                         source = mapping['source'],
                         destination = mapping['destination'],
                         is_write = mapping['is_write'],
                         is_immediate = mapping['is_immediate'])
+                    try:
+                        self.session.add(m)
+                        self.session.commit()
+                    except IntegrityError:
+                        self.session.rollback()
+                        m = self.session.query(models.Mapping).filter_by(
+                            name = mapping['name'],
+                            source = mapping['source'],
+                            destination = mapping['destination'],
+                            is_write = mapping['is_write'],
+                            is_immediate = mapping['is_immediate']).one()
+                    return m
 
                 script['task'] = models.Task(
                         shell = script['filename'],
