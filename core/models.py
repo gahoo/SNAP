@@ -93,6 +93,11 @@ dependence_table = Table('dependence', Base.metadata,
     Column('depend_task_id', Integer, ForeignKey('task.id'), primary_key=True)
 )
 
+task_mapping_table = Table('task_mapping', Base.metadata,
+    Column('task_id', Integer, ForeignKey('task.id'), primary_key=True),
+    Column('mapping_id', Integer, ForeignKey('mapping.id'), primary_key=True)
+)
+
 @acts_as_state_machine
 class Task(Base):
     __tablename__ = 'task'
@@ -115,12 +120,12 @@ class Task(Base):
     app = relationship("App", back_populates="task")
     bcs = relationship("Bcs", back_populates="task")
     instance = relationship("Instance", back_populates="task")
-    mapping = relationship("Mapping", back_populates="task")
 
     dependence = relationship("Task", secondary=dependence_table,
         primaryjoin=id==dependence_table.c.task_id,
         secondaryjoin=id==dependence_table.c.depend_task_id,
         backref="depends")
+    mapping = relationship("Mapping", secondary=task_mapping_table)
 
     created = State(initial=True)
     pending = State()
@@ -190,6 +195,7 @@ class Instance(Base):
 
 class Mapping(Base):
     __tablename__ = 'mapping'
+    __table_args__ = (UniqueConstraint('name', 'source', 'destination', 'is_write', 'is_immediate'), )
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
@@ -198,9 +204,8 @@ class Mapping(Base):
     is_write = Column(Boolean, default=False)
     is_immediate = Column(Boolean, default=True)
 
-    task_id = Column(Integer, ForeignKey('task.id'))
-    task = relationship("Task", back_populates="mapping")
+    task = relationship("Task", secondary=task_mapping_table)
 
     def __repr__(self):
         return "<Mapping(id={id} {source}:{destination} write={is_write})>".format(
-	    id=self.id, source=source, destination=destination, is_write=is_write)
+	    id=self.id, source=self.source, destination=self.destination, is_write=self.is_write)
