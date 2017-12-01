@@ -8,6 +8,7 @@ import sys
 import errno
 import re
 import glob
+import time
 from sqlalchemy import create_engine, UniqueConstraint
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
@@ -16,7 +17,7 @@ from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
 from colorMessage import dyeWARNING, dyeFAIL
 from core import models
-from core.oss import BUCKET
+from core.ali.oss import BUCKET
 from app import App
 
 
@@ -234,7 +235,6 @@ class Pipe(dict):
 
     def initDB(self):
         self.db_path = os.path.join(self.proj_path, 'snap.db')
-        print self.db_path
         self.engine = create_engine('sqlite:///{db_path}'.format(db_path=self.db_path))
         if not os.path.exists(self.db_path):
             models.Base.metadata.create_all(self.engine)
@@ -449,6 +449,17 @@ class Pipe(dict):
         mkDepends()
         self.session.commit()
 
+    def addDB(self):
+        snap_db_list = os.path.expanduser("~/.snap/db.yaml")
+        db_list = {}
+        if os.path.exists(snap_db_list):
+            db_list = self.loadYaml(snap_db_list)
+        if db_list is None:
+            db_list = {}
+        contract_id = self.parameters['CommonParameters']['ContractID']
+        db_list[contract_id] = self.db_path
+        self.dumpYaml(snap_db_list, db_list)
+
     def mkOSSuploadSH(self):
         def isDestinationExists(destination):
             key = getOssKey(destination)
@@ -464,8 +475,13 @@ class Pipe(dict):
             meta = BUCKET.get_object_meta(key)
             source_size = os.path.getsize(source)
             if source_size != meta.content_length:
-                msg = '{source} size({source_size} differ from {destination}({destination_size}))'
-                raise ValueError(msg.format(source=source, source_size=source_size, destination=destination, destination_size=meta.content_length))
+                msg = 'Warning: {source}({source_size}) size differ from {destination}({destination_size})'
+                msg = msg.format(source=source, source_size=source_size, destination=destination, destination_size=meta.content_length)
+                if int(time.time()) > meta.last_modified:
+                    cmd.append("ossutil cp %s %s" % (source, destination))
+                    print dyeFAIL(msg)
+                else:
+                    raise ValueError(msg)
 
         def addSource(source, destination):
             if source in file_size:
@@ -481,22 +497,36 @@ class Pipe(dict):
                 each_destination = os.path.join(os.path.dirname(destination), os.path.basename(each_source))
                 addSource(each_source, each_destination)
 
+        def mkDataUpload():
+            for m in self.session.query(models.Mapping). \
+                    filter_by(is_write = 0, is_immediate = 0). \
+                    filter(models.Mapping.name != 'sh').all():
+               if os.path.exists(m.source):
+                   addSource(m.source, m.destination)
+               else:
+                   msg = "{name}:{source} not exist.".format(name = m.name, source = m.source)
+                   print dyeFAIL(msg)
+                   tryAddSourceWithPrefix(m.source, m.destination)
+
+            content = "\n".join(['set -ex'] + list(set(cmd)))
+            print "uploadData2OSS.sh: %d files(%d GB) to upload" % (len(file_size), sum(file_size.values())/2**30)
+            script_file = os.path.join(self.proj_path, 'uploadData2OSS.sh')
+            self.write(script_file, content)
+
+        def mkScriptUpload():
+            for m in self.session.query(models.Mapping).filter_by(name = 'sh').all():
+                addSource(m.source, m.destination)
+
+            content = "\n".join(['set -ex'] + list(set(cmd)))
+            print "uploadScripts2OSS.sh: %d files to upload" % len(cmd)
+            script_file = os.path.join(self.proj_path, 'uploadScript2OSS.sh')
+            self.write(script_file, content)
+
         cmd = []
         file_size = {}
-        for m in self.session.query(models.Mapping). \
-                filter_by(is_write = 0, is_immediate = 0). \
-                filter(models.Mapping.name != 'sh').all():
-           if os.path.exists(m.source):
-               addSource(m.source, m.destination)
-           else:
-               msg = "{name}:{source} not exist.".format(name = m.name, source = m.source)
-               print dyeFAIL(msg)
-               tryAddSourceWithPrefix(m.source, m.destination)
-
-        content = "\n".join(list(set(cmd)))
-        print "uploadData2OSS.sh: %d files(%d GB) to upload" % (len(file_size), sum(file_size.values())/2**30)
-        script_file = os.path.join(self.proj_path, 'uploadData2OSS.sh')
-        self.write(script_file, content)
+        mkDataUpload()
+        cmd = []
+        mkScriptUpload()
 
     def buildApps(self):
         def buildEachApp(parameters, module, appname):
@@ -648,6 +678,10 @@ class Pipe(dict):
     def loadYaml(self, filename):
         with open(filename, 'r') as yaml_file:
             return yaml.load(yaml_file)
+
+    def dumpYaml(self, filename, obj):
+        with open(filename, 'w') as yaml_file:
+            yaml.dump(obj, yaml_file, default_flow_style=False)
 
     def write(self, filename, content):
         with open(filename, 'w') as output_file:
