@@ -4,13 +4,14 @@ from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
 from state_machine import *
 from batchcompute.resources import (
-    JobDescription, TaskDescription, DAG, AutoCluster,
+    JobDescription, TaskDescription, DAG, AutoCluster, Networks,
     GroupDescription, ClusterDescription, Disks, Notification, )
 from batchcompute.resources.cluster import Mounts, MountEntry
 from batchcompute import ClientError
 from core.ali.bcs import CLIENT
 from core.ali import ALI_CONF
-from core.ali.oss import BUCKET, oss2key
+from core.ali.oss import BUCKET, oss2key, OSSkeys
+from colorMessage import dyeWARNING, dyeFAIL, dyeOKGREEN
 import getpass
 import datetime
 import os
@@ -77,14 +78,14 @@ class Project(Base):
     def checkAll(self):
         [t.check() for t in self.task if t.is_pending]
 
-    def clean(self):
+    def cleanImmediate(self):
         immediate_write = [m.destination for m in self.session.query(Mapping).filter_by(is_write = True, is_immediate = True).all()]
         all_read = [m.destination for m in self.session.query(Mapping).filter_by(is_write = False).all()]
         to_delete = set(all_read) & set(immediate_write)
-        pdb.set_trace()
-        keys = map(oss2key, to_delete)
-        result = BUCKET.batch_delete_objects(keys)
-        print('\n'.join(result.deleted_keys))
+        oss_keys = OSSkeys(map(oss2key, to_delete))
+        for keys in oss_keys:
+            result = BUCKET.batch_delete_objects(keys)
+            print('\n'.join(result.deleted_keys))
 
 class Module(Base):
     __tablename__ = 'module'
@@ -208,7 +209,6 @@ class Task(Base):
     @after('fail')
     @after('retry')
     def check(self):
-        pdb.set_trace()
         old_state = self.aasm_state
         if self.is_created:
             self.start()
@@ -218,8 +218,10 @@ class Task(Base):
             self.sync()
         elif self.is_failed and not self.reach_max_failed(3):
             self.retry()
-        print "{module}.{app}\t{sh}: {old_state} => {state}".format(module=self.module.name, app=self.app.name,
-            sh=os.path.basename(self.shell), old_state=old_state, state=self.aasm_state)
+
+        if self.aasm_state != old_state:
+            print "{module}.{app}\t{sh}: {old_state} => {state}".format(module=self.module.name, app=self.app.name,
+                sh=os.path.basename(self.shell), old_state=old_state, state=self.aasm_state)
 
     def is_dependence_satisfied(self):
         is_finished = [t.is_finished or t.is_cleaned for t in self.dependence]
@@ -245,25 +247,25 @@ class Task(Base):
     @before('submit')
     def new_bcs(self):
         (task_name, task) = self.prepare_task()
-        (script_name, ext) = os.path.splitext(os.path.basename(self.shell))
-        script_name = script_name.replace('.', '_')
         bcs = Bcs(
             name = task_name,
             spot_price_limit = task.AutoCluster.SpotPriceLimit,
-            stdout = task.Parameters.StdoutRedirectPath,
-            stderr = task.Parameters.StderrRedirectPath,
             instance = self.instance)
-        bcs.dag.add_task(task_name=os.path.basename(self.shell).replace('.', '_'), task=task)
+        bcs.dag.add_task(task_name=task_name, task=task)
         bcs.job.Name = "{project}-{sh}".format(project=self.project.name, sh = task_name)
         oss_script_path = [m for m in self.mapping if m.name=='sh'][0].destination
         bcs.job.Description = oss_script_path
         try:
             bcs.submit()
+            log_id = "{id}.{name}.0".format(id = bcs.id, name = bcs.name)
+            bcs.stdout = os.path.join(task.Parameters.StdoutRedirectPath, "stdout." + log_id)
+            bcs.stderr = os.path.join(task.Parameters.StdoutRedirectPath, "stderr." + log_id)
             self.bcs.append(bcs)
-        except ClientError:
+        except ClientError, e:
             # better try in check section
-            self.fail()
             print dyeFAIL(e)
+            raise ClientError(e)
+            self.fail()
 
     def prepare_task(self):
         task = TaskDescription()
@@ -351,8 +353,9 @@ class Task(Base):
         return notice
 
     def prepare_network(self):
-        pass
-        return {}
+        network = Networks()
+        #network.VPC.CidrBlock = "192.168.0.0/16"
+        return network
 
     @before('restart')
     def restart_task(self):
@@ -372,6 +375,14 @@ class Task(Base):
     def delete_files(self):
         oss_files = [m for m in self.mapping if m.is_immediate and m.is_write]
         map(lambda x:x.oss_delete(), oss_files)
+
+    def show_job(self):
+        bcs = self.bcs[-1]
+        bcs.show_job()
+
+    def show_log(self):
+        bcs = self.bcs[-1]
+        bcs.show_log()
 
 class Bcs(Base):
     __tablename__ = 'bcs'
@@ -399,13 +410,15 @@ class Bcs(Base):
     def __repr__(self):
         return "<Bcs(id={id} status={status})>".format(id=self.id, status=self.status)
 
+    @catchClientError
     def submit(self):
-        pdb.set_trace()
         self.job.DAG = self.dag
         self.job.Priority = 100
+        self.job.AutoRelease = True
         self.id = CLIENT.create_job(self.job).Id
         self.status = 'Waiting'
 
+    @catchClientError
     def poll(self):
         self.state = CLIENT.get_job(self.id)
         self.status = self.state.State
@@ -413,10 +426,16 @@ class Bcs(Base):
         self.finish_date = self.state.EndTime
         self.task.project.session.commit()
 
+    @catchClientError
+    def show_job(self):
+        print CLIENT.get_job_description(self.id)
+
+    @catchClientError
     def stop(self):
         CLIENT.stop_job(self.id)
         self.status = 'Stopped'
 
+    @catchClientError
     def restart(self):
         CLIENT.start_job(self.id)
         self.status = 'Waiting'
@@ -425,6 +444,35 @@ class Bcs(Base):
     def delete(self):
         CLIENT.delete_job(self.id)
         self.status = 'Deleted'
+
+    def show_log(self, type):
+        oss_path = self.__getattribute__(type)
+        key = oss2key(oss_path)
+        meta = BUCKET.get_object_meta(key)
+        if meta.content_length > 100 * 1024:
+            byte_range = (None, 10 * 1024)
+        else:
+            byte_range = None
+        content = BUCKET.get_object(key, byte_range).read()
+
+        print "{type}: {oss_path}".format(type=type, oss_path=oss_path)
+        if type == 'stdout':
+            print dyeOKGREEN(content)
+        elif type == 'stderr':
+            print dyeWARNING(content)
+        print '-' * 80
+
+    @catchClientError
+    def show_result(self):
+        result = CLIENT.get_instance(self.id, self.name, 0).get('Result')
+        if result.get('Detail') or result.get('ErrorCode'):
+            print dyeFAIL(str(result))
+            print '-' * 80
+
+    def debug(self):
+        self.show_log('stdout')
+        self.show_log('stderr')
+        self.show_result()
 
 class Instance(Base):
     __tablename__ = 'instance'
