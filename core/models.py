@@ -3,6 +3,7 @@ from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
 from state_machine import *
+from crontab import CronTab
 from batchcompute.resources import (
     JobDescription, TaskDescription, DAG, AutoCluster, Networks,
     GroupDescription, ClusterDescription, Disks, Notification, )
@@ -12,6 +13,8 @@ from core.ali.bcs import CLIENT
 from core.ali import ALI_CONF
 from core.ali.oss import BUCKET, oss2key, OSSkeys
 from colorMessage import dyeWARNING, dyeFAIL, dyeOKGREEN
+from collections import Counter
+from oss2.exceptions import NoSuchKey
 import getpass
 import datetime
 import os
@@ -41,8 +44,8 @@ def catchClientError(func):
         try:
             return func(*args, **kw)
         except ClientError, e:
-            print dyeFAIL(e)
-            raise ClientError(e)
+            #print dyeFAIL(str(e))
+            raise e
     return wrapper
 
 class Project(Base):
@@ -76,7 +79,40 @@ class Project(Base):
         [t.start() for t in self.task if t.is_created]
 
     def checkAll(self):
-        [t.check() for t in self.task if t.is_pending]
+        self.poll()
+
+        to_sync = [t for t in self.task if t.is_waiting or t.is_running]
+        to_check = [t for t in self.task if t.is_created or t.is_pending or t.is_failed]
+        map(lambda x:x.check(), to_sync)
+        map(lambda x:x.check(), to_check)
+
+    def poll(self):
+        bcs = self.session.query(Bcs).filter( (Bcs.status=='Waiting') | (Bcs.status=='Running') ).all()
+        map(lambda x:x.poll(), bcs)
+
+    def states(self):
+        states = [t.aasm_state for t in self.task]
+        return Counter(states)
+
+    def state_filter(self, state):
+        return self.session.query(Task).filter_by(aasm_state = state).all()
+        #return [t for t in self.task if t.aasm_state == state]
+
+    def retry(self, id):
+        task = self.session.query(Task).filter_by(id = id).one()
+        task.retry()
+
+    def redo(self, id):
+        task = self.session.query(Task).filter_by(id = id).one()
+        task.redo()
+
+    def update(self, id, **kwargs):
+        task = self.session.query(Task).filter_by(id = id).one()
+        task.update(**kwargs)
+
+    def debug(self, id):
+        task = self.session.query(Task).filter_by(id = id).one()
+        task.debug()
 
     def cleanImmediate(self):
         immediate_write = [m.destination for m in self.session.query(Mapping).filter_by(is_write = True, is_immediate = True).all()]
@@ -86,6 +122,15 @@ class Project(Base):
         for keys in oss_keys:
             result = BUCKET.batch_delete_objects(keys)
             print('\n'.join(result.deleted_keys))
+
+    def cleanBcs(self, status=None):
+        if status:
+            bcs = self.session.query(Bcs).filter( Bcs.status==status ).all()
+        else:
+            bcs = self.session.query(Bcs).all()
+        map(lambda x:x.delete(), bcs)
+        self.session.commit()
+
 
 class Module(Base):
     __tablename__ = 'module'
@@ -158,10 +203,14 @@ class Task(Base):
     bcs = relationship("Bcs", back_populates="task")
     instance = relationship("Instance", back_populates="task")
 
-    dependence = relationship("Task", secondary=dependence_table,
+    depend_on = relationship("Task", secondary=dependence_table,
         primaryjoin=id==dependence_table.c.task_id,
         secondaryjoin=id==dependence_table.c.depend_task_id,
-        backref="depends")
+        backref="depends_on")
+    depend_by = relationship("Task", secondary=dependence_table,
+        primaryjoin=id==dependence_table.c.depend_task_id,
+        secondaryjoin=id==dependence_table.c.task_id,
+        backref="depends_by")
     mapping = relationship("Mapping", secondary=task_mapping_table)
 
     created = State(initial=True)
@@ -224,7 +273,7 @@ class Task(Base):
                 sh=os.path.basename(self.shell), old_state=old_state, state=self.aasm_state)
 
     def is_dependence_satisfied(self):
-        is_finished = [t.is_finished or t.is_cleaned for t in self.dependence]
+        is_finished = [t.is_finished or t.is_cleaned for t in self.depend_on]
         if all(is_finished):
             return True
         else:
@@ -277,11 +326,13 @@ class Task(Base):
         task.Parameters.Command.EnvVars = self.prepare_EnvVars()
         task.Parameters.StdoutRedirectPath = oss_log_path
         task.Parameters.StderrRedirectPath = oss_log_path
+        task.WriteSupport = True
 
         #task.InputMapping = {m.source:m.destination for m in self.mapping if not m.is_write}
         task.OutputMapping = {m.source:m.destination for m in self.mapping if m.is_write}
         #task.LogMapping = {m.source:m.destination for m in self.mapping if m.is_write}
-        task.Mounts.Entries = [MountEntry({'Source': m.destination, 'Destination': m.source, 'WriteSupport':m.is_write}) for m in self.mapping if not m.is_write]
+        #task.Mounts.Entries = [MountEntry({'Source': m.destination, 'Destination': m.source, 'WriteSupport':m.is_write}) for m in self.mapping if not m.is_write]
+        task.Mounts.Entries = self.prepare_Mounts()
 
         task.Timeout = 86400 * 3
         task.MaxRetryCount = 0
@@ -290,6 +341,38 @@ class Task(Base):
         else:
             task.AutoCluster = self.prepare_cluster()
         return script_name, task
+
+    def prepare_Mounts(self):
+        def is_rw(m):
+            return get_folder(m.Source) not in rw_source and m.Source not in rw_source
+
+        def get_folder(path):
+            if not path.endswith('/'):
+                path = os.path.dirname(path) + '/'
+            return path
+
+        mounts_entries = list(set([self.prepare_MountEntry(m) for m in self.mapping]))
+        read_mounts = [m for m in mounts_entries if not m.WriteSupport]
+        read_source = set([get_folder(m.Source) for m in read_mounts])
+
+        write_mounts = [m for m in mounts_entries if m.WriteSupport]
+        write_source = set([m.Source for m in write_mounts])
+        rw_source = read_source & write_source
+        if rw_source:
+            entries = filter(is_rw, read_mounts)
+            write_entries = filter(is_rw, write_mounts)
+            entries.extend(write_mounts)
+        else:
+            entries = read_mounts
+        return entries
+
+    def prepare_MountEntry(self, mapping):
+        source = mapping.destination
+        destination = mapping.source
+        if mapping.is_write and not source.endswith('/'):
+            source = os.path.dirname(source) + '/'
+            destination = os.path.dirname(destination) + '/'
+        return MountEntry({'Source': source, 'Destination': destination, 'WriteSupport':mapping.is_write})
 
     def prepare_EnvVars(self):
         if self.app.docker_image:
@@ -308,9 +391,12 @@ class Task(Base):
             cluster.ImageId = self.app.instance_image
         cluster.InstanceType = self.instance.name
 
-        cluster.ResourceType = "Spot"
-        #cluster.SpotStrategy = "SpotWithPriceLimit"
-        cluster.SpotPriceLimit = self.project.discount * self.instance.price
+        if cluster.InstanceType.startswith('bcs.'):
+            cluster.ResourceType = "OnDemand"
+        else:
+            cluster.ResourceType = "Spot"
+            #cluster.SpotStrategy = "SpotWithPriceLimit"
+            cluster.SpotPriceLimit = self.project.discount * self.instance.price
 
         cluster.Configs.Disks = self.prepare_disk()
         cluster.Notification = self.prepare_notify()
@@ -321,23 +407,49 @@ class Task(Base):
     def prepare_disk(self):
         def get_common_prefix():
             prefix = os.path.commonprefix([m.source for m in self.mapping if m.is_write])
+            if not prefix.endswith('/'):
+                prefix = os.path.dirname(prefix)
             if prefix == '/':
                 raise Error("Invalid common prefix: /")
             return prefix
 
-        disks = Disks()
-        if self.disk_type is None:
-            return disks
-        else:
-            (disk_type, drive_type) = self.disk_type.split('.')
+        def get_disk_type():
+            if not self.disk_type:
+                if not self.disk_size:
+                    return None, None
 
-        if disk_type == 'data':
-            disks.DataDisk.Type = drive_type
+                if self.disk_size < 40:
+                    disk_type = 'system'
+                else:
+                    disk_type = 'data'
+                drive_type = None
+            else:
+                (disk_type, drive_type) = self.disk_type.split('.')
+
+            return disk_type, drive_type
+
+        def prepare_data_disk():
+            if drive_type:
+                disks.SystemDisk.Type = drive_type
+                disks.DataDisk.Type = drive_type
+            disks.SystemDisk.Size = 40
             disks.DataDisk.Size = self.disk_size
             disks.DataDisk.MountPoint = get_common_prefix()
-        elif disk_type == 'system':
-            disks.SystemDisk.Type = drive_type
+
+        def prepare_system_disk():
+            if drive_type:
+                disks.SystemDisk.Type = drive_type
             disks.SystemDisk.Size = 40 if self.disk_size <= 40 else self.disk_size
+
+        disks = Disks()
+        (disk_type, drive_type) = get_disk_type()
+
+        if disk_type == 'data':
+            prepare_data_disk()
+        elif disk_type == 'system':
+            prepare_system_disk()
+        elif not disk_type and not drive_type:
+            pass
         else:
             raise SyntaxError("disk_type '%s' is illegal." % disk_type)
 
@@ -372,17 +484,45 @@ class Task(Base):
         map(lambda x:x.delete(), self.bcs)
 
     @before('clean')
+    @before('redo')
     def delete_files(self):
         oss_files = [m for m in self.mapping if m.is_immediate and m.is_write]
         map(lambda x:x.oss_delete(), oss_files)
 
     def show_job(self):
+        # json style
         bcs = self.bcs[-1]
         bcs.show_job()
+
+    def show_shell(self):
+        pass
 
     def show_log(self):
         bcs = self.bcs[-1]
         bcs.show_log()
+
+    def mark_state(self, state):
+        self.aasm_state = state
+        self.save()
+
+    def update(self, **kwargs):
+        if 'instance' in kwargs:
+            instance_name = kwargs.pop('instance')
+            self.instance = self.project.session.query(Instance).filter_by(name = instance_name).one()
+
+        [self.__setattr__(k, kwargs[k]) for k in ('cpu', 'mem', 'disk_size', 'disk_type') if k in kwargs]
+        self.save()
+
+    @after('redo')
+    def update_dependence_chain(self):
+        redo_tasks = [t for t in self.depend_by if t.is_finished or t.is_cleaned]
+        retry_tasks = [t for t in self.depend_by if t.is_failed]
+        map(lambda x:x.redo(), redo_tasks)
+        map(lambda x:x.redo(), retry_tasks)
+
+    @after('finish')
+    def delete_bcs(self):
+        map(lambda x:x.delete(), self.bcs)
 
 class Bcs(Base):
     __tablename__ = 'bcs'
@@ -390,6 +530,7 @@ class Bcs(Base):
     id = Column(String, primary_key=True)
     name = Column(String)
     status = Column(String)
+    deleted = Column(Boolean, default=False)
     spot_price = Column(Float)
     stdout = Column(String) # Path
     stderr = Column(String)
@@ -404,17 +545,19 @@ class Bcs(Base):
     task = relationship("Task", back_populates="bcs")
     instance = relationship("Instance", back_populates="bcs")
 
-    dag = DAG()
-    job = JobDescription()
-
     def __repr__(self):
         return "<Bcs(id={id} status={status})>".format(id=self.id, status=self.status)
+
+    def __init__(self, *args, **kwargs):
+        self.dag = DAG()
+        self.job = JobDescription()
+        super(Bcs, self).__init__(*args, **kwargs)
 
     @catchClientError
     def submit(self):
         self.job.DAG = self.dag
         self.job.Priority = 100
-        self.job.AutoRelease = True
+        self.job.AutoRelease = False
         self.id = CLIENT.create_job(self.job).Id
         self.status = 'Waiting'
 
@@ -443,16 +586,25 @@ class Bcs(Base):
     @catchClientError
     def delete(self):
         CLIENT.delete_job(self.id)
-        self.status = 'Deleted'
+        self.deleted = True
 
     def show_log(self, type):
         oss_path = self.__getattribute__(type)
         key = oss2key(oss_path)
-        meta = BUCKET.get_object_meta(key)
+
+        try:
+            meta = BUCKET.get_object_meta(key)
+        except Exception, e:
+            if not isinstance(e, NoSuchKey):
+                raise e
+            print dyeWARNING("{type}: {oss_path} not found.".format(type=type, oss_path=oss_path))
+            return
+
         if meta.content_length > 100 * 1024:
             byte_range = (None, 10 * 1024)
         else:
             byte_range = None
+
         content = BUCKET.get_object(key, byte_range).read()
 
         print "{type}: {oss_path}".format(type=type, oss_path=oss_path)
@@ -464,15 +616,26 @@ class Bcs(Base):
 
     @catchClientError
     def show_result(self):
+        if self.deleted:
+            return
         result = CLIENT.get_instance(self.id, self.name, 0).get('Result')
         if result.get('Detail') or result.get('ErrorCode'):
             print dyeFAIL(str(result))
+            print '-' * 80
+
+    @catchClientError
+    def show_job_message(self):
+        result = CLIENT.get_job(self.id)
+        msg = result.get('Message')
+        if msg:
+            print dyeFAIL(msg)
             print '-' * 80
 
     def debug(self):
         self.show_log('stdout')
         self.show_log('stderr')
         self.show_result()
+        self.show_job_message()
 
 class Instance(Base):
     __tablename__ = 'instance'
@@ -490,8 +653,8 @@ class Instance(Base):
     bcs = relationship("Bcs", back_populates="instance")
 
     def __repr__(self):
-        return "<Instance(id={id} cpu={cpu} mem={mem}, price={price})>".format(
-	    id=self.id, cpu=self.cpu, mem=self.mem, price=self.price)
+        return "<Instance(id={id} name={name} cpu={cpu} mem={mem}, price={price})>".format(
+	    id=self.id, name=self.name, cpu=self.cpu, mem=self.mem, price=self.price)
 
 class Mapping(Base):
     __tablename__ = 'mapping'
