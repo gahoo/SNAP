@@ -378,7 +378,7 @@ class Pipe(dict):
         def mkCombTaskDepends(tasks, dep_tasks):
             for task in tasks:
                 for dep_task in dep_tasks:
-                    task.dependence.append(dep_task)
+                    task.depend_on.append(dep_task)
             self.session.commit()
 
         def mkSampleTaskDepends(app, module, dep_app, dep_module):
