@@ -71,6 +71,7 @@ class Project(Base):
     task = relationship("Task", back_populates="project")
 
     session = None
+    logger = None
 
     def __repr__(self):
         return "<Project(id={id}, name={name})>".format(id=self.id, name=self.name)
@@ -78,7 +79,7 @@ class Project(Base):
     def startAll(self):
         [t.start() for t in self.task if t.is_created]
 
-    def checkAll(self):
+    def sync(self):
         self.poll()
 
         to_sync = [t for t in self.task if t.is_waiting or t.is_running]
@@ -269,8 +270,9 @@ class Task(Base):
             self.retry()
 
         if self.aasm_state != old_state:
-            print "{module}.{app}\t{sh}: {old_state} => {state}".format(module=self.module.name, app=self.app.name,
+           msg = "{module}.{app}\t{sh}: {old_state} => {state}".format(module=self.module.name, app=self.app.name,
                 sh=os.path.basename(self.shell), old_state=old_state, state=self.aasm_state)
+           self.project.logger.info(msg)
 
     def is_dependence_satisfied(self):
         is_finished = [t.is_finished or t.is_cleaned for t in self.depend_on]
@@ -408,9 +410,10 @@ class Task(Base):
         def get_common_prefix():
             prefix = os.path.commonprefix([m.source for m in self.mapping if m.is_write])
             if not prefix.endswith('/'):
-                prefix = os.path.dirname(prefix)
+                prefix = os.path.dirname(prefix) + '/'
             if prefix == '/':
                 raise Error("Invalid common prefix: /")
+            prefix = "/" + prefix.split('/')[1] + "/"
             return prefix
 
         def get_disk_type():
