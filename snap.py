@@ -142,26 +142,34 @@ def load_tasks(args):
     tasks = q.all()
     return tasks
 
+def load_mapping_tasks(args):
+    session = new_session(args.project, db[args.project])
+    q = session.query(models.Mapping)
+    if args.source:
+        q = q.filter(models.Mapping.source.like("%" + args.source + "%"))
+    if args.destination:
+        q = q.filter(models.Mapping.destination.like("%" + args.destination + "%"))
+    mappings = q.all()
+    tasks = set(sum([m.task for m in mappings], []))
+    return tasks
+
 def list_task(args):
-    tasks = load_tasks(args)
-    print format_tasks_tbl(tasks)
+    if args.source or args.destination:
+        tasks = load_mapping_tasks(args)
+    else:
+        tasks = load_tasks(args)
+    print format_tasks_tbl(tasks).get_string(sortby="start", reversesort=True)
 
 def show_task(args):
     def show_each_task(task):
-        print dyeOKGREEN("Task Details:")
-        print format_single_task(task)
-        if task.bcs and args.jobs:
-            print dyeOKGREEN("Jobs on bcs:")
-            print format_bcs_tbl(task.bcs, args.instance)
-        if task.mapping and args.mappings:
-            print dyeOKGREEN("File Mappings:")
-            print format_mapping_tbl(task.mapping)
-        if task.depend_on and args.depends:
-            print dyeOKGREEN("Depends on:")
-            print format_tasks_tbl(task.depend_on)
-        if task.depend_by and args.depends:
-            print dyeOKGREEN("Depends by:")
-            print format_tasks_tbl(task.depend_by)
+        task.show_detail_tbl()
+        if args.jobs:
+            task.show_bcs_tbl(args.instance)
+        if args.mappings:
+            task.show_mapping_tbl()
+        if args.depends:
+            task.show_depends_tbl()
+
     tasks = load_tasks(args)
     map(show_each_task, tasks)
 
@@ -313,6 +321,8 @@ if __name__ == "__main__":
     subparsers_task_list.add_argument('-status', default=None, help="Task status", nargs="*")
     subparsers_task_list.add_argument('-app', default=None, help="Task app")
     subparsers_task_list.add_argument('-module', default=None, help="Task module")
+    subparsers_task_list.add_argument('-source', default=None, help="Task with source mapping")
+    subparsers_task_list.add_argument('-destination', default=None, help="Task with destination mapping")
     subparsers_task_list.set_defaults(func=list_task)
 
     #task show
@@ -346,6 +356,7 @@ if __name__ == "__main__":
     # bcs task run
     # bcs task log
     # bcs task show
+    # bcs task debug
     # bcs clean
     # bcs instance
 
