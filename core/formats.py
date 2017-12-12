@@ -26,7 +26,8 @@ def format_tasks_tbl(tasks):
         finish_date = get_date(task.bcs[-1].finish_date)
         waited = diff_date(create_date, start_date)
         elapsed = diff_date(start_date, finish_date)
-        row = [task.id, os.path.basename(task.shell), task.aasm_state, failed_cnts, task.module.name, task.app.name, task.instance.name, start_date, waited, elapsed]
+        status = format_status(task.aasm_state, task.aasm_state == 'cleaned')
+        row = [task.id, os.path.basename(task.shell), status, failed_cnts, task.module.name, task.app.name, task.instance.name, start_date, waited, elapsed]
         tbl.add_row(row)
     return tbl
 
@@ -44,8 +45,9 @@ def diff_date(t1, t2):
     else:
         return None
 
-def format_single_task(task):
+def format_detail_task(task):
     tbl = PrettyTable()
+    tbl.header = False
     fields = ['id', 'name', 'status', 'module', 'app', 'instance', 'cpu', 'mem', 'disk_type', 'disk_size']
     values = [task.id, os.path.basename(task.shell), task.aasm_state, task.module.name, task.app.name, task.instance.name, task.cpu, task.mem, task.disk_type, task.disk_size]
     tbl.add_column("field", fields)
@@ -59,16 +61,7 @@ def format_bcs_tbl(bcs, with_instance):
         fields = fields + ['instance', 'cpu', 'mem', 'instance price', 'spot price']
     tbl.field_names = fields
     for b in bcs:
-        if b.status == 'Failed':
-            status = dyeFAIL(b.status)
-        elif b.status == 'Finished':
-            status = dyeOKGREEN(b.status)
-        elif b.status == 'Stopped':
-            status = dyeWARNING(b.status)
-        else:
-            status = dyeOKBLUE(b.status)
-        if b.deleted:
-            status = status + " (D)"
+        status = format_status(b.status.lower(), b.deleted)
         create_date = get_date(b.create_date)
         start_date = get_date(b.start_date)
         finish_date = b.finish_date.replace(microsecond=0)
@@ -80,6 +73,20 @@ def format_bcs_tbl(bcs, with_instance):
             row = row + [i.name, i.cpu, i.mem, i.price, b.spot_price_limit]
         tbl.add_row(row)
     return tbl
+
+def format_status(status, deleted):
+    if status == 'failed':
+        status = dyeFAIL(status)
+    elif status == 'finished':
+        status = dyeOKGREEN(status)
+    elif status == 'stopped':
+        status = dyeWARNING(status)
+    else:
+        status = dyeOKBLUE(status)
+
+    if deleted:
+        status = status + " (D)"
+    return status
 
 def format_mapping_tbl(mappings):
     tbl = PrettyTable()
