@@ -12,6 +12,7 @@ from batchcompute import ClientError
 from core.ali.bcs import CLIENT
 from core.ali import ALI_CONF
 from core.ali.oss import BUCKET, oss2key, OSSkeys
+from core.formats import *
 from colorMessage import dyeWARNING, dyeFAIL, dyeOKGREEN
 from collections import Counter
 from oss2.exceptions import NoSuchKey
@@ -492,10 +493,10 @@ class Task(Base):
         oss_files = [m for m in self.mapping if m.is_immediate and m.is_write]
         map(lambda x:x.oss_delete(), oss_files)
 
-    def show_job(self):
+    def show_json(self):
         # json style
         bcs = self.bcs[-1]
-        bcs.show_job()
+        bcs.show_json()
 
     def show_shell(self):
         pass
@@ -503,6 +504,28 @@ class Task(Base):
     def show_log(self):
         bcs = self.bcs[-1]
         bcs.show_log()
+
+    def show_detail_tbl(self):
+        print dyeOKGREEN("Task Details:")
+        print format_detail_task(self)
+
+    def show_bcs_tbl(self, with_instance):
+        if self.bcs:
+            print dyeOKGREEN("Jobs on bcs:")
+            print format_bcs_tbl(self.bcs, with_instance)
+
+    def show_mapping_tbl(self):
+        if self.mapping:
+            print dyeOKGREEN("File Mappings:")
+            print format_mapping_tbl(self.mapping)
+
+    def show_depends_tbl(self):
+        if self.depends_on:
+            print dyeOKGREEN("Depends on:")
+            print format_tasks_tbl(self.depend_on)
+        if self.depends_by:
+            print dyeOKGREEN("Depends by:")
+            print format_tasks_tbl(self.depend_by)
 
     def mark_state(self, state):
         self.aasm_state = state
@@ -541,6 +564,7 @@ class Bcs(Base):
     start_date = Column(DateTime)
     finish_date = Column(DateTime)
     spot_price_limit = Column(Float)
+    cost = Column(Float)
     # could be app_id or module_id even project_id
     task_id = Column(Integer, ForeignKey('task.id'))
     instance_id = Column(Integer, ForeignKey('instance.id'))
@@ -573,7 +597,7 @@ class Bcs(Base):
         self.task.project.session.commit()
 
     @catchClientError
-    def show_job(self):
+    def show_json(self):
         print CLIENT.get_job_description(self.id)
 
     @catchClientError
