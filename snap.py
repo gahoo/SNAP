@@ -10,9 +10,9 @@ from core.app import App
 from core.pipe import WorkflowParameter
 from core.pipe import Pipe
 from core import models
+from core.formats import *
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from prettytable import PrettyTable
 
 def loadYaml(filename):
     with open(filename, 'r') as yaml_file:
@@ -100,20 +100,6 @@ def stat_bcs(args):
 
     print format_project_tbl(projects)
 
-def format_project_tbl(projects):
-    def build_row(name, state):
-        progress = 100.0 * state.get('finished', 0) / sum(state.values())
-        return [name] + [state.get(column, 0) for column in states_column] + [progress]
-
-    tbl = PrettyTable()
-    states = {e.name:e.states() for e in projects}
-    states_column = sum([state.keys() for state in states.values()], [])
-    tbl.field_names = ['project'] + states_column + ['progress(%)']
-    for name, state in states.items():
-        row = build_row(name, state)
-        tbl.add_row(row)
-    return tbl
-
 def load_project(name, dbfile):
     session = new_session(name, dbfile)
     proj = session.query(models.Project).filter_by(name = name).one()
@@ -140,45 +126,44 @@ def new_log(name, dbfile):
 
     return logger
 
-def load_task():
-    session = new_session(name, dbfile)
-    proj = session.query(models.Project).filter_by(name = name).one()
-    proj.session = session
-    proj.logger = new_log(name, dbfile)
+def load_tasks(args):
+    session = new_session(args.project, db[args.project])
+    q = session.query(models.Task)
+    if args.id:
+        q = q.filter(models.Task.id.in_(args.id))
+    if args.status:
+        q = q.filter(models.Task.aasm_state.in_(args.status))
+    if args.shell:
+        q = q.filter(models.Task.shell.like("%" + args.shell + "%"))
+    if args.app:
+        q = q.join(models.App).filter(models.App.name == args.app)
+    if args.module:
+        q = q.join(models.Module).filter(models.Module.name == args.module)
+    tasks = q.all()
+    return tasks
 
 def list_task(args):
-    def meets_criteria(task):
-        in_id = check_each_criteria(task.id, args.id)
-        in_status = check_each_criteria(task.aasm_state, args.status)
-        in_shell = check_each_criteria(args.shell, task.shell)
-        in_status = check_each_criteria(task.aasm_state, args.status)
-        in_app = check_each_criteria(task.app.name, args.app)
-        in_module = check_each_criteria(task.module.name, args.module)
-        return all([in_id, in_shell, in_status, in_app, in_module])
-
-    def check_each_criteria(task_value, args_value):
-        if not args_value:
-            return True
-        else:
-            return task_value in args_value
-
-    proj = load_project(args.project, db[args.project])
-    tasks = filter(meets_criteria, proj.task)
+    tasks = load_tasks(args)
     print format_tasks_tbl(tasks)
 
-def format_tasks_tbl(tasks):
-    tbl = PrettyTable()
-    tbl.field_names = ['id', 'name', 'status', 'failed', 'module', 'app', 'instance', 'created', 'start', 'waited', 'elapsed']
-    for task in tasks:
-        failed_cnts = len([b for b in task.bcs if b.status == 'Failed'])
-        create_date = task.bcs[-1].create_date.replace(microsecond=0)
-        start_date = task.bcs[-1].start_date.replace(microsecond=0)
-        finish_date = task.bcs[-1].finish_date.replace(microsecond=0)
-        waited = start_date - create_date
-        elapsed = finish_date - start_date
-        row = [task.id, os.path.basename(task.shell), task.aasm_state, failed_cnts, task.module.name, task.app.name, task.instance.name, create_date, start_date, waited, elapsed]
-        tbl.add_row(row)
-    return tbl
+def show_task(args):
+    def show_each_task(task):
+        print dyeOKGREEN("Task Details:")
+        print format_single_task(task)
+        if task.bcs and args.jobs:
+            print dyeOKGREEN("Jobs on bcs:")
+            print format_bcs_tbl(task.bcs, args.instance)
+        if task.mapping and args.mappings:
+            print dyeOKGREEN("File Mappings:")
+            print format_mapping_tbl(task.mapping)
+        if task.depend_on and args.depends:
+            print dyeOKGREEN("Depends on:")
+            print format_tasks_tbl(task.depend_on)
+        if task.depend_by and args.depends:
+            print dyeOKGREEN("Depends by:")
+            print format_tasks_tbl(task.depend_by)
+    tasks = load_tasks(args)
+    map(show_each_task, tasks)
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -330,6 +315,24 @@ if __name__ == "__main__":
     subparsers_task_list.add_argument('-module', default=None, help="Task module")
     subparsers_task_list.set_defaults(func=list_task)
 
+    #task show
+    subparsers_task_show = subparsers_task.add_parser('show',
+        help='Show tasks detail.',
+        description="This command will print task detail",
+        prog='snap task show',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_show.add_argument('-project', help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
+    subparsers_task_show.add_argument('-id', default=None, help="Task id", nargs="*", type = int)
+    subparsers_task_show.add_argument('-shell', default=None, help="Task shell")
+    subparsers_task_show.add_argument('-status', default=None, help="Task status", nargs="*")
+    subparsers_task_show.add_argument('-app', default=None, help="Task app")
+    subparsers_task_show.add_argument('-module', default=None, help="Task module")
+    subparsers_task_show.add_argument('-jobs', default=False, action='store_true', help="Show jobs or not")
+    subparsers_task_show.add_argument('-instance', default=False, action='store_true', help="Show instance detail or not")
+    subparsers_task_show.add_argument('-mappings', default=False, action='store_true', help="Show mappings or not")
+    subparsers_task_show.add_argument('-depends', action='store_true', help="Show depends or not")
+    subparsers_task_show.set_defaults(func=show_task)
+
     # bcs cron
     # bcs cron add
     # bcs cron remove
@@ -344,6 +347,7 @@ if __name__ == "__main__":
     # bcs task log
     # bcs task show
     # bcs clean
+    # bcs instance
 
 if __name__ == '__main__':
     argslist = sys.argv[1:]
