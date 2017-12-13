@@ -1,6 +1,7 @@
 import oss2
 import os
 from . import ALI_CONF
+from oss2.exceptions import NoSuchKey
 
 def oss2key(destination):
     prefix = os.path.join('oss://', BUCKET.bucket_name)
@@ -29,6 +30,23 @@ class OSSkeys(object):
             return val
         else:
             raise StopIteration()
+
+
+def read_object(key):
+    try:
+        meta = BUCKET.get_object_meta(key)
+    except Exception, e:
+        if not isinstance(e, NoSuchKey):
+            raise e
+        print dyeWARNING("{key} not found.".format(key=key))
+        return None
+
+    if meta.content_length > 100 * 1024:
+        byte_range = (None, 10 * 1024)
+    else:
+        byte_range = None
+
+    return BUCKET.get_object(key, byte_range).read()
 
 endpoint = "http://oss-%s.aliyuncs.com" % ALI_CONF['region']
 AUTH = oss2.Auth(ALI_CONF['accesskey_id'], ALI_CONF['accesskey_secret'])
