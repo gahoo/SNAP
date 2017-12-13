@@ -11,7 +11,7 @@ from batchcompute.resources.cluster import Mounts, MountEntry
 from batchcompute import ClientError
 from core.ali.bcs import CLIENT
 from core.ali import ALI_CONF
-from core.ali.oss import BUCKET, oss2key, OSSkeys
+from core.ali.oss import BUCKET, oss2key, OSSkeys, read_object
 from core.formats import *
 from colorMessage import dyeWARNING, dyeFAIL, dyeOKGREEN
 from collections import Counter
@@ -45,8 +45,10 @@ def catchClientError(func):
         try:
             return func(*args, **kw)
         except ClientError, e:
-            #print dyeFAIL(str(e))
-            raise e
+            if e.status == 404:
+                print dyeFAIL(str(e))
+            else:
+                raise e
     return wrapper
 
 class Project(Base):
@@ -501,9 +503,13 @@ class Task(Base):
     def show_shell(self):
         pass
 
-    def show_log(self):
+    def show_log(self, type):
         bcs = self.bcs[-1]
-        bcs.show_log()
+        bcs.show_log(type)
+
+    def debug(self):
+        bcs = self.bcs[-1]
+        bcs.debug()
 
     def show_detail_tbl(self):
         print dyeOKGREEN("Task Details:")
@@ -564,7 +570,7 @@ class Bcs(Base):
     start_date = Column(DateTime)
     finish_date = Column(DateTime)
     spot_price_limit = Column(Float)
-    cost = Column(Float)
+    #cost = Column(Float)
     # could be app_id or module_id even project_id
     task_id = Column(Integer, ForeignKey('task.id'))
     instance_id = Column(Integer, ForeignKey('instance.id'))
@@ -598,7 +604,11 @@ class Bcs(Base):
 
     @catchClientError
     def show_json(self):
-        print CLIENT.get_job_description(self.id)
+        json = self.cache('json')
+        if not json:
+            json = CLIENT.get_job_description(self.id)
+            self.cache('json', json)
+            print json
 
     @catchClientError
     def stop(self):
@@ -618,21 +628,11 @@ class Bcs(Base):
     def show_log(self, type):
         oss_path = self.__getattribute__(type)
         key = oss2key(oss_path)
-
-        try:
-            meta = BUCKET.get_object_meta(key)
-        except Exception, e:
-            if not isinstance(e, NoSuchKey):
-                raise e
-            print dyeWARNING("{type}: {oss_path} not found.".format(type=type, oss_path=oss_path))
-            return
-
-        if meta.content_length > 100 * 1024:
-            byte_range = (None, 10 * 1024)
-        else:
-            byte_range = None
-
-        content = BUCKET.get_object(key, byte_range).read()
+        
+        content = self.cache(type)
+        if not content:
+            content = read_object(key)
+            self.cache(type, content)
 
         print "{type}: {oss_path}".format(type=type, oss_path=oss_path)
         if type == 'stdout':
@@ -643,26 +643,59 @@ class Bcs(Base):
 
     @catchClientError
     def show_result(self):
-        if self.deleted:
+        result = self.cache('result')
+        if self.deleted and not result:
             return
-        result = CLIENT.get_instance(self.id, self.name, 0).get('Result')
+        if not result:
+            result = CLIENT.get_instance(self.id, self.name, 0).get('Result')
+            self.cache('result', result)
         if result.get('Detail') or result.get('ErrorCode'):
             print dyeFAIL(str(result))
             print '-' * 80
 
     @catchClientError
     def show_job_message(self):
-        result = CLIENT.get_job(self.id)
-        msg = result.get('Message')
+        msg = self.cache('msg')
+        if not msg:
+            result = CLIENT.get_job(self.id)
+            msg = result.get('Message')
+            self.cache('msg', msg)
         if msg:
             print dyeFAIL(msg)
             print '-' * 80
 
     def debug(self):
+        print dyeOKBLUE("Task id: " + str(self.task.id))
+        print dyeOKBLUE("Job id: " + self.id)
         self.show_log('stdout')
         self.show_log('stderr')
         self.show_result()
         self.show_job_message()
+
+    def cache(self, type, content=None):
+        def save_cache(content):
+            with open(cache_file, 'w') as f:
+                f.write(content)
+
+        def read_cache():
+            with open(cache_file, 'r') as f:
+                content = f.read()
+            return content
+
+        def get_cache_path():
+            cache_path = os.path.expanduser("~/.snap/cache")
+            if not os.path.exists(cache_path):
+                os.mkdir(cache_path)
+            filename = "%s.%s" % (self.id, type)
+            return  os.path.join(cache_path, filename)
+
+        cache_file = get_cache_path()
+        if content:
+            save_cache(content)
+        elif os.path.exists(cache_file):
+            return read_cache()
+        else:
+            return None
 
 class Instance(Base):
     __tablename__ = 'instance'
