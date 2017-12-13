@@ -173,6 +173,23 @@ def show_task(args):
     tasks = load_tasks(args)
     map(show_each_task, tasks)
 
+def debug_task(args):
+    if args.job:
+        bcs = load_bcs(args)
+        bcs.debug()
+        if args.json:
+            bcs.show_json()
+    else:
+        tasks = load_tasks(args)
+        map(lambda x:x.debug(), tasks)
+        if args.json:
+            map(lambda x:x.show_json(), tasks)
+
+def load_bcs(args):
+    session = new_session(args.project, db[args.project])
+    bcs = session.query(models.Bcs).filter_by(id = args.job).one()
+    return bcs
+
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
         description = "SNAP is Not A Pipeline.",
@@ -309,18 +326,22 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task = parsers_task.add_subparsers()
 
+    # task select common args
+    share_task_parser = argparse.ArgumentParser(add_help=False)
+    share_task_parser.add_argument('-project', help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
+    share_task_parser.add_argument('-id', default=None, help="Task id", nargs="*", type = int)
+    share_task_parser.add_argument('-shell', default='.', help="Task shell")
+    share_task_parser.add_argument('-status', default=None, help="Task status", nargs="*")
+    share_task_parser.add_argument('-app', default=None, help="Task app")
+    share_task_parser.add_argument('-module', default=None, help="Task module")
+
     #task list
     subparsers_task_list = subparsers_task.add_parser('list',
         help='List tasks on BCS.',
         description="This command will print tasks whith certain critieria",
         prog='snap task list',
+        parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_task_list.add_argument('-project', help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
-    subparsers_task_list.add_argument('-id', default=None, help="Task id", nargs="*", type = int)
-    subparsers_task_list.add_argument('-shell', default='.', help="Task shell")
-    subparsers_task_list.add_argument('-status', default=None, help="Task status", nargs="*")
-    subparsers_task_list.add_argument('-app', default=None, help="Task app")
-    subparsers_task_list.add_argument('-module', default=None, help="Task module")
     subparsers_task_list.add_argument('-source', default=None, help="Task with source mapping")
     subparsers_task_list.add_argument('-destination', default=None, help="Task with destination mapping")
     subparsers_task_list.set_defaults(func=list_task)
@@ -330,18 +351,25 @@ if __name__ == "__main__":
         help='Show tasks detail.',
         description="This command will print task detail",
         prog='snap task show',
+        parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_task_show.add_argument('-project', help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
-    subparsers_task_show.add_argument('-id', default=None, help="Task id", nargs="*", type = int)
-    subparsers_task_show.add_argument('-shell', default=None, help="Task shell")
-    subparsers_task_show.add_argument('-status', default=None, help="Task status", nargs="*")
-    subparsers_task_show.add_argument('-app', default=None, help="Task app")
-    subparsers_task_show.add_argument('-module', default=None, help="Task module")
     subparsers_task_show.add_argument('-jobs', default=False, action='store_true', help="Show jobs or not")
     subparsers_task_show.add_argument('-instance', default=False, action='store_true', help="Show instance detail or not")
     subparsers_task_show.add_argument('-mappings', default=False, action='store_true', help="Show mappings or not")
     subparsers_task_show.add_argument('-depends', action='store_true', help="Show depends or not")
     subparsers_task_show.set_defaults(func=show_task)
+
+    #task debug
+    subparsers_task_log = subparsers_task.add_parser('debug',
+        help='Show task log or json.',
+        description="This command will print task logs",
+        prog='snap task debug',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_log.add_argument('-json', action='store_true', help="Show job json")
+    subparsers_task_log.add_argument('-job', help="Bcs job id want to check")
+    subparsers_task_log.set_defaults(func=debug_task)
+
 
     # bcs cron
     # bcs cron add
@@ -356,7 +384,6 @@ if __name__ == "__main__":
     # bcs task run
     # bcs task log
     # bcs task show
-    # bcs task debug
     # bcs clean
     # bcs instance
 
