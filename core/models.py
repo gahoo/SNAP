@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, Float, String, DateTime, Boolean, Foreig
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm.exc import NoResultFound
 from state_machine import *
 from crontab import CronTab
 from batchcompute.resources import (
@@ -162,7 +163,7 @@ class App(Base):
     yaml = Column(String)
     cpu = Column(Integer)
     mem = Column(Float)
-    disk_size = Column(Integer)
+    disk_size = Column(Float)
     disk_type = Column(String)
     module_id = Column(Integer, ForeignKey('module.id'))
     instance_id = Column(Integer, ForeignKey('instance.id'))
@@ -194,7 +195,7 @@ class Task(Base):
     status = Column(Integer, default=CREATED)
     cpu = Column(Integer)
     mem = Column(Float)
-    disk_size = Column(Integer)
+    disk_size = Column(Float)
     disk_type = Column(String)
     project_id = Column(Integer, ForeignKey('project.id'), nullable=False)
     module_id = Column(Integer, ForeignKey('module.id'))
@@ -254,7 +255,7 @@ class Task(Base):
         try:
             self.project.session.commit()
         except Exception, e:
-            print dyeFAIL(e)
+            print dyeFAIL(str(e))
             self.project.session.rollback()
 
     @after('start')
@@ -544,10 +545,21 @@ class Task(Base):
     def update(self, **kwargs):
         if 'instance' in kwargs:
             instance_name = kwargs.pop('instance')
-            self.instance = self.project.session.query(Instance).filter_by(name = instance_name).one()
+            instance_updated = "\t(instance %s => %s)" % (self.instance.name, instance_name)
+            try:
+                self.instance = self.project.session.query(Instance).filter_by(name = instance_name).one()
+            except NoResultFound, e:
+                print dyeFAIL("No such instance: " + instance_name)
+                os._exit(1)
+        else:
+            instance_updated = ""
 
-        [self.__setattr__(k, kwargs[k]) for k in ('cpu', 'mem', 'disk_size', 'disk_type') if k in kwargs]
-        self.save()
+        commom_keys = set(['cpu', 'mem', 'disk_size', 'disk_type']) & set(kwargs.keys())
+        old_setting = [self.__getattribute__(k) for k in commom_keys]
+        [self.__setattr__(k, kwargs[k]) for k in commom_keys]
+        kwargs = {k:kwargs[k] for k in commom_keys}
+        updated = "\t".join(["(%s %s => %s)" % (k, old, new) for k, old, new in zip(commom_keys, old_setting, kwargs.values())])
+        print "Task {id} updated: ".format(id = self.id) + updated + instance_updated
 
     @after('redo')
     def update_dependence_chain(self):
@@ -709,7 +721,7 @@ class Instance(Base):
     cpu = Column(Integer, nullable=False)
     mem = Column(Integer, nullable=False)
     disk_type = Column(String)
-    disk_size = Column(Integer)
+    disk_size = Column(Float)
     price = Column(Float, nullable=False)
 
     app = relationship("App", back_populates="instance")
