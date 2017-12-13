@@ -501,7 +501,11 @@ class Task(Base):
         bcs.show_json()
 
     def show_shell(self):
-        pass
+        sh = [m for m in self.mapping if m.name == 'sh'][0]
+        key = oss2key(sh.destination)
+        content = read_object(key)
+        print dyeOKGREEN("Task Script: " + sh.destination)
+        print content
 
     def show_log(self, type):
         bcs = self.bcs[-1]
@@ -628,7 +632,7 @@ class Bcs(Base):
     def show_log(self, type):
         oss_path = self.__getattribute__(type)
         key = oss2key(oss_path)
-        
+
         content = self.cache(type)
         if not content:
             content = read_object(key)
