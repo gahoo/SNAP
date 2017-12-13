@@ -127,6 +127,9 @@ def new_log(name, dbfile):
     return logger
 
 def load_tasks(args):
+    def set_session(task):
+        task.project.session = session
+
     session = new_session(args.project, db[args.project])
     q = session.query(models.Task)
     if args.id:
@@ -140,6 +143,8 @@ def load_tasks(args):
     if args.module:
         q = q.join(models.Module).filter(models.Module.name == args.module)
     tasks = q.all()
+    if tasks:
+        map(set_session, tasks)
     return tasks
 
 def load_mapping_tasks(args):
@@ -169,6 +174,8 @@ def show_task(args):
             task.show_mapping_tbl()
         if args.depends:
             task.show_depends_tbl()
+        if args.script:
+            task.show_shell()
 
     tasks = load_tasks(args)
     map(show_each_task, tasks)
@@ -189,6 +196,14 @@ def load_bcs(args):
     session = new_session(args.project, db[args.project])
     bcs = session.query(models.Bcs).filter_by(id = args.job).one()
     return bcs
+
+def update_task(args):
+    setting = {k:v for k,v in args._get_kwargs() if k in ('instance', 'cpu', 'mem', 'disk_type', 'disk_size') and v}
+    tasks = load_tasks(args)
+    if setting and tasks:
+        map(lambda x: x.update(**setting), tasks)
+        tasks[1].project.session.commit()
+        print "Changes commited."
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -357,18 +372,33 @@ if __name__ == "__main__":
     subparsers_task_show.add_argument('-instance', default=False, action='store_true', help="Show instance detail or not")
     subparsers_task_show.add_argument('-mappings', default=False, action='store_true', help="Show mappings or not")
     subparsers_task_show.add_argument('-depends', action='store_true', help="Show depends or not")
+    subparsers_task_show.add_argument('-script', action='store_true', help="Show script on oss")
     subparsers_task_show.set_defaults(func=show_task)
 
     #task debug
-    subparsers_task_log = subparsers_task.add_parser('debug',
+    subparsers_task_debug = subparsers_task.add_parser('debug',
         help='Show task log or json.',
         description="This command will print task logs",
         prog='snap task debug',
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_task_log.add_argument('-json', action='store_true', help="Show job json")
-    subparsers_task_log.add_argument('-job', help="Bcs job id want to check")
-    subparsers_task_log.set_defaults(func=debug_task)
+    subparsers_task_debug.add_argument('-json', action='store_true', help="Show job json")
+    subparsers_task_debug.add_argument('-job', help="Bcs job id want to check")
+    subparsers_task_debug.set_defaults(func=debug_task)
+
+    #task update
+    subparsers_task_update = subparsers_task.add_parser('update',
+        help='Show task log or json.',
+        description="This command will print task logs",
+        prog='snap task debug',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_update.add_argument('-instance', help="Update task instance")
+    subparsers_task_update.add_argument('-cpu', help="Update task cpu", type=int)
+    subparsers_task_update.add_argument('-mem', help="Update task mem", type=float)
+    subparsers_task_update.add_argument('-disk_type', help="Update task disk type")
+    subparsers_task_update.add_argument('-disk_size', help="Update task disk size", type=float)
+    subparsers_task_update.set_defaults(func=update_task)
 
 
     # bcs cron
