@@ -120,9 +120,13 @@ def cron_bcs(args):
         (snap_path, ext) = os.path.splitext(os.path.realpath(__file__))
         command = "{snap} bcs sync -p {project}".format(snap=snap_path, project=args.project)
         job  = cron.new(command=command, comment=args.project)
-        job.minute.every(10)
+        job.minute.every(args.interval)
         cron.write()
         print "cron job %s added." % args.project
+    if args.add and job:
+        job.minute.every(args.interval)
+        cron.write()
+        print "cron job %s updated." % args.project
     elif args.delete and job:
         cron.remove_all(comment=args.project)
         cron.write()
@@ -378,6 +382,7 @@ if __name__ == "__main__":
         prog='snap bcs cron',
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_bcs_cron.add_argument('-project', default=None, help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
+    subparsers_bcs_cron.add_argument('-interval', default=15, help="sync interval in minute")
     bcs_cron_mutually_group = subparsers_bcs_cron.add_mutually_exclusive_group()
     bcs_cron_mutually_group.add_argument('-add', action='store_true', help="add crontab job")
     bcs_cron_mutually_group.add_argument('-delete', action='store_true', help="del crontab job")
