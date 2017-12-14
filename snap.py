@@ -13,6 +13,7 @@ from core import models
 from core.formats import *
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from crontab import CronTab
 
 def loadYaml(filename):
     with open(filename, 'r') as yaml_file:
@@ -99,6 +100,38 @@ def stat_bcs(args):
         #print project.states()
 
     print format_project_tbl(projects)
+
+def cron_bcs(args):
+    def get_job():
+        try:
+            job = cron.find_comment(args.project).next()
+        except StopIteration:
+            job = None
+        return job
+
+    cron  = CronTab(user=True)
+    if not args.project:
+        for job in cron:
+            print job
+        return
+
+    job = get_job()
+    if args.add and not job:
+        (snap_path, ext) = os.path.splitext(os.path.realpath(__file__))
+        command = "{snap} bcs sync -p {project}".format(snap=snap_path, project=args.project)
+        job  = cron.new(command=command, comment=args.project)
+        job.minute.every(10)
+        cron.write()
+        print "cron job %s added." % args.project
+    elif args.delete and job:
+        cron.remove_all(comment=args.project)
+        cron.write()
+        print "cron job %s deleted." % args.project
+    elif not job:
+        msg = "cron job %s not Found" % args.project
+        print dyeFAIL(msg)
+    else:
+        print job
 
 def load_project(name, dbfile):
     session = new_session(name, dbfile)
@@ -337,6 +370,18 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_bcs_sync.add_argument('-project', default=None, help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
     subparsers_bcs_sync.set_defaults(func=sync_bcs)
+
+    # bcs cron
+    subparsers_bcs_cron = subparsers_bcs.add_parser('cron',
+        help='Set Crontab for Aliyun BCS.',
+        description="This command will modify crontab config to sync with Aliyun BCS",
+        prog='snap bcs cron',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_bcs_cron.add_argument('-project', default=None, help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
+    bcs_cron_mutually_group = subparsers_bcs_cron.add_mutually_exclusive_group()
+    bcs_cron_mutually_group.add_argument('-add', action='store_true', help="add crontab job")
+    bcs_cron_mutually_group.add_argument('-delete', action='store_true', help="del crontab job")
+    subparsers_bcs_cron.set_defaults(func=cron_bcs)
 
     #bcs task
     subparsers_bcs_task = subparsers_bcs.add_parser('task',
