@@ -201,7 +201,7 @@ def list_task(args):
         tasks = load_mapping_tasks(args)
     else:
         tasks = load_tasks(args)
-    print format_tasks_tbl(tasks).get_string(sortby="start", reversesort=True)
+    print format_tasks_tbl(tasks).get_string(sortby="create", reversesort=True)
 
 def show_task(args):
     def show_each_task(task):
@@ -271,6 +271,12 @@ retry_task = functools.partial(do_task, status = ['failed'], event = 'retry')
 redo_task = functools.partial(do_task, status = ['finished'], event = 'redo')
 stop_task = functools.partial(do_task, status = ['pending', 'waiting', 'running'], event = 'stop')
 clean_task = functools.partial(do_task, status = ['stopped', 'finished', 'failed'], event = 'clean')
+
+def submit_task(args):
+    tasks = load_tasks(args)
+    setting = {'aasm_state': 'pending'}
+    map(lambda x: x.update(**setting), tasks)
+    map(lambda x: x.submit(), tasks)
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -534,7 +540,7 @@ if __name__ == "__main__":
         prog='snap task submit',
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
-    #subparsers_task_clean.set_defaults(func=submit_task)
+    subparsers_task_clean.set_defaults(func=submit_task)
 
 
     # bcs cron
