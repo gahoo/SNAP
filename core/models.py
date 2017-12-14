@@ -525,7 +525,7 @@ class Task(Base):
     def show_bcs_tbl(self, with_instance):
         if self.bcs:
             print dyeOKGREEN("Jobs on bcs:")
-            print format_bcs_tbl(self.bcs, with_instance)
+            print format_bcs_tbl(self.bcs, with_instance).get_string(sortby="create", reversesort=True)
 
     def show_mapping_tbl(self):
         if self.mapping:
