@@ -18,7 +18,7 @@ def format_project_tbl(projects):
 
 def format_tasks_tbl(tasks):
     tbl = PrettyTable()
-    tbl.field_names = ['id', 'name', 'status', 'failed', 'module', 'app', 'instance', 'start', 'waited', 'elapsed']
+    tbl.field_names = ['id', 'name', 'status', 'failed', 'module', 'app', 'instance', 'create', 'waited', 'elapsed']
     for task in tasks:
         failed_cnts = len([b for b in task.bcs if b.status == 'Failed'])
         create_date = get_date(task.bcs[-1].create_date)
@@ -27,7 +27,7 @@ def format_tasks_tbl(tasks):
         waited = diff_date(create_date, start_date)
         elapsed = diff_date(start_date, finish_date)
         status = format_status(task.aasm_state, task.aasm_state == 'cleaned')
-        row = [task.id, os.path.basename(task.shell), status, failed_cnts, task.module.name, task.app.name, task.instance.name, start_date, waited, elapsed]
+        row = [task.id, os.path.basename(task.shell), status, failed_cnts, task.module.name, task.app.name, task.instance.name, create_date, waited, elapsed]
         tbl.add_row(row)
     return tbl
 
@@ -56,7 +56,7 @@ def format_detail_task(task):
 
 def format_bcs_tbl(bcs, with_instance):
     tbl = PrettyTable()
-    fields = ['id', 'name', 'status', 'start', 'waited', 'elapsed']
+    fields = ['id', 'name', 'status', 'create', 'waited', 'elapsed']
     if with_instance:
         fields = fields + ['instance', 'cpu', 'mem', 'instance price', 'spot price']
     tbl.field_names = fields
@@ -64,10 +64,10 @@ def format_bcs_tbl(bcs, with_instance):
         status = format_status(b.status.lower(), b.deleted)
         create_date = get_date(b.create_date)
         start_date = get_date(b.start_date)
-        finish_date = b.finish_date.replace(microsecond=0)
+        finish_date = get_date(b.finish_date)
         waited = diff_date(create_date, start_date)
         elapsed = diff_date(start_date, finish_date)
-        row = [b.id, b.name, status, start_date, waited, elapsed]
+        row = [b.id, b.name, status, create_date, waited, elapsed]
         if with_instance:
             i = b.instance
             row = row + [i.name, i.cpu, i.mem, i.price, b.spot_price_limit]
