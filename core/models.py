@@ -480,6 +480,8 @@ class Task(Base):
     def restart_task(self):
         bcs = self.bcs[-1]
         bcs.restart()
+        msg = "{module}.{app}\t{sh}: stopped => pending".format(module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
+        self.project.logger.info(msg)
 
     @before('stop')
     def stop_task(self):
@@ -531,10 +533,10 @@ class Task(Base):
             print format_mapping_tbl(self.mapping)
 
     def show_depends_tbl(self):
-        if self.depends_on:
+        if self.depend_on:
             print dyeOKGREEN("Depends on:")
             print format_tasks_tbl(self.depend_on)
-        if self.depends_by:
+        if self.depend_by:
             print dyeOKGREEN("Depends by:")
             print format_tasks_tbl(self.depend_by)
 
@@ -554,7 +556,7 @@ class Task(Base):
         else:
             instance_updated = ""
 
-        commom_keys = set(['cpu', 'mem', 'disk_size', 'disk_type']) & set(kwargs.keys())
+        commom_keys = set(['cpu', 'mem', 'disk_size', 'disk_type', 'aasm_state']) & set(kwargs.keys())
         old_setting = [self.__getattribute__(k) for k in commom_keys]
         [self.__setattr__(k, kwargs[k]) for k in commom_keys]
         kwargs = {k:kwargs[k] for k in commom_keys}
