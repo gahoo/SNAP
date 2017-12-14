@@ -237,10 +237,13 @@ def load_bcs(args):
 
 def update_task(args):
     setting = {k:v for k,v in args._get_kwargs() if k in ('instance', 'cpu', 'mem', 'disk_type', 'disk_size') and v}
+    if args.state:
+        setting['aasm_state'] = args.state
+
     tasks = load_tasks(args)
     if setting and tasks:
         map(lambda x: x.update(**setting), tasks)
-        tasks[1].project.session.commit()
+        tasks[0].project.session.commit()
         print "Changes commited."
 
 def do_task(args, status, event):
@@ -265,6 +268,9 @@ def do_task(args, status, event):
 
 restart_task = functools.partial(do_task, status = ['stopped'], event = 'restart')
 retry_task = functools.partial(do_task, status = ['failed'], event = 'retry')
+redo_task = functools.partial(do_task, status = ['finished'], event = 'redo')
+stop_task = functools.partial(do_task, status = ['pending', 'waiting', 'running'], event = 'stop')
+clean_task = functools.partial(do_task, status = ['stopped', 'finished', 'failed'], event = 'clean')
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -473,6 +479,7 @@ if __name__ == "__main__":
     subparsers_task_update.add_argument('-mem', help="Update task mem", type=float)
     subparsers_task_update.add_argument('-disk_type', help="Update task disk type")
     subparsers_task_update.add_argument('-disk_size', help="Update task disk size", type=float)
+    subparsers_task_update.add_argument('-state', help="Update task status")
     subparsers_task_update.set_defaults(func=update_task)
 
     #task restart
@@ -493,6 +500,43 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task_retry.set_defaults(func=retry_task)
 
+    #task redo
+    subparsers_task_redo = subparsers_task.add_parser('redo',
+        help='Redo selected finished tasks.',
+        description="This command will redo selected finished tasks.",
+        prog='snap task redo',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_redo.set_defaults(func=redo_task)
+
+    #task stop
+    subparsers_task_stop = subparsers_task.add_parser('stop',
+        help='Stop selected pending, waiting, running tasks.',
+        description="This command will stop selected pending, waiting, running tasks.",
+        prog='snap task stop',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_stop.set_defaults(func=stop_task)
+
+    #task clean
+    subparsers_task_clean = subparsers_task.add_parser('clean',
+        help='Clean selected stopped, finished, failed tasks, including bcs job and immediate output files',
+        description="This command will clean selected stopped, finished, failed tasks, including bcs job and immediate output files",
+        prog='snap task clean',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_clean.set_defaults(func=clean_task)
+
+    #task submit
+    subparsers_task_clean = subparsers_task.add_parser('submit',
+        help='Submit task immediately and ignore all restraint.',
+        description="This command will submit task immediately and ignore all restraint.",
+        prog='snap task submit',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    #subparsers_task_clean.set_defaults(func=submit_task)
+
+
     # bcs cron
     # bcs cron add
     # bcs cron remove
@@ -503,7 +547,7 @@ if __name__ == "__main__":
     # bcs task redo
     # bcs task stop
     # bcs task clean
-    # bcs task run
+    # bcs task submit
     # bcs task log
     # bcs task show
     # bcs clean

@@ -576,7 +576,7 @@ class App(dict):
             map(checkParameters, self.get('parameters', []))
             print "==========================="
 
-    def build(self, parameters=None, parameter_file=None, dependence_file=None, module=None, output=None, debug=False):
+    def build(self, parameters=None, parameter_file=None, dependence_file=None, module=None, output=None, debug=False, benchmark=False):
         self.shell_path = output
         self.debug = debug
         if not self.appname:

@@ -226,11 +226,13 @@ class Pipe(dict):
         if proj_path:
             self.proj_path = os.path.abspath(proj_path)
         self.loadParameters(parameter_file)
-        #self.initDB()
         self.loadPipe()
         self.buildApps()
-        #self.formatDB()
+        self.initDB()
+        self.formatDB()
         self.buildDepends()
+        self.mkOSSuploadSH()
+        self.addDB()
         self.makePymonitorSH(pymonitor_path, proj_name, queue, priority)
 
     def initDB(self):
