@@ -205,6 +205,20 @@ def update_task(args):
         tasks[1].project.session.commit()
         print "Changes commited."
 
+def restart_task(args):
+    args.status = ['stopped']
+    tasks = load_tasks(args)
+    ids = ", ".join(map(lambda x: x.id, tasks))
+    if not args.id and tasks:
+        confirm = raw_input(dyeWARNING("All stopped task (%s) will restart, proceed?[y/n]: " % ids))
+        if confirm not in ['y', 'yes']:
+            os._exit(0)
+    if tasks:
+        map(lambda x: x.restart(), tasks)
+        print "Task " + ids + ' will be restart.'
+    else:
+        print dyeFAIL("No task restart since no stopped task found.")
+
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
         description = "SNAP is Not A Pipeline.",
@@ -399,6 +413,16 @@ if __name__ == "__main__":
     subparsers_task_update.add_argument('-disk_type', help="Update task disk type")
     subparsers_task_update.add_argument('-disk_size', help="Update task disk size", type=float)
     subparsers_task_update.set_defaults(func=update_task)
+
+    #task restart
+    subparsers_task_restart = subparsers_task.add_parser('restart',
+        help='Show task log or json.',
+        description="This command will print task logs",
+        prog='snap task debug',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_restart.set_defaults(func=restart_task)
+
 
 
     # bcs cron
