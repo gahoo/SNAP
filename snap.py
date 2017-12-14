@@ -6,6 +6,7 @@ import sys
 import os
 import logging
 import pdb
+import functools
 from core.app import App
 from core.pipe import WorkflowParameter
 from core.pipe import Pipe
@@ -242,19 +243,28 @@ def update_task(args):
         tasks[1].project.session.commit()
         print "Changes commited."
 
-def restart_task(args):
-    args.status = ['stopped']
+def do_task(args, status, event):
+    args.status = status
     tasks = load_tasks(args)
-    ids = ", ".join(map(lambda x: x.id, tasks))
+    ids = ", ".join(map(lambda x: str(x.id), tasks))
+    status = " or ".join(args.status)
+
     if not args.id and tasks:
-        confirm = raw_input(dyeWARNING("All stopped task (%s) will restart, proceed?[y/n]: " % ids))
+        msg = "All {status} task ({ids}) will {event}, proceed?[y/n]: ".format(status=status, ids=ids, event=event)
+        confirm = raw_input(dyeWARNING(msg))
         if confirm not in ['y', 'yes']:
             os._exit(0)
+
     if tasks:
-        map(lambda x: x.restart(), tasks)
-        print "Task " + ids + ' will be restart.'
+        map(lambda x: x.__getattribute__(event)(), tasks)
+        msg = 'Task {ids} will be {event}.'.format(ids=ids, event=event)
+        print msg
     else:
-        print dyeFAIL("No task restart since no stopped task found.")
+        msg = "No task will {event} since no {status} task found.".format(event=event, status=status)
+        print dyeFAIL(msg)
+
+restart_task = functools.partial(do_task, status = ['stopped'], event = 'restart')
+retry_task = functools.partial(do_task, status = ['failed'], event = 'retry')
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -389,13 +399,13 @@ if __name__ == "__main__":
     subparsers_bcs_cron.set_defaults(func=cron_bcs)
 
     #bcs task
-    subparsers_bcs_task = subparsers_bcs.add_parser('task',
-        help='Sync and update task states with Aliyun BCS.',
-        description="This command will poll and sync task states from Aliyun BCS",
-        prog='snap bcs task',
-        formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_bcs_task.add_argument('-project', default=None, help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
-    subparsers_bcs_task.set_defaults(func=sync_bcs)
+    #subparsers_bcs_task = subparsers_bcs.add_parser('task',
+    #    help='Sync and update task states with Aliyun BCS.',
+    #    description="This command will poll and sync task states from Aliyun BCS",
+    #    prog='snap bcs task',
+    #    formatter_class=argparse.RawTextHelpFormatter)
+    #subparsers_bcs_task.add_argument('-project', default=None, help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
+    #subparsers_bcs_task.set_defaults(func=sync_bcs)
 
     # task
     parsers_task = subparsers.add_parser('task',
@@ -407,7 +417,7 @@ if __name__ == "__main__":
 
     # task select common args
     share_task_parser = argparse.ArgumentParser(add_help=False)
-    share_task_parser.add_argument('-project', help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
+    share_task_parser.add_argument('-project', required=True, help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
     share_task_parser.add_argument('-id', default=None, help="Task id", nargs="*", type = int)
     share_task_parser.add_argument('-shell', default='.', help="Task shell")
     share_task_parser.add_argument('-status', default=None, help="Task status", nargs="*")
@@ -441,20 +451,21 @@ if __name__ == "__main__":
 
     #task debug
     subparsers_task_debug = subparsers_task.add_parser('debug',
-        help='Show task log or json.',
-        description="This command will print task logs",
+        help='Show task log or json to help debugging',
+        description="This command will print task logs and related messages.",
         prog='snap task debug',
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task_debug.add_argument('-json', action='store_true', help="Show job json")
     subparsers_task_debug.add_argument('-job', help="Bcs job id want to check")
+    subparsers_task_debug.add_argument('-no-cache', action='store_true', help="use cache or not.")
     subparsers_task_debug.set_defaults(func=debug_task)
 
     #task update
     subparsers_task_update = subparsers_task.add_parser('update',
-        help='Show task log or json.',
-        description="This command will print task logs",
-        prog='snap task debug',
+        help='Update task configure such as instance and disk usage etc.',
+        description="This command will update task configure, multiple task is supported.",
+        prog='snap task update',
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task_update.add_argument('-instance', help="Update task instance")
@@ -466,14 +477,21 @@ if __name__ == "__main__":
 
     #task restart
     subparsers_task_restart = subparsers_task.add_parser('restart',
-        help='Show task log or json.',
-        description="This command will print task logs",
-        prog='snap task debug',
+        help='Restart selected stopped tasks.',
+        description="This command will restart selected stopped tasks.",
+        prog='snap task restart',
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task_restart.set_defaults(func=restart_task)
 
-
+    #task retry
+    subparsers_task_retry = subparsers_task.add_parser('retry',
+        help='Retry selected failed tasks.',
+        description="This command will retry selected failed tasks.",
+        prog='snap task retry',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_retry.set_defaults(func=retry_task)
 
     # bcs cron
     # bcs cron add
