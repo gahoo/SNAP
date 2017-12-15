@@ -20,6 +20,10 @@ def loadYaml(filename):
     with open(filename, 'r') as yaml_file:
         return yaml.load(yaml_file)
 
+def dumpYaml(filename, obj):
+    with open(filename, 'w') as yaml_file:
+        yaml.dump(obj, yaml_file, default_flow_style=False)
+
 def new_app(args):
     if args.name:
         app = App(args.name)
@@ -82,6 +86,15 @@ def build_pipe(args):
     else:
         print >> sys.stderr, "parameters.conf is missing."
         os._exit(0)
+
+def config_bcs(args):
+    ali_conf_file = os.path.expanduser("~/.snap/ali.conf")
+    conf = {}
+    if os.path.exists(ali_conf_file):
+        conf = loadYaml(ali_conf_file)
+    new_conf = {k:v for k,v in args._get_kwargs() if v and k != 'func'}
+    conf.update(new_conf)
+    dumpYaml(ali_conf_file, conf)
 
 def sync_bcs(args):
     if not args.project:
@@ -380,6 +393,20 @@ if __name__ == "__main__":
         prog = 'snap bcs',
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_bcs = parsers_bcs.add_subparsers()
+    # bcs config
+    subparsers_bcs_config = subparsers_bcs.add_parser('config',
+        help='Configure Aliyun BCS.',
+        description="This command will configure Aliyun BCS settings.",
+        prog='snap bcs config',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_bcs_config.add_argument('-accesskey_id', help="accesskey_id for Aliyun BCS.")
+    subparsers_bcs_config.add_argument('-accesskey_secret', help="accesskey_secret for Aliyun BCS.")
+    subparsers_bcs_config.add_argument('-bucket', help="bucket to save results.")
+    subparsers_bcs_config.add_argument('-region', help="which Aliyun BCS region you are.")
+    subparsers_bcs_config.add_argument('-image', default='img-ubuntu', help="defualt instance image to run BCS.")
+    subparsers_bcs_config.add_argument('-registry_path', default='docker-images', help="docker registry path on bucket.")
+    subparsers_bcs_config.set_defaults(func=config_bcs)
+
     # bcs stat
     subparsers_bcs_stat = subparsers_bcs.add_parser('stat',
         help='Show Project task stats and progress.',
@@ -562,6 +589,8 @@ if __name__ == "__main__":
 if __name__ == '__main__':
     argslist = sys.argv[1:]
     db_yaml = os.path.expanduser("~/.snap/db.yaml")
+    if not os.path.exists(db_yaml):
+        open(db_yaml, 'a').close()
     db = loadYaml(db_yaml)
     if len(argslist) > 0:
         args = parsers.parse_args(argslist)
