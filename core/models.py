@@ -99,9 +99,34 @@ class Project(Base):
         states = [t.aasm_state for t in self.task]
         return Counter(states)
 
-    def state_filter(self, state):
-        return self.session.query(Task).filter_by(aasm_state = state).all()
-        #return [t for t in self.task if t.aasm_state == state]
+    def query_tasks(self, args):
+        q = self.session.query(Task)
+        if args.id:
+            q = q.filter(Task.id.in_(args.id))
+        if args.status:
+            q = q.filter(Task.aasm_state.in_(args.status))
+        if args.shell:
+            q = q.filter(Task.shell.like("%" + args.shell + "%"))
+        if args.app:
+            q = q.join(App).filter(App.name == args.app)
+        if args.module:
+            q = q.join(Module).filter(Module.name == args.module)
+        tasks = q.all()
+        return tasks
+
+    def query_mapping_tasks(self, args):
+        q = self.session.query(Mapping)
+        if args.source:
+            q = q.filter(Mapping.source.like("%" + args.source + "%"))
+        if args.destination:
+            q = q.filter(Mapping.destination.like("%" + args.destination + "%"))
+        mappings = q.all()
+        tasks = set(sum([m.task for m in mappings], []))
+        return tasks
+
+    def query_bcs(self, args):
+        bcs = self.session.query(Bcs).filter_by(id = args.job).one()
+        return bcs
 
     def retry(self, id):
         task = self.session.query(Task).filter_by(id = id).one()
@@ -274,8 +299,8 @@ class Task(Base):
             self.retry()
 
         if self.aasm_state != old_state:
-           msg = "{module}.{app}\t{sh}: {old_state} => {state}".format(module=self.module.name, app=self.app.name,
-                sh=os.path.basename(self.shell), old_state=old_state, state=self.aasm_state)
+           msg = "{task}\t{module}.{app}\t{sh}\t{old_state} => {state}".format(module=self.module.name, app=self.app.name,
+                sh=os.path.basename(self.shell), task=self.id, old_state=old_state, state=self.aasm_state)
            self.project.logger.info(msg)
 
     def is_dependence_satisfied(self):
@@ -494,6 +519,7 @@ class Task(Base):
 
     @before('clean')
     @before('redo')
+    @before('retry')
     def delete_files(self):
         oss_files = [m for m in self.mapping if m.is_immediate and m.is_write]
         map(lambda x:x.oss_delete(), oss_files)
@@ -561,6 +587,7 @@ class Task(Base):
         [self.__setattr__(k, kwargs[k]) for k in commom_keys]
         kwargs = {k:kwargs[k] for k in commom_keys}
         updated = "\t".join(["(%s %s => %s)" % (k, old, new) for k, old, new in zip(commom_keys, old_setting, kwargs.values())])
+        self.save()
         print "Task {id} updated: ".format(id = self.id) + updated + instance_updated
 
     @after('redo')
@@ -625,8 +652,8 @@ class Bcs(Base):
         json = self.cache('json')
         if not json:
             json = CLIENT.get_job_description(self.id)
-            self.cache('json', json)
-            print json
+            self.cache('json', str(json))
+        print json
 
     @catchClientError
     def stop(self):
@@ -662,12 +689,18 @@ class Bcs(Base):
     @catchClientError
     def show_result(self):
         result = self.cache('result')
+
         if self.deleted and not result:
             return
-        if not result:
+        elif result:
+            print result
+            print '-' * 80
+            return
+        else:
             result = CLIENT.get_instance(self.id, self.name, 0).get('Result')
-            self.cache('result', result)
+
         if result.get('Detail') or result.get('ErrorCode'):
+            self.cache('result', str(result))
             print dyeFAIL(str(result))
             print '-' * 80
 
