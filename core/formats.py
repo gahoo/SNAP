@@ -5,7 +5,7 @@ import os
 def format_project_tbl(projects):
     def build_row(name, state):
         progress = 100.0 * state.get('finished', 0) / sum(state.values())
-        return [name] + [state.get(column, 0) for column in states_column] + [progress]
+        return [name] + [state.get(column, 0) for column in states_column] + [round(progress, 2)]
 
     tbl = PrettyTable()
     states = {e.name:e.states() for e in projects}
