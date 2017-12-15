@@ -2,6 +2,7 @@ import oss2
 import os
 from . import ALI_CONF
 from oss2.exceptions import NoSuchKey
+from ..colorMessage import dyeWARNING
 
 def oss2key(destination):
     prefix = os.path.join('oss://', BUCKET.bucket_name)
@@ -39,7 +40,7 @@ def read_object(key):
         if not isinstance(e, NoSuchKey):
             raise e
         print dyeWARNING("{key} not found.".format(key=key))
-        return None
+        return ''
 
     if meta.content_length > 100 * 1024:
         byte_range = (None, 10 * 1024)
