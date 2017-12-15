@@ -505,17 +505,21 @@ class Task(Base):
     def restart_task(self):
         bcs = self.bcs[-1]
         bcs.restart()
-        msg = "{module}.{app}\t{sh}: stopped => pending".format(module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
+        msg = "{task}\t{module}.{app}\t{sh}\tstopped => pending".format(task=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
         self.project.logger.info(msg)
 
     @before('stop')
     def stop_task(self):
         bcs = self.bcs[-1]
         bcs.stop()
+        msg = "{task}\t{module}.{app}\t{sh}\t{state} => stopped".format(task=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell), state=self.aasm_state)
+        self.project.logger.info(msg)
 
     @before('clean')
     def delete_tasks(self):
         map(lambda x:x.delete(), self.bcs)
+        msg = "{task}\t{module}.{app}\t{sh}\t{state} => cleaned".format(task=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell), state=self.aasm_state)
+        self.project.logger.info(msg)
 
     @before('clean')
     @before('redo')
