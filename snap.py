@@ -169,51 +169,20 @@ def new_log(name, dbfile):
     (prefix, ext) =  os.path.splitext(dbfile)
     log_file = prefix + '.log'
     fh = logging.FileHandler(log_file)
-    fmt = "%(asctime) %(levelname)s %(filename)s %(lineno)d %(process)d %(message)s"
-    datefmt = "%a %d %b %Y %H:%M:%S"
+    fmt = "%(asctime)-15s\t%(message)s"
+    datefmt = "%Y-%m-%d %H:%M:%S"
     formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
     return logger
 
-def load_tasks(args):
-    def set_session(task):
-        task.project.session = session
-
-    session = new_session(args.project, db[args.project])
-    q = session.query(models.Task)
-    if args.id:
-        q = q.filter(models.Task.id.in_(args.id))
-    if args.status:
-        q = q.filter(models.Task.aasm_state.in_(args.status))
-    if args.shell:
-        q = q.filter(models.Task.shell.like("%" + args.shell + "%"))
-    if args.app:
-        q = q.join(models.App).filter(models.App.name == args.app)
-    if args.module:
-        q = q.join(models.Module).filter(models.Module.name == args.module)
-    tasks = q.all()
-    if tasks:
-        map(set_session, tasks)
-    return tasks
-
-def load_mapping_tasks(args):
-    session = new_session(args.project, db[args.project])
-    q = session.query(models.Mapping)
-    if args.source:
-        q = q.filter(models.Mapping.source.like("%" + args.source + "%"))
-    if args.destination:
-        q = q.filter(models.Mapping.destination.like("%" + args.destination + "%"))
-    mappings = q.all()
-    tasks = set(sum([m.task for m in mappings], []))
-    return tasks
-
 def list_task(args):
+    proj = load_project(args.project, db[args.project])
     if args.source or args.destination:
-        tasks = load_mapping_tasks(args)
+        tasks = proj.query_mapping_tasks(args)
     else:
-        tasks = load_tasks(args)
+        tasks = proj.query_tasks(args)
     print format_tasks_tbl(tasks).get_string(sortby="create", reversesort=True)
 
 def show_task(args):
@@ -228,32 +197,30 @@ def show_task(args):
         if args.script:
             task.show_shell()
 
-    tasks = load_tasks(args)
+    proj = load_project(args.project, db[args.project])
+    tasks = proj.query_tasks(args)
     map(show_each_task, tasks)
 
 def debug_task(args):
+    proj = load_project(args.project, db[args.project])
     if args.job:
-        bcs = load_bcs(args)
+        bcs = proj.query_bcs(args)
         bcs.debug()
         if args.json:
             bcs.show_json()
     else:
-        tasks = load_tasks(args)
+        tasks = proj.query_tasks(args)
         map(lambda x:x.debug(), tasks)
         if args.json:
             map(lambda x:x.show_json(), tasks)
-
-def load_bcs(args):
-    session = new_session(args.project, db[args.project])
-    bcs = session.query(models.Bcs).filter_by(id = args.job).one()
-    return bcs
 
 def update_task(args):
     setting = {k:v for k,v in args._get_kwargs() if k in ('instance', 'cpu', 'mem', 'disk_type', 'disk_size') and v}
     if args.state:
         setting['aasm_state'] = args.state
 
-    tasks = load_tasks(args)
+    proj = load_project(args.project, db[args.project])
+    tasks = proj.query_tasks(args)
     if setting and tasks:
         map(lambda x: x.update(**setting), tasks)
         tasks[0].project.session.commit()
@@ -261,7 +228,8 @@ def update_task(args):
 
 def do_task(args, status, event):
     args.status = status
-    tasks = load_tasks(args)
+    proj = load_project(args.project, db[args.project])
+    tasks = proj.query_tasks(args)
     ids = ", ".join(map(lambda x: str(x.id), tasks))
     status = " or ".join(args.status)
 
@@ -286,10 +254,11 @@ stop_task = functools.partial(do_task, status = ['pending', 'waiting', 'running'
 clean_task = functools.partial(do_task, status = ['stopped', 'finished', 'failed'], event = 'clean')
 
 def submit_task(args):
-    tasks = load_tasks(args)
+    proj = load_project(args.project, db[args.project])
+    tasks = proj.query_tasks(args)
     setting = {'aasm_state': 'pending'}
     map(lambda x: x.update(**setting), tasks)
-    map(lambda x: x.submit(), tasks)
+    do_task(args, ['pending'], 'submit')
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -421,7 +390,7 @@ if __name__ == "__main__":
         description="This command will poll and sync task states from Aliyun BCS",
         prog='snap bcs sync',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_bcs_sync.add_argument('-project', default=None, help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
+    subparsers_bcs_sync.add_argument('-project', default=None, help="ContractID or ProjectID, sync all project in ~/.snap/db.yaml")
     subparsers_bcs_sync.set_defaults(func=sync_bcs)
 
     # bcs cron
@@ -430,7 +399,7 @@ if __name__ == "__main__":
         description="This command will modify crontab config to sync with Aliyun BCS",
         prog='snap bcs cron',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_bcs_cron.add_argument('-project', default=None, help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
+    subparsers_bcs_cron.add_argument('-project', default=None, help="ContractID or ProjectID, sync all project in ~/.snap/db.yaml")
     subparsers_bcs_cron.add_argument('-interval', default=15, help="sync interval in minute")
     bcs_cron_mutually_group = subparsers_bcs_cron.add_mutually_exclusive_group()
     bcs_cron_mutually_group.add_argument('-add', action='store_true', help="add crontab job")
