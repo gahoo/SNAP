@@ -17,6 +17,7 @@ from core.formats import *
 from colorMessage import dyeWARNING, dyeFAIL, dyeOKGREEN
 from collections import Counter
 from oss2.exceptions import NoSuchKey
+from oss2 import ObjectIterator
 import getpass
 import datetime
 import os
@@ -80,9 +81,6 @@ class Project(Base):
     def __repr__(self):
         return "<Project(id={id}, name={name})>".format(id=self.id, name=self.name)
 
-    def startAll(self):
-        [t.start() for t in self.task if t.is_created]
-
     def sync(self):
         self.poll()
 
@@ -144,21 +142,28 @@ class Project(Base):
         task = self.session.query(Task).filter_by(id = id).one()
         task.debug()
 
-    def cleanImmediate(self):
-        immediate_write = [m.destination for m in self.session.query(Mapping).filter_by(is_write = True, is_immediate = True).all()]
-        all_read = [m.destination for m in self.session.query(Mapping).filter_by(is_write = False).all()]
-        to_delete = set(all_read) & set(immediate_write)
+    def clean_files(self, immediate=True):
+        def iter_dir(prefix):
+            return [obj.key for obj in ObjectIterator(BUCKET, prefix=prefix)]
+
+        if immediate:
+            immediate_write = [m.destination for m in self.session.query(Mapping).filter_by(is_write = True, is_immediate = True).all()]
+            all_read = [m.destination for m in self.session.query(Mapping).filter_by(is_write = False).all()]
+            to_delete = set(all_read) & set(immediate_write)
+        else:
+            to_delete = set([m.destination for m in self.session.query(Mapping).filter_by(is_write = True).all()])
+        dir_to_delete = sum([iter_dir(f) for f in to_delete if f.endswith('/')], [])
+        to_delete = to_delete.update(dir_to_delete)
         oss_keys = OSSkeys(map(oss2key, to_delete))
         for keys in oss_keys:
             result = BUCKET.batch_delete_objects(keys)
             print('\n'.join(result.deleted_keys))
 
-    def cleanBcs(self, status=None):
-        if status:
-            bcs = self.session.query(Bcs).filter( Bcs.status==status ).all()
-        else:
-            bcs = self.session.query(Bcs).all()
+    def clean_bcs(self):
+        bcs = self.session.query(Bcs).filter_by(deleted=False).all()
         map(lambda x:x.delete(), bcs)
+        tasks = set([b.task for b in bcs])
+        map(lambda x:x.update(aasm_state = 'cleaned'), tasks)
         self.session.commit()
 
 

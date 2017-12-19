@@ -151,6 +151,12 @@ def cron_bcs(args):
     else:
         print job
 
+def clean_bcs(args):
+    proj = load_project(args.project, db[args.project])
+    proj.clean_files(immediate = not args.all_files)
+    proj.clean_bcs()
+    print "Files and jobs cleaned."
+
 def load_project(name, dbfile):
     session = new_session(name, dbfile)
     proj = session.query(models.Project).filter_by(name = name).one()
@@ -406,6 +412,16 @@ if __name__ == "__main__":
     bcs_cron_mutually_group.add_argument('-delete', action='store_true', help="del crontab job")
     subparsers_bcs_cron.set_defaults(func=cron_bcs)
 
+    # bcs clean
+    subparsers_bcs_clean = subparsers_bcs.add_parser('clean',
+        help='Clean Jobs and Files on Aliyun BCS.',
+        description="This command will clean files and jobs on Aliyun BCS",
+        prog='snap bcs clean',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_bcs_clean.add_argument('-project', default=None, help="ContractID or ProjectID, sync all project in ~/.snap/db.yaml")
+    subparsers_bcs_clean.add_argument('-all_files', default=False, action='store_true', help="Delete all output files or not")
+    subparsers_bcs_clean.set_defaults(func=clean_bcs)
+
     #bcs task
     #subparsers_bcs_task = subparsers_bcs.add_parser('task',
     #    help='Sync and update task states with Aliyun BCS.',
@@ -554,6 +570,7 @@ if __name__ == "__main__":
     # bcs task show
     # bcs clean
     # bcs instance
+    # bcs deliver
 
 if __name__ == '__main__':
     argslist = sys.argv[1:]
