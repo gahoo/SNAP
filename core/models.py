@@ -118,6 +118,10 @@ class Project(Base):
             q = q.filter(Mapping.source.like("%" + args.source + "%"))
         if args.destination:
             q = q.filter(Mapping.destination.like("%" + args.destination + "%"))
+        if args.write is not None:
+            q = q.filter(Mapping.is_write == args.write)
+        if args.immediate is not None:
+            q = q.filter(Mapping.is_immediate == args.immediate)
         mappings = q.all()
         tasks = set(sum([m.task for m in mappings], []))
         return tasks
@@ -153,7 +157,7 @@ class Project(Base):
         else:
             to_delete = set([m.destination for m in self.session.query(Mapping).filter_by(is_write = True).all()])
         dir_to_delete = sum([iter_dir(f) for f in to_delete if f.endswith('/')], [])
-        to_delete = to_delete.update(dir_to_delete)
+        to_delete.update(dir_to_delete)
         oss_keys = OSSkeys(map(oss2key, to_delete))
         for keys in oss_keys:
             result = BUCKET.batch_delete_objects(keys)

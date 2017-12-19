@@ -240,7 +240,7 @@ def do_task(args, status, event):
     status = " or ".join(args.status)
 
     if not args.id and tasks and not args.yes:
-        msg = "All {status} task ({ids}) will {event}, proceed?[y/n]: ".format(status=status, ids=ids, event=event)
+        msg = "{status} task ({ids}) will {event}, proceed?[y/n]: ".format(status=status, ids=ids, event=event)
         confirm = raw_input(dyeWARNING(msg))
         if confirm not in ['y', 'yes']:
             os._exit(0)
@@ -418,8 +418,8 @@ if __name__ == "__main__":
         description="This command will clean files and jobs on Aliyun BCS",
         prog='snap bcs clean',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_bcs_clean.add_argument('-project', default=None, help="ContractID or ProjectID you want to clean")
-    subparsers_bcs_clean.add_argument('-all_files', default=False, action='store_true', help="Delete all output files or not")
+    subparsers_bcs_clean.add_argument('-project', default=None, required=True, help="ContractID or ProjectID you want to clean")
+    subparsers_bcs_clean.add_argument('-all_files', default=False, action='store_true', help="Delete all output files or just immediate files")
     subparsers_bcs_clean.set_defaults(func=clean_bcs)
 
     #bcs task
@@ -458,6 +458,10 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task_list.add_argument('-source', default=None, help="Task with source mapping")
     subparsers_task_list.add_argument('-destination', default=None, help="Task with destination mapping")
+    subparsers_task_list.add_argument('-is_write', default=None, dest='write', action='store_true', help="This is a writable mapping")
+    subparsers_task_list.add_argument('-is_not_write', default=None, dest='write', action='store_false', help="This is not a writable mapping")
+    subparsers_task_list.add_argument('-is_immediate', default=None, dest='immediate', action='store_true', help="This is a immediate mapping")
+    subparsers_task_list.add_argument('-is_not_immediate', default=None, dest='immediate', action='store_false', help="This is not a immediate mapping")
     subparsers_task_list.set_defaults(func=list_task)
 
     #task show
