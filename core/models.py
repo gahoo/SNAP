@@ -166,8 +166,7 @@ class Project(Base):
     def clean_bcs(self):
         bcs = self.session.query(Bcs).filter_by(deleted=False).all()
         map(lambda x:x.delete(), bcs)
-        tasks = set([b.task for b in bcs])
-        map(lambda x:x.update(aasm_state = 'cleaned'), tasks)
+        map(lambda x:x.update(aasm_state = 'cleaned'), [t for t in self.task if t.is_finished])
         self.session.commit()
 
 
