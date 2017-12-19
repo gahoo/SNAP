@@ -239,7 +239,7 @@ def do_task(args, status, event):
     ids = ", ".join(map(lambda x: str(x.id), tasks))
     status = " or ".join(args.status)
 
-    if not args.id and tasks:
+    if not args.id and tasks and not args.yes:
         msg = "All {status} task ({ids}) will {event}, proceed?[y/n]: ".format(status=status, ids=ids, event=event)
         confirm = raw_input(dyeWARNING(msg))
         if confirm not in ['y', 'yes']:
@@ -405,7 +405,7 @@ if __name__ == "__main__":
         description="This command will modify crontab config to sync with Aliyun BCS",
         prog='snap bcs cron',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_bcs_cron.add_argument('-project', default=None, help="ContractID or ProjectID, sync all project in ~/.snap/db.yaml")
+    subparsers_bcs_cron.add_argument('-project', default=None, help="ContractID or ProjectID you want to schedule")
     subparsers_bcs_cron.add_argument('-interval', default=15, help="sync interval in minute")
     bcs_cron_mutually_group = subparsers_bcs_cron.add_mutually_exclusive_group()
     bcs_cron_mutually_group.add_argument('-add', action='store_true', help="add crontab job")
@@ -418,7 +418,7 @@ if __name__ == "__main__":
         description="This command will clean files and jobs on Aliyun BCS",
         prog='snap bcs clean',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_bcs_clean.add_argument('-project', default=None, help="ContractID or ProjectID, sync all project in ~/.snap/db.yaml")
+    subparsers_bcs_clean.add_argument('-project', default=None, help="ContractID or ProjectID you want to clean")
     subparsers_bcs_clean.add_argument('-all_files', default=False, action='store_true', help="Delete all output files or not")
     subparsers_bcs_clean.set_defaults(func=clean_bcs)
 
@@ -447,6 +447,7 @@ if __name__ == "__main__":
     share_task_parser.add_argument('-status', default=None, help="Task status", nargs="*")
     share_task_parser.add_argument('-app', default=None, help="Task app")
     share_task_parser.add_argument('-module', default=None, help="Task module")
+    share_task_parser.add_argument('-yes', action='store_true', help="Don't ask.")
 
     #task list
     subparsers_task_list = subparsers_task.add_parser('list',
