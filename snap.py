@@ -157,9 +157,15 @@ def clean_bcs(args):
     proj.clean_bcs()
 
 def instance_bcs(args):
-    proj = load_project(args.project, db[args.project])
+    if args.project:
+        proj = load_project(args.project, db[args.project])
+    elif db:
+        proj = load_project(db.keys()[0], db.values()[0])
+    else:
+        print "You must have at least one project to query instance."
+        os._exit(1)
     instances = proj.query_instance(args)
-    print format_instance_tbl(instances)
+    print format_instance_tbl(instances).get_string(sortby="price")
 
 def load_project(name, dbfile):
     session = new_session(name, dbfile)
@@ -432,16 +438,15 @@ if __name__ == "__main__":
     subparsers_bcs_instance = subparsers_bcs.add_parser('instance',
         help='Show available instances.',
         description="This command will clean files and jobs on Aliyun BCS",
-        prog='snap bcs clean',
+        prog='snap bcs instance',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_bcs_instance.add_argument('-project', default=None, required=True, help="ContractID or ProjectID you want to clean")
+    subparsers_bcs_instance.add_argument('-project', default=None, help="ContractID or ProjectID you want to clean")
     subparsers_bcs_instance.add_argument('-name', help="instance name")
     subparsers_bcs_instance.add_argument('-cpu', type=int, help="how many core")
     subparsers_bcs_instance.add_argument('-mem', type=float, help="memory size")
     subparsers_bcs_instance.add_argument('-disk_type', choices=('SSD', 'HDD'), help="disk type: SSD/HDD")
     subparsers_bcs_instance.add_argument('-disk_size', help="local disk size")
     subparsers_bcs_instance.add_argument('-price', type=float, help="instance price")
-    subparsers_bcs_instance.add_argument('-mode', default='exact', choices=('more', 'less', 'exact'), help="show instance meets selection")
     subparsers_bcs_instance.set_defaults(func=instance_bcs)
     #bcs task
     #subparsers_bcs_task = subparsers_bcs.add_parser('task',
