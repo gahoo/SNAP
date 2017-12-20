@@ -130,6 +130,11 @@ class Project(Base):
         bcs = self.session.query(Bcs).filter_by(id = args.job).one()
         return bcs
 
+    def query_instance(self, args):
+        q = {k:v for k, v in args.__dict__.items() if v and k not in ('func', 'mode', 'project')}
+        instances = self.session.query(Instance).filter_by(**q).all()
+        return instances
+
     def retry(self, id):
         task = self.session.query(Task).filter_by(id = id).one()
         task.retry()

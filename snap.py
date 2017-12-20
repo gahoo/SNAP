@@ -156,6 +156,11 @@ def clean_bcs(args):
     proj.clean_files(immediate = not args.all_files)
     proj.clean_bcs()
 
+def instance_bcs(args):
+    proj = load_project(args.project, db[args.project])
+    instances = proj.query_instance(args)
+    print format_instance_tbl(instances)
+
 def load_project(name, dbfile):
     session = new_session(name, dbfile)
     proj = session.query(models.Project).filter_by(name = name).one()
@@ -389,6 +394,7 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_bcs_stat.add_argument('-project', default=None, help="ContractID or ProjectID, default will show all project recorded in ~/.snap/db.yaml")
     subparsers_bcs_stat.add_argument('-size', action='store_true', help="Project data usage stat")
+    subparsers_bcs_stat.add_argument('-cost', action='store_true', help="Project costs")
     subparsers_bcs_stat.set_defaults(func=stat_bcs)
     # bcs sync
     subparsers_bcs_sync = subparsers_bcs.add_parser('sync',
@@ -422,6 +428,21 @@ if __name__ == "__main__":
     subparsers_bcs_clean.add_argument('-all_files', default=False, action='store_true', help="Delete all output files or just immediate files")
     subparsers_bcs_clean.set_defaults(func=clean_bcs)
 
+    # bcs instance
+    subparsers_bcs_instance = subparsers_bcs.add_parser('instance',
+        help='Show available instances.',
+        description="This command will clean files and jobs on Aliyun BCS",
+        prog='snap bcs clean',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_bcs_instance.add_argument('-project', default=None, required=True, help="ContractID or ProjectID you want to clean")
+    subparsers_bcs_instance.add_argument('-name', help="instance name")
+    subparsers_bcs_instance.add_argument('-cpu', type=int, help="how many core")
+    subparsers_bcs_instance.add_argument('-mem', type=float, help="memory size")
+    subparsers_bcs_instance.add_argument('-disk_type', choices=('SSD', 'HDD'), help="disk type: SSD/HDD")
+    subparsers_bcs_instance.add_argument('-disk_size', help="local disk size")
+    subparsers_bcs_instance.add_argument('-price', type=float, help="instance price")
+    subparsers_bcs_instance.add_argument('-mode', default='exact', choices=('more', 'less', 'exact'), help="show instance meets selection")
+    subparsers_bcs_instance.set_defaults(func=instance_bcs)
     #bcs task
     #subparsers_bcs_task = subparsers_bcs.add_parser('task',
     #    help='Sync and update task states with Aliyun BCS.',

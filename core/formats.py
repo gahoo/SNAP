@@ -106,3 +106,11 @@ def format_mapping_tbl(mappings):
 
     return tbl
 
+def format_instance_tbl(instances):
+    tbl = PrettyTable()
+    tbl.field_names = ['name', 'cpu', 'mem', 'disk type', 'disk size', 'price']
+    for i in instances:
+        row = [i.name, i.cpu, i.mem, i.disk_type, i.disk_size, i.price]
+        tbl.add_row(row)
+
+    return tbl
