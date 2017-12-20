@@ -2,15 +2,24 @@ from core.colorMessage import dyeWARNING, dyeFAIL, dyeOKGREEN, dyeOKBLUE
 from prettytable import PrettyTable
 import os
 
-def format_project_tbl(projects):
+def format_project_tbl(projects, size=False):
     def build_row(name, state):
         progress = 100.0 * (state.get('cleaned', 0) + state.get('finished', 0)) / sum(state.values())
-        return [name] + [state.get(column, 0) for column in states_column] + [round(progress, 2)]
+        if size:
+            row_size = [size[name]['clean'], size[name]['project']]
+        else:
+            row_size = []
+        return [name] + [state.get(column, 0) for column in states_column] + [round(progress, 2)] + row_size
 
     tbl = PrettyTable()
     states = {e.name:e.states() for e in projects}
+    if size:
+        size = {e.name:e.size_stat() for e in projects}
+        size_field = ['clean Data', 'project data']
+    else:
+        size_field = []
     states_column = sum([state.keys() for state in states.values()], [])
-    tbl.field_names = ['project'] + states_column + ['progress(%)']
+    tbl.field_names = ['project'] + states_column + ['progress(%)'] + size_field
     for name, state in states.items():
         row = build_row(name, state)
         tbl.add_row(row)

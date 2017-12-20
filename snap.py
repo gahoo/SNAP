@@ -113,7 +113,7 @@ def stat_bcs(args):
         projects = [load_project(args.project, db[args.project])]
         #print project.states()
 
-    print format_project_tbl(projects)
+    print format_project_tbl(projects, args.size)
 
 def cron_bcs(args):
     def get_job():
@@ -155,7 +155,6 @@ def clean_bcs(args):
     proj = load_project(args.project, db[args.project])
     proj.clean_files(immediate = not args.all_files)
     proj.clean_bcs()
-    print "Files and jobs cleaned."
 
 def load_project(name, dbfile):
     session = new_session(name, dbfile)
@@ -389,6 +388,7 @@ if __name__ == "__main__":
         prog='snap bcs stat',
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_bcs_stat.add_argument('-project', default=None, help="ContractID or ProjectID, default will show all project recorded in ~/.snap/db.yaml")
+    subparsers_bcs_stat.add_argument('-size', action='store_true', help="Project data usage stat")
     subparsers_bcs_stat.set_defaults(func=stat_bcs)
     # bcs sync
     subparsers_bcs_sync = subparsers_bcs.add_parser('sync',
@@ -576,6 +576,7 @@ if __name__ == "__main__":
     # bcs clean
     # bcs instance
     # bcs deliver
+    # bcs archive
 
 if __name__ == '__main__':
     argslist = sys.argv[1:]

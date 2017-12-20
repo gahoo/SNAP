@@ -161,14 +161,31 @@ class Project(Base):
         oss_keys = OSSkeys(map(oss2key, to_delete))
         for keys in oss_keys:
             result = BUCKET.batch_delete_objects(keys)
-            print('\n'.join(result.deleted_keys))
+        num_keys = len(result.deleted_keys)
+        deleted_size = self.size_stat(to_delete)['project']
+        print "{num} files({size}G) deleted.".format(num=num_keys, size=deleted_size)
 
     def clean_bcs(self):
         bcs = self.session.query(Bcs).filter_by(deleted=False).all()
         map(lambda x:x.delete(), bcs)
         map(lambda x:x.update(aasm_state = 'cleaned'), [t for t in self.task if t.is_finished])
         self.session.commit()
+        print "{num} jobs deleted.".format(num=len(bcs))
 
+    def size_stat(self, to_delete=None):
+        total = 0
+        clean_total = 0
+        for obj in ObjectIterator(BUCKET, prefix="projects/%s" % self.name):
+            if to_delete:
+                if obj.key in to_delete:
+                    total += obj.size
+            else:
+                total += obj.size
+
+        for obj in ObjectIterator(BUCKET, prefix="clean/%s" % self.name):
+            clean_total += obj.size
+
+        return {'clean': round(float(clean_total) / 2 ** 30, 3), 'project': round(float(total) / 2 ** 30, 3)}
 
 class Module(Base):
     __tablename__ = 'module'
