@@ -18,6 +18,7 @@ from colorMessage import dyeWARNING, dyeFAIL, dyeOKGREEN
 from collections import Counter
 from oss2.exceptions import NoSuchKey
 from oss2 import ObjectIterator
+from argparse import Namespace
 import getpass
 import datetime
 import os
@@ -134,6 +135,73 @@ class Project(Base):
         q = {k:v for k, v in args.__dict__.items() if v and k not in ('func', 'mode', 'project')}
         instances = self.session.query(Instance).filter_by(**q).all()
         return instances
+
+    def build_network(self, args):
+        def build_edge(task, dep_task):
+            if args.mode == 'task':
+                source = dep_task.id
+                target = task.id
+            elif args.mode == 'app':
+                source = dep_task.app.id
+                target = task.app.id
+            elif args.mode == 'module':
+                source = dep_task.module.id
+                target = task.module.id
+
+            return source, target
+
+        def build_node(task):
+            if args.mode == 'task':
+                id = task.id
+                name = "<{id}> {name}".format(id=task.id, name=os.path.basename(task.shell))
+                status = task.aasm_state
+            elif args.mode == 'app':
+                id = task.app.id
+                name = task.app.name
+                status = build_collected_status(task.app.task)
+            elif args.mode == 'module':
+                id = task.module.id
+                name = task.module.name
+                status = build_collected_status(task.module.task)
+
+            return id, name, status
+
+        def build_collected_status(tasks):
+            status = [t.aasm_state for t in tasks]
+            if "failed" in status:
+                status = 'failed'
+            elif "running" in status:
+                status = 'running'
+            elif "waiting" in status:
+                status = 'waiting'
+            elif all(map(lambda x: x in ('finished', 'cleaned'), status)):
+                status = 'finished'
+            else:
+                status = 'pending'
+
+            return status
+
+        tasks = self.query_tasks(args)
+        tids = set([t.id for t in tasks])
+        depends = self.query_dependence(args, tids)
+        map(lambda x: tids.update(x), depends)
+        dummy_args = Namespace(id = None, status = None, shell = None, app = None, module = None)
+        dummy_args.id = tids
+        tasks = self.query_tasks(dummy_args)
+        tasks = {t.id:t for t in tasks}
+        edges = set(map(lambda (x, y): build_edge(tasks[x], tasks[y]), depends))
+        edges = [(source, target) for source, target in edges if source != target]
+        edges = map(lambda (source, target): {'data': {'source': source, 'target': target}}, edges)
+        nodes = set(map(build_node, tasks.values()))
+        nodes = map(lambda (id, name, status): {'data': {'id': id, 'name': name, 'status': status}}, nodes)
+        return edges, nodes
+
+    def query_dependence(self, args, tids=None):
+        q = self.session.query(dependence_table)
+        if tids:
+            q = q.filter(dependence_table.c.task_id.in_(tids) | dependence_table.c.depend_task_id.in_(tids))
+
+        return q.all()
 
     def retry(self, id):
         task = self.session.query(Task).filter_by(id = id).one()

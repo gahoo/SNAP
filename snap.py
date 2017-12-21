@@ -7,6 +7,7 @@ import os
 import logging
 import pdb
 import functools
+import json
 from core.app import App
 from core.pipe import WorkflowParameter
 from core.pipe import Pipe
@@ -15,6 +16,8 @@ from core.formats import *
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from crontab import CronTab
+from flask import Flask
+from jinja2 import Template
 
 def loadYaml(filename):
     with open(filename, 'r') as yaml_file:
@@ -275,6 +278,19 @@ def submit_task(args):
     setting = {'aasm_state': 'pending'}
     map(lambda x: x.update(**setting), tasks)
     do_task(args, ['pending'], 'submit')
+
+def cyto_task(args):
+    app = Flask(__name__)
+    @app.route('/')
+    def network():
+        template_file = os.path.join(snap_path, 'cyto', 'network.html')
+        template = Template(open(template_file).read())
+        return template.render(edges=json.dumps(edges), nodes=json.dumps(nodes))
+
+    snap_path = os.path.dirname(os.path.realpath(__file__))
+    proj = load_project(args.project, db[args.project])
+    (edges, nodes) = proj.build_network(args)
+    app.run(host='0.0.0.0', port=8000)
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -584,6 +600,17 @@ if __name__ == "__main__":
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task_clean.set_defaults(func=submit_task)
+
+    #task cyto
+    subparsers_task_cyto = subparsers_task.add_parser('cyto',
+        help='Show selected task in cytoscape.js',
+        description="This command will show selected task dependencies in network.",
+        prog='snap task cyto',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_cyto.add_argument('-mode', default='task', choices=('task', 'app', 'module'), help="Update task instance")
+    subparsers_task_cyto.set_defaults(func=cyto_task)
+
 
 
     # bcs cron
