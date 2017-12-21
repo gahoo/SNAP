@@ -221,14 +221,14 @@ def debug_task(args):
     proj = load_project(args.project, db[args.project])
     if args.job:
         bcs = proj.query_bcs(args)
-        bcs.debug()
+        bcs.debug(args.cache)
         if args.json:
-            bcs.show_json()
+            bcs.show_json(args.cache)
     else:
         tasks = proj.query_tasks(args)
-        map(lambda x:x.debug(), tasks)
+        map(lambda x:x.debug(args.cache), tasks)
         if args.json:
-            map(lambda x:x.show_json(), tasks)
+            map(lambda x:x.show_json(args.cache), tasks)
 
 def update_task(args):
     setting = {k:v for k,v in args._get_kwargs() if k in ('instance', 'cpu', 'mem', 'disk_type', 'disk_size') and v}
@@ -513,7 +513,7 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task_debug.add_argument('-json', action='store_true', help="Show job json")
     subparsers_task_debug.add_argument('-job', help="Bcs job id want to check")
-    subparsers_task_debug.add_argument('-no-cache', action='store_true', help="use cache or not.")
+    subparsers_task_debug.add_argument('-no-cache', dest='cache', default=True, action='store_false', help="use cache or not.")
     subparsers_task_debug.set_defaults(func=debug_task)
 
     #task update

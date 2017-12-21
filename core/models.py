@@ -574,9 +574,9 @@ class Task(Base):
         bcs = self.bcs[-1]
         bcs.show_log(type)
 
-    def debug(self):
+    def debug(self, cache=True):
         bcs = self.bcs[-1]
-        bcs.debug()
+        bcs.debug(cache)
 
     def show_detail_tbl(self):
         print dyeOKGREEN("Task Details:")
@@ -682,9 +682,9 @@ class Bcs(Base):
         self.task.project.session.commit()
 
     @catchClientError
-    def show_json(self):
+    def show_json(self, cache=True):
         json = self.cache('json')
-        if not json:
+        if not json or not cache:
             json = CLIENT.get_job_description(self.id)
             self.cache('json', str(json))
         print json
@@ -704,12 +704,12 @@ class Bcs(Base):
         CLIENT.delete_job(self.id)
         self.deleted = True
 
-    def show_log(self, type):
+    def show_log(self, type, cache=True):
         oss_path = self.__getattribute__(type)
         key = oss2key(oss_path)
 
         content = self.cache(type)
-        if not content:
+        if not content or not cache:
             content = read_object(key)
             self.cache(type, content)
 
@@ -721,12 +721,12 @@ class Bcs(Base):
         print '-' * 80
 
     @catchClientError
-    def show_result(self):
+    def show_result(self, cache=True):
         result = self.cache('result')
 
         if self.deleted and not result:
             return
-        elif result:
+        elif result and cache:
             print result
             print '-' * 80
             return
@@ -739,9 +739,9 @@ class Bcs(Base):
             print '-' * 80
 
     @catchClientError
-    def show_job_message(self):
+    def show_job_message(self, cache=True):
         msg = self.cache('msg')
-        if not msg:
+        if not msg or not cache:
             result = CLIENT.get_job(self.id)
             msg = result.get('Message')
             self.cache('msg', msg)
@@ -749,13 +749,13 @@ class Bcs(Base):
             print dyeFAIL(msg)
             print '-' * 80
 
-    def debug(self):
+    def debug(self, cache=True):
         print dyeOKBLUE("Task id: " + str(self.task.id))
         print dyeOKBLUE("Job id: " + self.id)
-        self.show_log('stdout')
-        self.show_log('stderr')
-        self.show_result()
-        self.show_job_message()
+        self.show_log('stdout', cache)
+        self.show_log('stderr', cache)
+        self.show_result(cache)
+        self.show_job_message(cache)
 
     def cache(self, type, content=None):
         def save_cache(content):
