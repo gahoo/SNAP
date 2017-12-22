@@ -165,21 +165,25 @@ class Project(Base):
             modules = set([t.module for t in tasks])
             if args.mode == 'task':
                 nodes = map(build_task_node, tasks)
-                nodes += map(build_app_node, apps)
-                nodes += map(build_module_node, modules)
+                if args.compound in ('app', 'all'):
+                    nodes += map(build_app_node, apps)
+                if args.compound in ('module', 'all'):
+                    nodes += map(build_module_node, modules)
             elif args.mode == 'app':
                 nodes = map(build_app_node, apps)
-                nodes += map(build_module_node, modules)
+                if args.compound in ('module', 'all'):
+                    nodes += map(build_module_node, modules)
             elif args.mode == 'module':
                 nodes = map(build_module_node, modules)
             return nodes
 
         def build_task_node(task):
             bcs = task.bcs[-1]
-            if bcs.finish_date:
-                elapsed = bcs.finish_date - bcs.start_date
+            elapsed = diff_date(bcs.start_date, bcs.finish_date)
+            if args.compound == 'module':
+                parent = "m%s" % task.module.id
             else:
-                elapsed = datetime.datetime.now() - bcs.start_date
+                parent = "m%s.a%s" % (task.module.id, task.app.id)
             return {'data': {
               'id': task.id,
               'name': "<{id}> {name}".format(id=task.id, name=os.path.basename(task.shell)),
@@ -188,8 +192,8 @@ class Project(Base):
               'mem': task.mem,
               'module': task.module.name,
               'app': task.app.name,
-              'parent': "m%s.a%s" % (task.module.id, task.app.id),
-              'elapsed': elapsed.total_seconds()},
+              'parent': parent,
+              'elapsed': round(elapsed.total_seconds(), 0)},
             'classes': 'task'}
 
         def build_app_node(app):
