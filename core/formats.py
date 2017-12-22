@@ -1,6 +1,7 @@
 from core.colorMessage import dyeWARNING, dyeFAIL, dyeOKGREEN, dyeOKBLUE
 from prettytable import PrettyTable
 import os
+import datetime
 
 def format_project_tbl(projects, size=False):
     def build_row(name, state):
@@ -51,6 +52,9 @@ def get_date(date):
 def diff_date(t1, t2):
     if all([t1, t2]):
         return t2 - t1
+    elif t1 and not t2:
+        now = datetime.datetime.now().replace(microsecond=0)
+        return now - t1
     else:
         return None
 
