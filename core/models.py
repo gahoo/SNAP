@@ -132,9 +132,12 @@ class Project(Base):
         return bcs
 
     def query_instance(self, args):
-        q = {k:v for k, v in args.__dict__.items() if v and k not in ('func', 'mode', 'project')}
-        instances = self.session.query(Instance).filter_by(**q).all()
-        return instances
+        q_filter = {k:v for k, v in args.__dict__.items() if v and k not in ('func', 'mode', 'project')}
+        q = self.session.query(Instance)
+        if 'name' in q_filter:
+            q = q.filter(Instance.name.like("%" + q_filter.pop('name') + "%"))
+        q = q.filter_by(**q_filter)
+        return q.all()
 
     def build_network(self, args):
         def build_edges():
