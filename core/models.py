@@ -137,7 +137,13 @@ class Project(Base):
         return instances
 
     def build_network(self, args):
-        def build_edge(task, dep_task):
+        def build_edges():
+            edges = set(map(lambda (x, y): build_each_edge(tasks[x], tasks[y]), depends))
+            edges = [(source, target) for source, target in edges if source != target]
+            edges = map(lambda (source, target): {'data': {'source': source, 'target': target}}, edges)
+            return edges
+
+        def build_each_edge(task, dep_task):
             if args.mode == 'task':
                 source = dep_task.id
                 target = task.id
@@ -150,21 +156,64 @@ class Project(Base):
 
             return source, target
 
-        def build_node(task):
+        def build_nodes(tasks):
+            tasks = set(tasks.values())
+            apps = set([t.app for t in tasks])
+            modules = set([t.module for t in tasks])
             if args.mode == 'task':
-                id = task.id
-                name = "<{id}> {name}".format(id=task.id, name=os.path.basename(task.shell))
-                status = task.aasm_state
+                nodes = map(build_task_node, tasks)
+                nodes += map(build_app_node, apps)
+                nodes += map(build_module_node, modules)
             elif args.mode == 'app':
-                id = task.app.id
-                name = task.app.name
-                status = build_collected_status(task.app.task)
+                nodes = map(build_app_node, apps)
+                nodes += map(build_module_node, modules)
             elif args.mode == 'module':
-                id = task.module.id
-                name = task.module.name
-                status = build_collected_status(task.module.task)
+                nodes = map(build_module_node, modules)
+            return nodes
 
-            return id, name, status
+        def build_task_node(task):
+            bcs = task.bcs[-1]
+            if bcs.finish_date:
+                elapsed = bcs.finish_date - bcs.start_date
+            else:
+                elapsed = datetime.datetime.now() - bcs.start_date
+            return {'data': {
+              'id': task.id,
+              'name': "<{id}> {name}".format(id=task.id, name=os.path.basename(task.shell)),
+              'status': task.aasm_state,
+              'cpu': task.cpu,
+              'mem': task.mem,
+              'module': task.module.name,
+              'app': task.app.name,
+              'parent': "m%s.a%s" % (task.module.id, task.app.id),
+              'elapsed': elapsed.total_seconds()},
+            'classes': 'task'}
+
+        def build_app_node(app):
+            if args.mode == 'app':
+               id = app.id
+            elif args.mode == 'task':
+               id = "m%s.a%s" % (app.module.id, app.id)
+
+            return {'data': {
+              'id': id,
+              'name': app.name,
+              'status': build_collected_status(app.task),
+              'module': app.module.name,
+              'parent': "m%s" % app.module.id},
+            'classes': 'app'}
+
+        def build_module_node(module):
+            if args.mode == 'module':
+               id = module.id
+            else:
+               id = "m%s" % module.id
+
+            return {'data': {
+              'id': id,
+              'name': module.name},
+              'status': build_collected_status(module.task),
+            'classes': 'module'}
 
         def build_collected_status(tasks):
             status = [t.aasm_state for t in tasks]
@@ -181,19 +230,21 @@ class Project(Base):
 
             return status
 
-        tasks = self.query_tasks(args)
-        tids = set([t.id for t in tasks])
-        depends = self.query_dependence(args, tids)
-        map(lambda x: tids.update(x), depends)
-        dummy_args = Namespace(id = None, status = None, shell = None, app = None, module = None)
-        dummy_args.id = tids
-        tasks = self.query_tasks(dummy_args)
-        tasks = {t.id:t for t in tasks}
-        edges = set(map(lambda (x, y): build_edge(tasks[x], tasks[y]), depends))
-        edges = [(source, target) for source, target in edges if source != target]
-        edges = map(lambda (source, target): {'data': {'source': source, 'target': target}}, edges)
-        nodes = set(map(build_node, tasks.values()))
-        nodes = map(lambda (id, name, status): {'data': {'id': id, 'name': name, 'status': status}}, nodes)
+        def get_depends():
+            tasks = self.query_tasks(args)
+            tids = set([t.id for t in tasks])
+            return self.query_dependence(args, tids)
+
+        def get_tasks():
+            dummy_args = Namespace(id = None, status = None, shell = None, app = None, module = None)
+            dummy_args.id = set(sum([[s,t] for s,t in depends], []))
+            tasks = self.query_tasks(dummy_args)
+            return {t.id:t for t in tasks}
+
+        depends = get_depends()
+        tasks = get_tasks()
+        edges = build_edges()
+        nodes = build_nodes(tasks)
         return edges, nodes
 
     def query_dependence(self, args, tids=None):
