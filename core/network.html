@@ -37,8 +37,8 @@ cytoscape({
       })
     .selector('node.task')
       .css({
-        'width': 'mapData({{size}}, 10, 259200, 15, 150)',
-        'height': 'mapData({{size}}, 10, 259200, 15, 150)',
+        'width': 'mapData({{size}}, {{min_size}}, {{max_size}}, 20, 120)',
+        'height': 'mapData({{size}}, {{min_size}}, {{max_size}}, 20, 120)',
         {{task_status}}
       })
     .selector('node.app')

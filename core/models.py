@@ -25,6 +25,7 @@ import getpass
 import datetime
 import os
 import json
+import math
 import pdb
 
 Base = declarative_base()
@@ -159,7 +160,9 @@ class Project(Base):
                 module_status = build_status_css()
 
             sizes = [n['data'].get(args.size, 0) for n in nodes]
-            print min(sizes), max(sizes)
+            sizes = [math.sqrt(s) for s in sizes if s != 0]
+            if not sizes:
+                sizes = [1]
 
             return template.render(
               edges=json.dumps(edges),
