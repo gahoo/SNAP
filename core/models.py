@@ -178,22 +178,28 @@ class Project(Base):
             return nodes
 
         def build_task_node(task):
-            bcs = task.bcs[-1]
-            elapsed = diff_date(bcs.start_date, bcs.finish_date)
+            if task.bcs:
+                bcs = task.bcs[-1]
+                elapsed = diff_date(bcs.start_date, bcs.finish_date)
+                elapsed = round(elapsed.total_seconds(), 0)
+            else:
+                elapsed = 0
+
             if args.compound == 'module':
                 parent = "m%s" % task.module.id
             else:
                 parent = "m%s.a%s" % (task.module.id, task.app.id)
+
             return {'data': {
               'id': task.id,
               'name': "<{id}> {name}".format(id=task.id, name=os.path.basename(task.shell)),
-              'status': task.aasm_state,
+              task.aasm_state: 1.0,
               'cpu': task.cpu,
               'mem': task.mem,
               'module': task.module.name,
               'app': task.app.name,
               'parent': parent,
-              'elapsed': round(elapsed.total_seconds(), 0)},
+              'elapsed': elapsed},
             'classes': 'task'}
 
         def build_app_node(app):
@@ -202,13 +208,15 @@ class Project(Base):
             elif args.mode == 'task':
                id = "m%s.a%s" % (app.module.id, app.id)
 
-            return {'data': {
+            node = {'data': {
               'id': id,
               'name': app.name,
-              'status': build_collected_status(app.task),
               'module': app.module.name,
               'parent': "m%s" % app.module.id},
             'classes': 'app'}
+            node['data'].update(count_status(app.task))
+
+            return node
 
         def build_module_node(module):
             if args.mode == 'module':
@@ -216,24 +224,19 @@ class Project(Base):
             else:
                id = "m%s" % module.id
 
-            return {'data': {
+            node = {'data': {
               'id': id,
               'name': module.name},
-              'status': build_collected_status(module.task),
             'classes': 'module'}
+            node['data'].update(count_status(module.task))
 
-        def build_collected_status(tasks):
+            return node
+
+        def count_status(tasks):
             status = [t.aasm_state for t in tasks]
-            if "failed" in status:
-                status = 'failed'
-            elif "running" in status:
-                status = 'running'
-            elif "waiting" in status:
-                status = 'waiting'
-            elif all(map(lambda x: x in ('finished', 'cleaned'), status)):
-                status = 'finished'
-            else:
-                status = 'pending'
+            status = Counter(status)
+            total = float(sum(status.values()))
+            status = {k: v/total for k, v in status.items()}
 
             return status
 

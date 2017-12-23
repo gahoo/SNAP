@@ -20,7 +20,7 @@ cytoscape({
   container: document.getElementById('cy'),
 
   layout: {
-    name: 'cose',
+    name: '{{layout}}',
     padding: 10
   },
 
@@ -28,18 +28,34 @@ cytoscape({
     .selector('node')
       .css({
 //        'shape': 'data(faveShape)',
-//        'width': 'mapData(weight, 40, 80, 20, 60)',
         'content': 'data(name)',
         'text-valign': 'center',
-        'text-outline-width': 2,
+        'text-outline-width': 1,
 //        'text-outline-color': 'data(faveColor)',
 //        'background-color': 'data(faveColor)',
-        'color': '#fff'
+        'color': '#fff',
+      })
+    .selector('node.task')
+      .css({
+        'width': 'mapData({{size}}, 10, 259200, 15, 150)',
+        'height': 'mapData({{size}}, 10, 259200, 15, 150)',
+        {{task_status}}
+      })
+    .selector('node.app')
+      .css({
+        'text-valign': 'bottom',
+        {{app_status}}
+      })
+    .selector('node.module')
+      .css({
+        'text-valign': 'top',
+        'bordker-opacity': 0,
+        {{module_status}}
       })
     .selector(':selected')
       .css({
-        'border-width': 3,
-        'border-color': '#333'
+        'border-width': 2,
+//        'border-color': '#333'
       })
     .selector('edge')
       .css({
@@ -47,7 +63,7 @@ cytoscape({
         'opacity': 0.666,
 //        'width': 'mapData(strength, 70, 100, 2, 6)',
         'target-arrow-shape': 'triangle',
-        'source-arrow-shape': 'circle'
+//        'source-arrow-shape': 'circle'
 //        'line-color': 'data(faveColor)',
 //        'source-arrow-color': 'data(faveColor)',
 //        'target-arrow-color': 'data(faveColor)'
