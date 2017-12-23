@@ -28,6 +28,8 @@ cytoscape({
 
   layout: {
     name: '{{layout}}',
+    directed: true,
+    avoidOverlap: true,
     padding: 10
   },
 
@@ -53,7 +55,7 @@ cytoscape({
     .selector('node.module')
       .css({
         'text-valign': 'top',
-        'border-opacity': 0,
+//        'border-opacity': 0,
         {{module_status}}
       })
     .selector(':selected')
