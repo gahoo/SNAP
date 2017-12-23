@@ -190,6 +190,11 @@ class Project(Base):
             else:
                 parent = "m%s.a%s" % (task.module.id, task.app.id)
 
+            if args.size == 'data':
+                data = task.size(is_write=True)
+            else:
+                data = 0
+
             return {'data': {
               'id': task.id,
               'name': "<{id}> {name}".format(id=task.id, name=os.path.basename(task.shell)),
@@ -199,6 +204,7 @@ class Project(Base):
               'module': task.module.name,
               'app': task.app.name,
               'parent': parent,
+              'data': data,
               'elapsed': elapsed},
             'classes': 'task'}
 
@@ -208,11 +214,17 @@ class Project(Base):
             elif args.mode == 'task':
                id = "m%s.a%s" % (app.module.id, app.id)
 
+            if args.size == 'data':
+                data = sum([t.size(is_write=True) for t in app.task])
+            else:
+                data = 0
+
             node = {'data': {
               'id': id,
               'name': app.name,
               'module': app.module.name,
-              'parent': "m%s" % app.module.id},
+              'parent': "m%s" % app.module.id,
+              'data': data},
             'classes': 'app'}
             node['data'].update(count_status(app.task))
 
@@ -224,9 +236,15 @@ class Project(Base):
             else:
                id = "m%s" % module.id
 
+            if args.size == 'data':
+                data = sum([t.size(is_write=True) for t in module.task])
+            else:
+                data = 0
+
             node = {'data': {
               'id': id,
-              'name': module.name},
+              'name': module.name,
+              'data': data},
             'classes': 'module'}
             node['data'].update(count_status(module.task))
 
@@ -764,6 +782,12 @@ class Task(Base):
     def delete_bcs(self):
         map(lambda x:x.delete(), self.bcs)
 
+    def size(self, is_write=None):
+        if is_write is None:
+            return sum([m.size() for m in self.mapping])
+        else:
+            return sum([m.size() for m in self.mapping if m.is_write  == is_write])
+
 class Bcs(Base):
     __tablename__ = 'bcs'
 
@@ -830,8 +854,15 @@ class Bcs(Base):
 
     @catchClientError
     def delete(self):
+        self.delete_log()
         CLIENT.delete_job(self.id)
         self.deleted = True
+
+    def delete_log(self):
+        stdout = oss2key(self.stdout)
+        stderr = oss2key(self.stderr)
+        BUCKET.delete_object(stdout)
+        BUCKET.delete_object(stderr)
 
     def show_log(self, type, cache=True):
         oss_path = self.__getattribute__(type)
@@ -950,3 +981,7 @@ class Mapping(Base):
     def oss_delete(self):
         key = oss2key(self.destination)
         BUCKET.delete_object(key)
+
+    def size(self):
+        key = oss2key(self.destination)
+        return sum([obj.size for obj in ObjectIterator(BUCKET, prefix=key)])
