@@ -1,6 +1,7 @@
 <html>
 <head>
 <script src="http://js.cytoscape.org/js/cytoscape.min.js"></script>
+<script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-cose-bilkent/1.6.5/cytoscape-cose-bilkent.js"></script>
 <style>
 #cy {
   height: 100%;
@@ -28,6 +29,7 @@ var cy = cytoscape({
 
   layout: {
     name: '{{layout}}',
+    animate: false,
     directed: true,
     avoidOverlap: true,
     padding: 10
