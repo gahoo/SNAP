@@ -40,23 +40,27 @@ var cy = cytoscape({
       .css({
         'content': 'data(name)',
         'text-valign': 'center',
-        'text-outline-width': 1.2,
         'width': 'mapData({{size}}, {{min_size}}, {{max_size}}, 20, 50)',
         'height': 'mapData({{size}}, {{min_size}}, {{max_size}}, 20, 50)',
         'color': '#fff',
       })
     .selector('node.task')
       .css({
+        'text-outline-width': 1.2,
         {{task_status}}
       })
     .selector('node.app')
       .css({
         'text-valign': 'bottom',
+        'font-size': '1.2em',
+        'text-outline-width': 1.5,
         {{app_status}}
       })
     .selector('node.module')
       .css({
         'text-valign': 'top',
+        'font-size': '1.5em',
+        'text-outline-width': 2,
 //        'border-opacity': 0,
         {{module_status}}
       })
