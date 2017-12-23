@@ -13,6 +13,13 @@
 </head>
 <body>
   <div id="cy"></div>
+  <div>
+  size mapped to {{size}}. min:{{min_size}}, max:{{max_size}}</br>
+  <span style="background-color: #74CBE8">running</span>
+  <span style="background-color: #f5ff6b">stopped</span>
+  <span style="background-color: #E8747C">failed</span>
+  <span style="background-color: #74E883">finished</span>
+  </div>
 </body>
 
 <script>
@@ -27,18 +34,15 @@ cytoscape({
   style: cytoscape.stylesheet()
     .selector('node')
       .css({
-//        'shape': 'data(faveShape)',
         'content': 'data(name)',
         'text-valign': 'center',
-        'text-outline-width': 1,
-//        'text-outline-color': 'data(faveColor)',
-//        'background-color': 'data(faveColor)',
+        'text-outline-width': 1.2,
+        'width': 'mapData({{size}}, {{min_size}}, {{max_size}}, 20, 50)',
+        'height': 'mapData({{size}}, {{min_size}}, {{max_size}}, 20, 50)',
         'color': '#fff',
       })
     .selector('node.task')
       .css({
-        'width': 'mapData({{size}}, {{min_size}}, {{max_size}}, 20, 120)',
-        'height': 'mapData({{size}}, {{min_size}}, {{max_size}}, 20, 120)',
         {{task_status}}
       })
     .selector('node.app')
@@ -49,29 +53,19 @@ cytoscape({
     .selector('node.module')
       .css({
         'text-valign': 'top',
-        'bordker-opacity': 0,
+        'border-opacity': 0,
         {{module_status}}
       })
     .selector(':selected')
       .css({
         'border-width': 2,
-//        'border-color': '#333'
       })
     .selector('edge')
       .css({
         'curve-style': 'bezier',
         'opacity': 0.666,
-//        'width': 'mapData(strength, 70, 100, 2, 6)',
         'target-arrow-shape': 'triangle',
 //        'source-arrow-shape': 'circle'
-//        'line-color': 'data(faveColor)',
-//        'source-arrow-color': 'data(faveColor)',
-//        'target-arrow-color': 'data(faveColor)'
-      })
-    .selector('edge.questionable')
-      .css({
-        'line-style': 'dotted',
-        'target-arrow-shape': 'diamond'
       })
     .selector('.faded')
       .css({
