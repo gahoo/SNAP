@@ -1014,7 +1014,7 @@ class Instance(Base):
     cpu = Column(Integer, nullable=False)
     mem = Column(Integer, nullable=False)
     disk_type = Column(String)
-    disk_size = Column(Float)
+    disk_size = Column(String)
     price = Column(Float, nullable=False)
 
     app = relationship("App", back_populates="instance")
