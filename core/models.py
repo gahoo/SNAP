@@ -25,7 +25,6 @@ import getpass
 import datetime
 import os
 import json
-import math
 import pdb
 
 Base = declarative_base()
@@ -160,7 +159,7 @@ class Project(Base):
                 module_status = build_status_css()
 
             sizes = [n['data'].get(args.size, 0) for n in nodes]
-            sizes = [math.sqrt(s) for s in sizes if s != 0]
+            sizes = [s for s in sizes if s != 0]
             if not sizes:
                 sizes = [1]
 
@@ -277,6 +276,9 @@ class Project(Base):
             'classes': 'app'}
             node['data'].update(count_status(app.task))
 
+            if args.size == 'elapsed' and args.mode == 'app':
+                node['data']['elapsed'] = total_elapsed(app.task)
+
             return node
 
         def build_module_node(module):
@@ -297,6 +299,9 @@ class Project(Base):
             'classes': 'module'}
             node['data'].update(count_status(module.task))
 
+            if args.size == 'elapsed' and args.mode == 'module':
+                node['data']['elapsed'] = total_elapsed(module.task)
+
             return node
 
         def count_status(tasks):
@@ -306,6 +311,16 @@ class Project(Base):
             status = {k: v/total for k, v in status.items()}
 
             return status
+
+        def total_elapsed(tasks):
+            bcs = [t.bcs[-1] for t in tasks if t.bcs]
+            elapsed = 0
+            if bcs:
+                min_start = min([b.start_date for b in bcs])
+                max_finish = max([b.finish_date for b in bcs])
+                elapsed = diff_date(min_start, max_finish)
+                elapsed = round(elapsed.total_seconds(), 0)
+            return int(elapsed)
 
         def get_depends():
             tasks = self.query_tasks(args)
