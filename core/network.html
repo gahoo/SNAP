@@ -23,7 +23,7 @@
 </body>
 
 <script>
-cytoscape({
+var cy = cytoscape({
   container: document.getElementById('cy'),
 
   layout: {
@@ -85,5 +85,22 @@ cytoscape({
   }
 });
 
+cy.on('tap', 'node', function(e){
+  var n = e.target;
+  var neighborhood = n.neighborhood().add(n);
+  var parents = neighborhood.parents()
+  var descendants = neighborhood.descendants()
+
+  cy.elements().addClass('faded');
+  neighborhood.removeClass('faded');
+  parents.removeClass('faded');
+  descendants.removeClass('faded');
+});
+
+cy.on('tap', function(e){
+  if( e.target === cy ){
+    cy.elements().removeClass('faded');
+  }
+});
 </script>
 </html>
