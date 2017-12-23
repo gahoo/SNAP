@@ -19,9 +19,12 @@ from collections import Counter
 from oss2.exceptions import NoSuchKey
 from oss2 import ObjectIterator
 from argparse import Namespace
+from flask import Flask
+from jinja2 import Template
 import getpass
 import datetime
 import os
+import json
 import pdb
 
 Base = declarative_base()
@@ -138,6 +141,49 @@ class Project(Base):
             q = q.filter(Instance.name.like("%" + q_filter.pop('name') + "%"))
         q = q.filter_by(**q_filter)
         return q.all()
+
+    def cytoscape(self, args):
+        cyto = Flask(__name__)
+        @cyto.route('/')
+        def network():
+            template_file = os.path.join(snap_path, 'network.html')
+            template = Template(open(template_file).read())
+
+            task_status = app_status = module_status = ''
+
+            if args.mode == 'task':
+                task_status = build_status_css()
+            if args.mode == 'app':
+                app_status = build_status_css()
+            if args.mode == 'module':
+                module_status = build_status_css()
+
+            sizes = [n['data'].get(args.size, 0) for n in nodes]
+            print min(sizes), max(sizes)
+
+            return template.render(
+              edges=json.dumps(edges),
+              nodes=json.dumps(nodes),
+              layout=args.layout,
+              task_status = task_status,
+              app_status = app_status,
+              module_status = module_status,
+              size = args.size,
+              min_size = min(sizes),
+              max_size = max(sizes))
+
+        def build_status_css():
+            colors = ['#74CBE8', '#f5ff6b', '#E8747C', '#74E883', '#74E883']
+            states = ['running', 'stopped', 'failed', 'finished', 'cleaned']
+            css = {'pie-size': '80%'}
+            for (i, (color, state)) in enumerate(zip(colors, states)):
+                css['pie-%s-background-color' % (i + 1)] = color
+                css['pie-%s-background-size' % (i + 1)] = 'mapData(%s, 0, 1, 0, 100)' % state
+            return ",\n".join(["'{k}': '{v}'".format(k=k, v=v) for k, v in css.items()])
+
+        snap_path = os.path.dirname(os.path.realpath(__file__))
+        (edges, nodes) = self.build_network(args)
+        cyto.run(host='0.0.0.0', port=args.port)
 
     def build_network(self, args):
         def build_edges():

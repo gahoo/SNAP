@@ -7,7 +7,6 @@ import os
 import logging
 import pdb
 import functools
-import json
 from core.app import App
 from core.pipe import WorkflowParameter
 from core.pipe import Pipe
@@ -16,8 +15,6 @@ from core.formats import *
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from crontab import CronTab
-from flask import Flask
-from jinja2 import Template
 
 def loadYaml(filename):
     with open(filename, 'r') as yaml_file:
@@ -280,43 +277,8 @@ def submit_task(args):
     do_task(args, ['pending'], 'submit')
 
 def cyto_task(args):
-    app = Flask(__name__)
-    @app.route('/')
-    def network():
-        template_file = os.path.join(snap_path, 'cyto', 'network.html')
-        template = Template(open(template_file).read())
-
-        task_status = app_status = module_status = ''
-
-        if args.mode == 'task':
-            task_status = build_status_css()
-        if args.mode == 'app':
-            app_status = build_status_css()
-        if args.mode == 'module':
-            module_status = build_status_css()
-
-        return template.render(
-          edges=json.dumps(edges),
-          nodes=json.dumps(nodes),
-          layout=args.layout,
-          task_status = task_status,
-          app_status = app_status,
-          module_status = module_status,
-          size=args.size)
-
-    def build_status_css():
-        colors = ['#74CBE8', '#f5ff6b', '#E8747C', '#74E883', '#74E883']
-        states = ['running', 'stopped', 'failed', 'finished', 'cleaned']
-        css = {'pie-size': '80%'}
-        for (i, (color, state)) in enumerate(zip(colors, states)):
-            css['pie-%s-background-color' % (i + 1)] = color
-            css['pie-%s-background-size' % (i + 1)] = 'mapData(%s, 0, 1, 0, 100)' % state
-        return ",\n".join(["'{k}': '{v}'".format(k=k, v=v) for k, v in css.items()])
-
-    snap_path = os.path.dirname(os.path.realpath(__file__))
     proj = load_project(args.project, db[args.project])
-    (edges, nodes) = proj.build_network(args)
-    app.run(host='0.0.0.0', port=args.port)
+    proj.cytoscape(args)
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
