@@ -101,6 +101,12 @@ class Project(Base):
         states = [t.aasm_state for t in self.task]
         return Counter(states)
 
+    def progress(self):
+        states = self.states()
+        total = float(sum(states.values()))
+        progress = 100 * (states.get('cleaned', 0) + states.get('finished', 0)) / total
+        return round(progress, 2)
+
     def query_tasks(self, args):
         q = self.session.query(Task)
         if args.id:
@@ -172,7 +178,8 @@ class Project(Base):
               module_status = module_status,
               size = args.size,
               min_size = min(sizes),
-              max_size = max(sizes))
+              max_size = max(sizes),
+              progress = self.progress())
 
         def build_status_css():
             colors = ['#74CBE8', '#f5ff6b', '#E8747C', '#74E883', '#74E883']
