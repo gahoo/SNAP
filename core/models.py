@@ -353,21 +353,21 @@ class Project(Base):
 
         return q.all()
 
-    def retry(self, id):
-        task = self.session.query(Task).filter_by(id = id).one()
-        task.retry()
+    def update(self, **kwargs):
+        commom_keys = set(['name', 'description', 'owner', 'status', 'max_job', 'run_cnt', 'discount', 'email', 'mns', 'cluster']) & set(kwargs.keys())
+        old_setting = [self.__getattribute__(k) for k in commom_keys]
+        [self.__setattr__(k, kwargs[k]) for k in commom_keys]
+        kwargs = {k:kwargs[k] for k in commom_keys}
+        updated = "\t".join(["(%s %s => %s)" % (k, old, new) for k, old, new in zip(commom_keys, old_setting, kwargs.values())])
+        self.save()
+        print "Project {id} updated: ".format(id = self.id) + updated
 
-    def redo(self, id):
-        task = self.session.query(Task).filter_by(id = id).one()
-        task.redo()
-
-    def update(self, id, **kwargs):
-        task = self.session.query(Task).filter_by(id = id).one()
-        task.update(**kwargs)
-
-    def debug(self, id):
-        task = self.session.query(Task).filter_by(id = id).one()
-        task.debug()
+    def save(self):
+        try:
+            self.session.commit()
+        except Exception, e:
+            print dyeFAIL(str(e))
+            self.session.rollback()
 
     def clean_files(self, immediate=True):
         def iter_dir(prefix):

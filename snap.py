@@ -115,6 +115,27 @@ def stat_bcs(args):
 
     print format_project_tbl(projects, args.size)
 
+def update_bcs(args):
+    def update_cron():
+        dummy_args = argparse.Namespace(project=args.project, add=False, delete=True, interval=15)
+        cron_bcs(dummy_args)
+        dummy_args = argparse.Namespace(project=setting['name'], add=True, delete=False, interval=15)
+        cron_bcs(dummy_args)
+
+    fields = ('name', 'description', 'owner', 'status', 'max_job', 'run_cnt', 'discount', 'email', 'mns', 'cluster')
+    setting = {k:v for k,v in args._get_kwargs() if k in fields and v}
+    try:
+        proj = load_project(args.project, db[args.project])
+    except KeyError:
+        print dyeFAIL("No such project: %s in ~/.snap/db.yaml" % args.project)
+        os._exit(1)
+
+    proj.update(**setting)
+    if 'name' in setting:
+        db[setting['name']] = db.pop(args.project)
+        dumpYaml(db_yaml, db)
+        update_cron()
+
 def cron_bcs(args):
     def get_job():
         try:
@@ -406,6 +427,25 @@ if __name__ == "__main__":
     subparsers_bcs_stat.add_argument('-size', action='store_true', help="Project data usage stat")
     subparsers_bcs_stat.add_argument('-cost', action='store_true', help="Project costs")
     subparsers_bcs_stat.set_defaults(func=stat_bcs)
+
+    # bcs update
+    subparsers_bcs_update = subparsers_bcs.add_parser('update',
+        help='Update Project info',
+        description="This command will modify project infomation",
+        prog='snap bcs update',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_bcs_update.add_argument('-project', required=True, help="ContractID or ProjectID, default will show all project recorded in ~/.snap/db.yaml")
+    subparsers_bcs_update.add_argument('-name', help="new ContractID or ProjectID")
+    subparsers_bcs_update.add_argument('-description', help="new description")
+    subparsers_bcs_update.add_argument('-owner', help="Who is in charge of this project now")
+    subparsers_bcs_update.add_argument('-status', help="Project status")
+    subparsers_bcs_update.add_argument('-max_job', type=int, help="Max concurrent running job.")
+    subparsers_bcs_update.add_argument('-discount', type=float, help="Expected discount for instances.")
+    subparsers_bcs_update.add_argument('-email', help="Which Email address will be sent when job failed.")
+    subparsers_bcs_update.add_argument('-mns', help="MNS endpoint for notification.")
+    subparsers_bcs_update.add_argument('-cluster', help="Cluster ID for existed cluster.")
+    subparsers_bcs_update.set_defaults(func=update_bcs)
+
     # bcs sync
     subparsers_bcs_sync = subparsers_bcs.add_parser('sync',
         help='Sync and update task states with Aliyun BCS.',
