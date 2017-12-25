@@ -26,6 +26,15 @@ def format_project_tbl(projects, size=False):
         tbl.add_row(row)
     return tbl
 
+def format_detail_porject(project):
+    tbl = PrettyTable()
+    tbl.header = False
+    fields = ['id', 'name', 'description', 'owner', 'status', 'type', 'pipe', 'path', 'max_job', 'run_cnt', 'create_date', 'start_date', 'finish_date', 'discount', 'email', 'mns', 'cluster']
+    values = [project.__getattribute__(k) for k in fields]
+    tbl.add_column("field", fields + ['task num'])
+    tbl.add_column("value", values + [len(project.task)])
+    return tbl
+
 def format_tasks_tbl(tasks):
     tbl = PrettyTable()
     tbl.field_names = ['id', 'name', 'status', 'failed', 'module', 'app', 'instance', 'create', 'waited', 'elapsed']

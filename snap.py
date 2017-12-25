@@ -115,6 +115,15 @@ def stat_bcs(args):
 
     print format_project_tbl(projects, args.size)
 
+def show_bcs(args):
+    try:
+        proj = load_project(args.project, db[args.project])
+    except KeyError:
+        print dyeFAIL("No such project: %s in ~/.snap/db.yaml" % args.project)
+        os._exit(1)
+
+    print format_detail_porject(proj)
+
 def update_bcs(args):
     def update_cron():
         dummy_args = argparse.Namespace(project=args.project, add=False, delete=True, interval=15)
@@ -427,6 +436,15 @@ if __name__ == "__main__":
     subparsers_bcs_stat.add_argument('-size', action='store_true', help="Project data usage stat")
     subparsers_bcs_stat.add_argument('-cost', action='store_true', help="Project costs")
     subparsers_bcs_stat.set_defaults(func=stat_bcs)
+
+    # bcs show
+    subparsers_bcs_show = subparsers_bcs.add_parser('show',
+        help='Show Project details.',
+        description="This command will show projects information",
+        prog='snap bcs show',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_bcs_show.add_argument('-project', required=True, help="ContractID or ProjectID, default will show all project recorded in ~/.snap/db.yaml")
+    subparsers_bcs_show.set_defaults(func=show_bcs)
 
     # bcs update
     subparsers_bcs_update = subparsers_bcs.add_parser('update',
