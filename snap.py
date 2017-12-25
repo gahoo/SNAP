@@ -597,7 +597,7 @@ if __name__ == "__main__":
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task_cyto.add_argument('-mode', default='task', choices=('task', 'app', 'module'), help="Update task instance")
-    subparsers_task_cyto.add_argument('-layout', default='breadthfirst', help="Network layout")
+    subparsers_task_cyto.add_argument('-layout', default='breadthfirst', help="Network layout, such as: cose, cose-bilkent, breadthfirst, dagre, circle, random, grid, concentric etc.")
     subparsers_task_cyto.add_argument('-port', default=8000, type=int, help="Port expose")
     subparsers_task_cyto.add_argument('-compound', default='all', choices=('app', 'module', 'all', 'none'), help="Port expose")
     subparsers_task_cyto.add_argument('-size', default='elapsed', choices=('elapsed', 'cpu', 'mem', 'data'), help="What does size map")
