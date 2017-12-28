@@ -92,6 +92,16 @@ class Project(Base):
         to_check = [t for t in self.task if t.is_created or t.is_pending or t.is_failed]
         map(lambda x:x.check(), to_sync)
         map(lambda x:x.check(), to_check)
+        self.log_date()
+
+    def log_date(self):
+        if not self.start_date:
+            self.start_date = datetime.datetime.now()
+            self.save()
+        all_finished = all([t.is_finished or t.is_cleaned for t in self.task])
+        if not self.finish_date and all_finished:
+            self.finish_date = datetime.datetime.now()
+            self.save()
 
     def poll(self):
         bcs = self.session.query(Bcs).filter( (Bcs.status=='Waiting') | (Bcs.status=='Running') ).all()

@@ -10,17 +10,18 @@ def format_project_tbl(projects, size=False):
             row_size = [size[name]['clean'], size[name]['project']]
         else:
             row_size = []
-        return [name] + [state.get(column, 0) for column in states_column] + [round(progress, 2)] + row_size
+        return [name] + [state.get(column, 0) for column in states_column] + [round(progress, 2), elapseds[name]] + row_size
 
     tbl = PrettyTable()
     states = {e.name:e.states() for e in projects}
+    elapseds = {e.name:diff_date(e.start_date, e.finish_date) for e in projects}
     if size:
         size = {e.name:e.size_stat() for e in projects}
         size_field = ['clean Data', 'project data']
     else:
         size_field = []
     states_column = sum([state.keys() for state in states.values()], [])
-    tbl.field_names = ['project'] + states_column + ['progress(%)'] + size_field
+    tbl.field_names = ['project'] + states_column + ['progress(%)', 'elapsed'] + size_field
     for name, state in states.items():
         row = build_row(name, state)
         tbl.add_row(row)
@@ -31,8 +32,9 @@ def format_detail_porject(project):
     tbl.header = False
     fields = ['id', 'name', 'description', 'owner', 'status', 'type', 'pipe', 'path', 'max_job', 'run_cnt', 'create_date', 'start_date', 'finish_date', 'discount', 'email', 'mns', 'cluster']
     values = [project.__getattribute__(k) for k in fields]
-    tbl.add_column("field", fields + ['task num'])
-    tbl.add_column("value", values + [len(project.task)])
+    elapsed = diff_date(project.start_date, project.finish_date)
+    tbl.add_column("field", fields + ['task num', 'elapsed'])
+    tbl.add_column("value", values + [len(project.task), elapsed])
     return tbl
 
 def format_tasks_tbl(tasks):
