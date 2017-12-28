@@ -87,6 +87,9 @@ class Project(Base):
 
     def sync(self):
         self.poll()
+        if self.reach_max_jobs():
+            print dyeWARNING('Reach max job limit')
+            os._exit(0)
 
         to_sync = [t for t in self.task if t.is_waiting or t.is_running]
         to_check = [t for t in self.task if t.is_created or t.is_pending or t.is_failed]
@@ -157,6 +160,12 @@ class Project(Base):
             q = q.filter(Instance.name.like("%" + q_filter.pop('name') + "%"))
         q = q.filter_by(**q_filter)
         return q.all()
+
+    def count_active_jobs(self):
+        return self.session.query(Bcs).filter(Bcs.status.in_(['Waiting', 'Running'])).count()
+
+    def reach_max_jobs(self):
+        return self.count_active_jobs() >= self.max_job
 
     def cytoscape(self, args):
         cyto = Flask(__name__)
