@@ -725,6 +725,8 @@ class App(dict):
         def addScriptMapping(script_file):
             oss_proj_path = self.oss_path('project')
             oss_script_file = script_file.replace(self.parameters['CommonParameters']['WORKSPACE'], '')
+            if oss_script_file.startswith('/'):
+                 raise ValueError("Auto generate oss script path failed. Because output path is not identical with WORKSPACE: " + self.parameters['CommonParameters']['WORKSPACE'])
             oss_script_file = os.path.join(oss_proj_path, oss_script_file)
 
             return {
