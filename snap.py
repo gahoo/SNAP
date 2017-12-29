@@ -186,6 +186,11 @@ def clean_bcs(args):
     proj.clean_files(immediate = not args.all_files)
     proj.clean_bcs()
 
+def cost_bcs(args):
+    proj = load_project(args.project, db[args.project])
+    proj.bcs_cost(args.bill)
+    #print proj.cost
+
 def instance_bcs(args):
     if args.project:
         proj = load_project(args.project, db[args.project])
@@ -495,6 +500,16 @@ if __name__ == "__main__":
     subparsers_bcs_clean.add_argument('-project', default=None, required=True, help="ContractID or ProjectID you want to clean")
     subparsers_bcs_clean.add_argument('-all_files', default=False, action='store_true', help="Delete all output files or just immediate files")
     subparsers_bcs_clean.set_defaults(func=clean_bcs)
+
+    # bcs cost
+    subparsers_bcs_cost = subparsers_bcs.add_parser('cost',
+        help='Billing How Much dose porject cost.',
+        description="This command will calculate the actual cost of porject by billing files.",
+        prog='snap bcs cost',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_bcs_cost.add_argument('-project', required=True, help="ContractID or ProjectID you want to clean")
+    subparsers_bcs_cost.add_argument('-bill', required=True, help="Aliyun billing files path")
+    subparsers_bcs_cost.set_defaults(func=cost_bcs)
 
     # bcs instance
     subparsers_bcs_instance = subparsers_bcs.add_parser('instance',

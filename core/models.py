@@ -25,6 +25,7 @@ import getpass
 import datetime
 import os
 import json
+import csv
 import pdb
 
 Base = declarative_base()
@@ -166,6 +167,55 @@ class Project(Base):
 
     def reach_max_jobs(self):
         return self.count_active_jobs() >= self.max_job
+
+    def bcs_cost(self, billing_path):
+        def date_dirs():
+            dates = []
+            if self.start_date:
+                start = self.start_date
+            else:
+                print dyeFAIL("Project is not start yet.")
+                os._exit(1)
+            if self.finish_date:
+                finish = self.finish_date
+            else:
+                finish = datetime.datetime.now()
+
+            i = start
+            while i <= finish:
+                dates.append(i.strftime("%Y-%m-%d"))
+                i = i + datetime.timedelta(days=1)
+            return dates
+
+        def read_bill(billing_file):
+            with open(billing_file, 'r') as billing_csv:
+                bill_reader = csv.reader(billing_csv)
+                map(add_cost, bill_reader)
+
+        def add_cost(row):
+            job_id = row[11].split('_')[0]
+            if job_id in bcs:
+                bcs[job_id].cost += float(row[21])
+
+        if not self.finish_date:
+            print dyeWARNING("Project not finished yet. Billing might be incompelte.")
+        bcs = self.session.query(Bcs).all()
+        bcs = {b.id:b for b in bcs}
+        for root, dirs, files in os.walk(billing_path):
+            dirs[:] = [d for d in dirs if d in date_dirs()]
+            for billing_file in files:
+                if billing_file.endswith('.csv'):
+                    read_bill(os.path.join(root, billing_file))
+        self.save()
+
+    def task_cost(self):
+        pass
+
+    def app_cost(self):
+        pass
+
+    def module_cost(self):
+        pass
 
     def cytoscape(self, args):
         cyto = Flask(__name__)
@@ -892,7 +942,7 @@ class Bcs(Base):
     start_date = Column(DateTime)
     finish_date = Column(DateTime)
     spot_price_limit = Column(Float)
-    #cost = Column(Float)
+    cost = Column(Float, default=0)
     # could be app_id or module_id even project_id
     task_id = Column(Integer, ForeignKey('task.id'))
     instance_id = Column(Integer, ForeignKey('instance.id'))
