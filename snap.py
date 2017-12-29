@@ -278,7 +278,8 @@ def update_task(args):
         print "Changes commited."
 
 def do_task(args, status, event):
-    args.status = status
+    if not args.status:
+        args.status = status
     proj = load_project(args.project, db[args.project])
     tasks = proj.query_tasks(args)
     ids = ", ".join(map(lambda x: str(x.id), tasks))
