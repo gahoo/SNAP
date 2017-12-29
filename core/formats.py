@@ -14,7 +14,7 @@ def format_project_tbl(projects, size=False):
 
     tbl = PrettyTable()
     states = {e.name:e.states() for e in projects}
-    elapseds = {e.name:diff_date(e.start_date, e.finish_date) for e in projects}
+    elapseds = {e.name:diff_date(get_date(e.start_date), get_date(e.finish_date)) for e in projects}
     if size:
         size = {e.name:e.size_stat() for e in projects}
         size_field = ['clean Data', 'project data']
@@ -32,7 +32,7 @@ def format_detail_porject(project):
     tbl.header = False
     fields = ['id', 'name', 'description', 'owner', 'status', 'type', 'pipe', 'path', 'max_job', 'run_cnt', 'create_date', 'start_date', 'finish_date', 'discount', 'email', 'mns', 'cluster']
     values = [project.__getattribute__(k) for k in fields]
-    elapsed = diff_date(project.start_date, project.finish_date)
+    elapsed = diff_date(get_date(project.start_date), get_date(project.finish_date))
     tbl.add_column("field", fields + ['task num', 'elapsed'])
     tbl.add_column("value", values + [len(project.task), elapsed])
     return tbl
