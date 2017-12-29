@@ -41,12 +41,17 @@ def format_tasks_tbl(tasks):
     tbl = PrettyTable()
     tbl.field_names = ['id', 'name', 'status', 'failed', 'module', 'app', 'instance', 'create', 'waited', 'elapsed']
     for task in tasks:
-        failed_cnts = len([b for b in task.bcs if b.status == 'Failed'])
-        create_date = get_date(task.bcs[-1].create_date)
-        start_date = get_date(task.bcs[-1].start_date)
-        finish_date = get_date(task.bcs[-1].finish_date)
-        waited = diff_date(create_date, start_date)
-        elapsed = diff_date(start_date, finish_date)
+        if task.bcs:
+            failed_cnts = len([b for b in task.bcs if b.status == 'Failed'])
+            create_date = get_date(task.bcs[-1].create_date)
+            start_date = get_date(task.bcs[-1].start_date)
+            finish_date = get_date(task.bcs[-1].finish_date)
+            waited = diff_date(create_date, start_date)
+            elapsed = diff_date(start_date, finish_date)
+        else:
+            failed_cnts = 0
+            create_date = task.project.create_date.replace(microsecond=0)
+            waited = elapsed = None
         status = format_status(task.aasm_state, task.aasm_state == 'cleaned')
         row = [task.id, os.path.basename(task.shell), status, failed_cnts, task.module.name, task.app.name, task.instance.name, create_date, waited, elapsed]
         tbl.add_row(row)
@@ -116,7 +121,11 @@ def format_mapping_tbl(mappings):
     tbl = PrettyTable()
     tbl.field_names = ['name', 'source', 'destination', 'is_write', 'is_immediate']
     for m in mappings:
-        row = [m.name, m.source, m.destination, m.is_write, m.is_immediate]
+        if m.exists():
+            destination = dyeOKGREEN(m.destination)
+        else:
+            destination = dyeWARNING(m.destination)
+        row = [m.name, m.source, destination, m.is_write, m.is_immediate]
         tbl.add_row(row)
 
     return tbl
