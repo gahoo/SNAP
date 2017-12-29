@@ -21,6 +21,7 @@ from oss2 import ObjectIterator
 from argparse import Namespace
 from flask import Flask
 from jinja2 import Template
+import functools
 import getpass
 import datetime
 import os
@@ -305,7 +306,8 @@ class Project(Base):
             if task.bcs:
                 bcs = task.bcs[-1]
                 elapsed = diff_date(bcs.start_date, bcs.finish_date)
-                elapsed = round(elapsed.total_seconds(), 0)
+                if elapsed:
+                    elapsed = round(elapsed.total_seconds(), 0)
             else:
                 elapsed = 0
 
@@ -395,8 +397,11 @@ class Project(Base):
                 min_start = min([b.start_date for b in bcs])
                 max_finish = max([b.finish_date for b in bcs])
                 elapsed = diff_date(min_start, max_finish)
-                elapsed = round(elapsed.total_seconds(), 0)
-            return int(elapsed)
+                if elapsed:
+                    elapsed = round(elapsed.total_seconds(), 0)
+                else:
+                    elapsed = 0
+            return elapsed
 
         def get_depends():
             tasks = self.query_tasks(args)
@@ -660,7 +665,9 @@ class Task(Base):
             self.bcs.append(bcs)
         except ClientError, e:
             # better try in check section
-            print dyeFAIL(e)
+            msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
+            print dyeFAIL(msg + str(e))
+            self.project.logger.error(msg + str(e))
             raise ClientError(e)
             self.fail()
 
@@ -699,12 +706,34 @@ class Task(Base):
                 path = os.path.dirname(path) + '/'
             return path
 
+        def is_nested(path, destination):
+            for d in destination:
+                if d.startswith(path) and d != path:
+                    return True
+            return False
+
+        def check_nested(nested_func, destination):
+            if any(map(nested_func, destination)):
+                msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
+                msg += "Has Nested Mounts: {mount}".format(id=self.id, mount=read_destination)
+                self.project.logger.error(msg)
+                raise ValueError(msg)
+
+
         mounts_entries = list(set([self.prepare_MountEntry(m) for m in self.mapping]))
         read_mounts = [m for m in mounts_entries if not m.WriteSupport]
         read_source = set([get_folder(m.Source) for m in read_mounts])
+        read_destination = set([get_folder(m.Destination) for m in read_mounts])
 
         write_mounts = [m for m in mounts_entries if m.WriteSupport]
         write_source = set([m.Source for m in write_mounts])
+        write_destination = set([m.Destination for m in write_mounts])
+
+        is_read_nested = functools.partial(is_nested, destination = read_destination)
+        is_write_nested = functools.partial(is_nested, destination = write_destination)
+        check_nested(is_read_nested, read_destination)
+        check_nested(is_write_nested, write_destination)
+
         rw_source = read_source & write_source
         if rw_source:
             entries = filter(is_rw, read_mounts)
@@ -782,13 +811,13 @@ class Task(Base):
                 disks.SystemDisk.Type = drive_type
                 disks.DataDisk.Type = drive_type
             disks.SystemDisk.Size = 40
-            disks.DataDisk.Size = self.disk_size
+            disks.DataDisk.Size = int(self.disk_size)
             disks.DataDisk.MountPoint = get_common_prefix()
 
         def prepare_system_disk():
             if drive_type:
                 disks.SystemDisk.Type = drive_type
-            disks.SystemDisk.Size = 40 if self.disk_size <= 40 else self.disk_size
+            disks.SystemDisk.Size = 40 if self.disk_size <= 40 else int(self.disk_size)
 
         disks = Disks()
         (disk_type, drive_type) = get_disk_type()
@@ -906,6 +935,7 @@ class Task(Base):
         commom_keys = set(['cpu', 'mem', 'disk_size', 'disk_type', 'aasm_state']) & set(kwargs.keys())
         old_setting = [self.__getattribute__(k) for k in commom_keys]
         [self.__setattr__(k, kwargs[k]) for k in commom_keys]
+        [self.__setattr__(k, None) for k in commom_keys if kwargs[k] == 'None']
         kwargs = {k:kwargs[k] for k in commom_keys}
         updated = "\t".join(["(%s %s => %s)" % (k, old, new) for k, old, new in zip(commom_keys, old_setting, kwargs.values())])
         self.save()
@@ -1125,3 +1155,7 @@ class Mapping(Base):
     def size(self):
         key = oss2key(self.destination)
         return sum([obj.size for obj in ObjectIterator(BUCKET, prefix=key)])
+
+    def exists(self):
+        key = oss2key(self.destination)
+        return BUCKET.object_exists(key)
