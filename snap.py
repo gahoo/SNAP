@@ -607,7 +607,7 @@ if __name__ == "__main__":
     subparsers_task_update.add_argument('-disk_type', help="Update task disk type")
     subparsers_task_update.add_argument('-disk_size', help="Update task disk size", type=float)
     subparsers_task_update.add_argument('-state', help="Update task status")
-    subparsers_task_update.add_argument('-mappings', nargs="*", help="Update task status")
+    subparsers_task_update.add_argument('-mappings', nargs="*", help="Update task mappings. Format: <mapping_id,name,source,destination,is_write,is_immediate>. No name or source or destination will delete mapping")
     subparsers_task_update.set_defaults(func=update_task)
 
     #task restart
