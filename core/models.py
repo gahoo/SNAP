@@ -921,6 +921,27 @@ class Task(Base):
         self.save()
 
     def update(self, **kwargs):
+        def update_mapping(mapping):
+            (mid, name, source, destination, is_write, is_immediate) = mapping.split(',')
+            if not mid:
+                m = Mapping()
+            else:
+                m = self.project.session.query(Mapping).filter_by(id = mid).one()
+
+            if name is '' or source is '' or destination is '':
+                self.project.session.delete(m)
+            else:
+                m.name = name
+                m.source = source
+                m.destination = destination
+                m.is_write = eval(is_write)
+                m.is_immediate = eval(is_immediate)
+
+            if not mid:
+                self.mapping.append(m)
+
+            return m
+
         if 'instance' in kwargs:
             instance_name = kwargs.pop('instance')
             instance_updated = "\t(instance %s => %s)" % (self.instance.name, instance_name)
@@ -931,6 +952,11 @@ class Task(Base):
                 os._exit(1)
         else:
             instance_updated = ""
+
+        if 'mappings' in kwargs:
+            mappings = map(update_mapping, kwargs.pop('mappings'))
+            print dyeOKGREEN("Mappings Changed:")
+            print format_mapping_tbl(mappings)
 
         commom_keys = set(['cpu', 'mem', 'disk_size', 'disk_type', 'aasm_state']) & set(kwargs.keys())
         old_setting = [self.__getattribute__(k) for k in commom_keys]

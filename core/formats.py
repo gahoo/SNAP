@@ -119,13 +119,13 @@ def format_status(status, deleted):
 
 def format_mapping_tbl(mappings):
     tbl = PrettyTable()
-    tbl.field_names = ['name', 'source', 'destination', 'is_write', 'is_immediate']
+    tbl.field_names = ['id', 'name', 'source', 'destination', 'is_write', 'is_immediate']
     for m in mappings:
         if m.exists():
             destination = dyeOKGREEN(m.destination)
         else:
-            destination = dyeWARNING(m.destination)
-        row = [m.name, m.source, destination, m.is_write, m.is_immediate]
+            destination = dyeFAIL(m.destination)
+        row = [m.id, m.name, m.source, destination, m.is_write, m.is_immediate]
         tbl.add_row(row)
 
     return tbl
