@@ -162,3 +162,9 @@ def format_instance_tbl(instances):
         tbl.add_row(row)
 
     return tbl
+
+def format_cost_tbl(costs):
+    tbl = PrettyTable()
+    tbl.field_names = ['id', 'name', 'size', 'size cost', 'bcs cost', 'total']
+    map(tbl.add_row, costs)
+    return tbl
