@@ -107,13 +107,10 @@ def sync_bcs(args):
 def stat_bcs(args):
     if not args.project:
         projects = [load_project(name, dbfile) for name, dbfile in db.items()]
-        #map(lambda x: x.states(), projects)
-        #projects = {p.name:p.states() for p in projects}
     else:
         projects = [load_project(args.project, db[args.project])]
-        #print project.states()
 
-    print format_project_tbl(projects, args.size)
+    print format_project_tbl(projects, args.size, args.cost)
 
 def show_bcs(args):
     try:
@@ -188,8 +185,11 @@ def clean_bcs(args):
 
 def cost_bcs(args):
     proj = load_project(args.project, db[args.project])
-    proj.bcs_cost(args.bill)
-    #print proj.cost
+    if args.bill:
+        proj.bcs_cost(args.bill)
+
+    costs = proj.cost_stat(args.mode)
+    print format_cost_tbl(costs).get_string(sortby="total", reversesort=True)
 
 def instance_bcs(args):
     if args.project:
@@ -234,7 +234,7 @@ def list_task(args):
         tasks = proj.query_mapping_tasks(args)
     else:
         tasks = proj.query_tasks(args)
-    print format_tasks_tbl(tasks).get_string(sortby="create", reversesort=True)
+    print format_tasks_tbl(tasks, args.cost).get_string(sortby="create", reversesort=True)
 
 def show_task(args):
     def show_each_task(task):
@@ -509,7 +509,8 @@ if __name__ == "__main__":
         prog='snap bcs cost',
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_bcs_cost.add_argument('-project', required=True, help="ContractID or ProjectID you want to clean")
-    subparsers_bcs_cost.add_argument('-bill', required=True, help="Aliyun billing files path")
+    subparsers_bcs_cost.add_argument('-bill', help="Aliyun billing files path")
+    subparsers_bcs_cost.add_argument('-mode', default='module', choices=('task', 'app', 'module'), help="cost stat level")
     subparsers_bcs_cost.set_defaults(func=cost_bcs)
 
     # bcs instance
@@ -566,6 +567,7 @@ if __name__ == "__main__":
     subparsers_task_list.add_argument('-is_not_write', default=None, dest='write', action='store_false', help="This is not a writable mapping")
     subparsers_task_list.add_argument('-is_immediate', default=None, dest='immediate', action='store_true', help="This is a immediate mapping")
     subparsers_task_list.add_argument('-is_not_immediate', default=None, dest='immediate', action='store_false', help="This is not a immediate mapping")
+    subparsers_task_list.add_argument('-cost', default=False, action='store_true', help="Show task cost or not")
     subparsers_task_list.set_defaults(func=list_task)
 
     #task show
