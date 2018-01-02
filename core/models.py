@@ -178,7 +178,7 @@ class Project(Base):
                 print dyeFAIL("Project is not start yet.")
                 os._exit(1)
             if self.finish_date:
-                finish = self.finish_date
+                finish = self.finish_date + datetime.timedelta(days=1)
             else:
                 finish = datetime.datetime.now()
 
@@ -198,9 +198,13 @@ class Project(Base):
             if job_id in bcs:
                 bcs[job_id].cost += float(row[21])
 
+        def zero_bcs(b):
+            b.cost = 0
+
         if not self.finish_date:
             print dyeWARNING("Project not finished yet. Billing might be incompelte.")
         bcs = self.session.query(Bcs).all()
+        map(zero_bcs, bcs)
         bcs = {b.id:b for b in bcs}
         for root, dirs, files in os.walk(billing_path):
             dirs[:] = [d for d in dirs if d in date_dirs()]
@@ -209,14 +213,34 @@ class Project(Base):
                     read_bill(os.path.join(root, billing_file))
         self.save()
 
-    def task_cost(self):
-        pass
+    def cost_stat(self, mode):
+        def make_each_cost(element):
+            if 'name' in element.__dict__:
+                name = element.name
+            else:
+                name = os.path.basename(element.shell)
+            size = element.size(is_write=True) / (2 ** 30)
+            data_cost = size * 0.148
+            bcs_cost = element.cost()
+            return (
+                element.id,
+                name,
+                size,
+                data_cost,
+                bcs_cost,
+                data_cost + bcs_cost)
 
-    def app_cost(self):
-        pass
+        if mode == 'task':
+            elements = self.task
+        elif mode == 'app':
+            elements = self.session.query(App).all()
+        elif mode == 'module':
+            elements = self.session.query(Module).all()
 
-    def module_cost(self):
-        pass
+        return map(make_each_cost, elements)
+
+    def cost(self):
+        return sum([t.cost() for t in self.task])
 
     def cytoscape(self, args):
         cyto = Flask(__name__)
@@ -341,7 +365,7 @@ class Project(Base):
                id = "m%s.a%s" % (app.module.id, app.id)
 
             if args.size == 'data':
-                data = sum([t.size(is_write=True) for t in app.task])
+                data = app.size(is_write=True)
             else:
                 data = 0
 
@@ -366,7 +390,7 @@ class Project(Base):
                id = "m%s" % module.id
 
             if args.size == 'data':
-                data = sum([t.size(is_write=True) for t in module.task])
+                data = module.size(is_write=True)
             else:
                 data = 0
 
@@ -498,6 +522,12 @@ class Module(Base):
     def __repr__(self):
         return "<Module(id={id}, name={name})>".format(id=self.id, name=self.name)
 
+    def size(self, is_write=None):
+        return sum([t.size(is_write=is_write) for t in self.task])
+
+    def cost(self):
+        return sum([t.cost() for t in self.task])
+
 class App(Base):
     __tablename__ = 'app'
     __table_args__ = (UniqueConstraint('name', 'module_id'), )
@@ -521,6 +551,12 @@ class App(Base):
 
     def __repr__(self):
         return "<App(id={id}, name={name})>".format(id=self.id, name=self.name)
+
+    def size(self, is_write=None):
+        return sum([t.size(is_write=is_write) for t in self.task])
+
+    def cost(self):
+        return sum([t.cost() for t in self.task])
 
 dependence_table = Table('dependence', Base.metadata,
     Column('task_id', Integer, ForeignKey('task.id'), primary_key=True),
@@ -983,6 +1019,9 @@ class Task(Base):
             return sum([m.size() for m in self.mapping])
         else:
             return sum([m.size() for m in self.mapping if m.is_write  == is_write])
+
+    def cost(self):
+        return sum([b.cost for b in self.bcs])
 
 class Bcs(Base):
     __tablename__ = 'bcs'
