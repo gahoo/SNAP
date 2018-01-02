@@ -2,28 +2,46 @@ from core.colorMessage import dyeWARNING, dyeFAIL, dyeOKGREEN, dyeOKBLUE
 from prettytable import PrettyTable
 import os
 import datetime
+import functools
+import pdb
 
-def format_project_tbl(projects, size=False):
-    def build_row(name, state):
-        progress = 100.0 * (state.get('cleaned', 0) + state.get('finished', 0)) / sum(state.values())
-        if size:
-            row_size = [size[name]['clean'], size[name]['project']]
+def format_project_tbl(projects, size=False, cost=False):
+    def build_list_if(boolean, func):
+        if boolean:
+            return func()
         else:
-            row_size = []
-        return [name] + [state.get(column, 0) for column in states_column] + [round(progress, 2), elapseds[name]] + row_size
+            return []
+
+    def get_size():
+        row_size = p.size_stat()
+        row_size = [row_size[k] for k in ('clean', 'project')]
+        return row_size
+
+    build_size_field = functools.partial(build_list_if, boolean = size, func = lambda: ['clean Data', 'project data'])
+    build_size = functools.partial(build_list_if, boolean = size, func = get_size)
+    build_cost_field = functools.partial(build_list_if, boolean = cost, func = lambda: ['cost'])
+    build_cost = functools.partial(build_list_if, boolean = cost, func = lambda: [p.cost()])
+
+    def build_row(p):
+        state = states[p.name]
+        progress = 100.0 * (state.get('cleaned', 0) + state.get('finished', 0)) / sum(state.values())
+        progress = round(progress, 2)
+        elapsed = diff_date(get_date(p.start_date), get_date(p.finish_date))
+        row_size = build_size()
+        row_cost = build_cost()
+        if size:
+            row_cost = [sum(row_size) * 0.148 + row_cost[0]]
+        return [p.name] + [state.get(column, 0) for column in states_column] + [progress, elapsed] + row_size + row_cost
 
     tbl = PrettyTable()
     states = {e.name:e.states() for e in projects}
-    elapseds = {e.name:diff_date(get_date(e.start_date), get_date(e.finish_date)) for e in projects}
-    if size:
-        size = {e.name:e.size_stat() for e in projects}
-        size_field = ['clean Data', 'project data']
-    else:
-        size_field = []
     states_column = sum([state.keys() for state in states.values()], [])
-    tbl.field_names = ['project'] + states_column + ['progress(%)', 'elapsed'] + size_field
-    for name, state in states.items():
-        row = build_row(name, state)
+    size_field = build_size_field()
+    cost_field = build_cost_field()
+    tbl.field_names = ['project'] + states_column + ['progress(%)', 'elapsed'] + size_field + cost_field
+
+    for p in projects:
+        row = build_row(p)
         tbl.add_row(row)
     return tbl
 
