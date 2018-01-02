@@ -5,13 +5,14 @@ import datetime
 import functools
 import pdb
 
-def format_project_tbl(projects, size=False, cost=False):
-    def build_list_if(boolean, func):
-        if boolean:
-            return func()
-        else:
-            return []
+def build_list_if(boolean, func):
+    if boolean:
+        return func()
+    else:
+        return []
 
+
+def format_project_tbl(projects, size=False, cost=False):
     def get_size():
         row_size = p.size_stat()
         row_size = [row_size[k] for k in ('clean', 'project')]
@@ -55,9 +56,13 @@ def format_detail_porject(project):
     tbl.add_column("value", values + [len(project.task), elapsed])
     return tbl
 
-def format_tasks_tbl(tasks):
+def format_tasks_tbl(tasks, cost=False):
+    build_cost_field = functools.partial(build_list_if, boolean = cost, func = lambda: ['cost'])
+    build_cost = functools.partial(build_list_if, boolean = cost, func = lambda: [task.cost()])
+
     tbl = PrettyTable()
-    tbl.field_names = ['id', 'name', 'status', 'failed', 'module', 'app', 'instance', 'create', 'waited', 'elapsed']
+    cost_field = build_cost_field()
+    tbl.field_names = ['id', 'name', 'status', 'failed', 'module', 'app', 'instance', 'create', 'waited', 'elapsed'] + cost_field
     for task in tasks:
         if task.bcs:
             failed_cnts = len([b for b in task.bcs if b.status == 'Failed'])
@@ -70,8 +75,9 @@ def format_tasks_tbl(tasks):
             failed_cnts = 0
             create_date = task.project.create_date.replace(microsecond=0)
             waited = elapsed = None
+        cost = build_cost()
         status = format_status(task.aasm_state, task.aasm_state == 'cleaned')
-        row = [task.id, os.path.basename(task.shell), status, failed_cnts, task.module.name, task.app.name, task.instance.name, create_date, waited, elapsed]
+        row = [task.id, os.path.basename(task.shell), status, failed_cnts, task.module.name, task.app.name, task.instance.name, create_date, waited, elapsed] + cost
         tbl.add_row(row)
     return tbl
 
