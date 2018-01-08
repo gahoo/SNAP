@@ -709,14 +709,15 @@ class App(dict):
         def renderEachParam(template=None, extra=None):
             if self.shell_path and self.dependence_file is None:
                 script_file = self.renderScript(self.shell_path, extra=extra)
+                mappings = [addScriptMapping(script_file)]
             else:
                 script_file = None
+                mappings = []
             self.check()
             script = self.renderScript(template, extra=extra)
             if script.count('{{parameters'):
                 script = self.renderScript(script, extra=extra)
 
-            mappings = [addScriptMapping(script_file)]
             [mappings.extend(getMappings(f, 'inputs', extra)) for f in self['inputs']]
             [mappings.extend(getMappings(f, 'outputs', extra)) for f in self['outputs']]
 
