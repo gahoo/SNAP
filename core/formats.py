@@ -30,7 +30,7 @@ def format_project_tbl(projects, size=False, cost=False):
         elapsed = diff_date(get_date(p.start_date), get_date(p.finish_date))
         row_size = build_size()
         row_cost = build_cost()
-        if size:
+        if size and row_cost:
             row_cost = [sum(row_size) * 0.148 + row_cost[0]]
         return [p.name] + [state.get(column, 0) for column in states_column] + [progress, elapsed] + row_size + row_cost
 
