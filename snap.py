@@ -508,7 +508,7 @@ if __name__ == "__main__":
         description="This command will calculate the actual cost of porject by billing files.",
         prog='snap bcs cost',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_bcs_cost.add_argument('-project', required=True, help="ContractID or ProjectID you want to clean")
+    subparsers_bcs_cost.add_argument('-project', required=True, help="ContractID or ProjectID")
     subparsers_bcs_cost.add_argument('-bill', help="Aliyun billing files path")
     subparsers_bcs_cost.add_argument('-mode', default='module', choices=('task', 'app', 'module'), help="cost stat level")
     subparsers_bcs_cost.set_defaults(func=cost_bcs)
@@ -519,7 +519,7 @@ if __name__ == "__main__":
         description="This command will clean files and jobs on Aliyun BCS",
         prog='snap bcs instance',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_bcs_instance.add_argument('-project', default=None, help="ContractID or ProjectID you want to clean")
+    subparsers_bcs_instance.add_argument('-project', default=None, help="ContractID or ProjectID")
     subparsers_bcs_instance.add_argument('-name', help="instance name")
     subparsers_bcs_instance.add_argument('-cpu', type=int, help="how many core")
     subparsers_bcs_instance.add_argument('-mem', type=float, help="memory size")
@@ -546,7 +546,7 @@ if __name__ == "__main__":
 
     # task select common args
     share_task_parser = argparse.ArgumentParser(add_help=False)
-    share_task_parser.add_argument('-project', required=True, help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
+    share_task_parser.add_argument('-project', required=True, help="ContractID or ProjectID")
     share_task_parser.add_argument('-id', default=None, help="Task id", nargs="*", type = int)
     share_task_parser.add_argument('-shell', default='.', help="Task shell")
     share_task_parser.add_argument('-status', default=None, help="Task status", nargs="*")
