@@ -49,6 +49,10 @@ def read_object(key):
 
     return BUCKET.get_object(key, byte_range).read()
 
-endpoint = "http://oss-%s.aliyuncs.com" % ALI_CONF['region']
-AUTH = oss2.Auth(ALI_CONF['accesskey_id'], ALI_CONF['accesskey_secret'])
-BUCKET = oss2.Bucket(AUTH, endpoint, ALI_CONF['bucket'])
+if ALI_CONF:
+    endpoint = "http://oss-%s.aliyuncs.com" % ALI_CONF['region']
+    AUTH = oss2.Auth(ALI_CONF['accesskey_id'], ALI_CONF['accesskey_secret'])
+    BUCKET = oss2.Bucket(AUTH, endpoint, ALI_CONF['bucket'])
+else:
+    AUTH = None
+    BUCKET = None

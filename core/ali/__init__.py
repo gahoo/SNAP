@@ -16,4 +16,4 @@ try:
 except IOError, e:
     print dyeFAIL(str(e))
     print "Please config aliyun bcs first with this command:\nsnap bcs config -accesskey_id <ACCESSKEY_ID> -accesskey_secret <ACCESSKEY_SECRET> -bucket <BUCKET> -region <REGION>"
-    os._exit(1)
+    ALI_CONF = None
