@@ -179,6 +179,7 @@ class Project(Base):
                 os._exit(1)
             if self.finish_date:
                 finish = self.finish_date + datetime.timedelta(days=1)
+                finish = datetime.datetime.combine(finish, datetime.time.max)
             else:
                 finish = datetime.datetime.now()
 
@@ -206,8 +207,9 @@ class Project(Base):
         bcs = self.session.query(Bcs).all()
         map(zero_bcs, bcs)
         bcs = {b.id:b for b in bcs}
+        dates = date_dirs()
         for root, dirs, files in os.walk(billing_path):
-            dirs[:] = [d for d in dirs if d in date_dirs()]
+            dirs[:] = [d for d in dirs if d in dates]
             for billing_file in files:
                 if billing_file.endswith('.csv'):
                     read_bill(os.path.join(root, billing_file))
@@ -418,14 +420,21 @@ class Project(Base):
             bcs = [t.bcs[-1] for t in tasks if t.bcs]
             elapsed = 0
             if bcs:
-                min_start = min([b.start_date for b in bcs])
-                max_finish = max([b.finish_date for b in bcs])
+                min_start = choose_date(bcs, 'start_date', min)
+                max_finish = choose_date(bcs, 'finish_date', max)
                 elapsed = diff_date(min_start, max_finish)
                 if elapsed:
                     elapsed = round(elapsed.total_seconds(), 0)
                 else:
                     elapsed = 0
             return elapsed
+
+        def choose_date(bcs, date_type, func):
+            dates = [b.__getattribute__(date_type) for b in bcs if b.__getattribute__(date_type)]
+            if dates:
+                return func(dates)
+            else:
+                return None
 
         def get_depends():
             tasks = self.query_tasks(args)
@@ -489,6 +498,7 @@ class Project(Base):
     def clean_bcs(self):
         bcs = self.session.query(Bcs).filter_by(deleted=False).all()
         map(lambda x:x.delete(), bcs)
+        map(lambda x:x.delete_log(), bcs)
         map(lambda x:x.update(aasm_state = 'cleaned'), [t for t in self.task if t.is_finished])
         self.session.commit()
         print "{num} jobs deleted.".format(num=len(bcs))
@@ -910,10 +920,10 @@ class Task(Base):
         oss_files = [m for m in self.mapping if m.is_immediate and m.is_write]
         map(lambda x:x.oss_delete(), oss_files)
 
-    def show_json(self):
+    def show_json(self, cache=True):
         # json style
         bcs = self.bcs[-1]
-        bcs.show_json()
+        bcs.show_json(cache)
 
     def show_shell(self):
         sh = [m for m in self.mapping if m.name == 'sh'][0]
@@ -1089,7 +1099,6 @@ class Bcs(Base):
 
     @catchClientError
     def delete(self):
-        self.delete_log()
         CLIENT.delete_job(self.id)
         self.deleted = True
 
