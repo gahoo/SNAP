@@ -102,14 +102,15 @@ def format_detail_task(task):
     tbl = PrettyTable()
     tbl.header = False
     fields = ['id', 'name', 'status', 'module', 'app', 'instance', 'cpu', 'mem', 'disk_type', 'disk_size']
-    values = [task.id, os.path.basename(task.shell), task.aasm_state, task.module.name, task.app.name, task.instance.name, task.cpu, task.mem, task.disk_type, task.disk_size]
+    status = format_status(task.aasm_state, task.aasm_state == 'cleaned')
+    values = [task.id, os.path.basename(task.shell), status, task.module.name, task.app.name, task.instance.name, task.cpu, task.mem, task.disk_type, task.disk_size]
     tbl.add_column("field", fields)
     tbl.add_column("value", values)
     return tbl
 
 def format_bcs_tbl(bcs, with_instance):
     tbl = PrettyTable()
-    fields = ['id', 'name', 'status', 'create', 'waited', 'elapsed']
+    fields = ['id', 'name', 'status', 'create', 'waited', 'elapsed', 'cost']
     if with_instance:
         fields = fields + ['instance', 'cpu', 'mem', 'instance price', 'spot price']
     tbl.field_names = fields
@@ -120,7 +121,7 @@ def format_bcs_tbl(bcs, with_instance):
         finish_date = get_date(b.finish_date)
         waited = diff_date(create_date, start_date)
         elapsed = diff_date(start_date, finish_date)
-        row = [b.id, b.name, status, create_date, waited, elapsed]
+        row = [b.id, b.name, status, create_date, waited, elapsed, b.cost]
         if with_instance:
             i = b.instance
             row = row + [i.name, i.cpu, i.mem, i.price, b.spot_price_limit]
