@@ -230,7 +230,7 @@ def new_log(name, dbfile):
 
 def list_task(args):
     proj = load_project(args.project, db[args.project])
-    if args.source or args.destination:
+    if args.source or args.destination or args.write is not None or args.immediate is not None:
         tasks = proj.query_mapping_tasks(args)
     else:
         tasks = proj.query_tasks(args)
@@ -282,7 +282,7 @@ def do_task(args, status, event):
         args.status = status
     proj = load_project(args.project, db[args.project])
     tasks = proj.query_tasks(args)
-    ids = ", ".join(map(lambda x: str(x.id), tasks))
+    ids = " ".join(map(lambda x: str(x.id), tasks))
     status = " or ".join(args.status)
 
     if not args.id and tasks and not args.yes:
@@ -676,7 +676,7 @@ if __name__ == "__main__":
     subparsers_task_cyto.add_argument('-mode', default='task', choices=('task', 'app', 'module'), help="Update task instance")
     subparsers_task_cyto.add_argument('-layout', default='breadthfirst', help="Network layout, such as: cose, cose-bilkent, breadthfirst, dagre, klay, circle, random, grid, concentric etc.")
     subparsers_task_cyto.add_argument('-port', default=8000, type=int, help="Port expose")
-    subparsers_task_cyto.add_argument('-compound', default='all', choices=('app', 'module', 'all', 'none'), help="Port expose")
+    subparsers_task_cyto.add_argument('-compound', default='all', choices=('app', 'module', 'all', 'none'), help="Compound level")
     subparsers_task_cyto.add_argument('-size', default='elapsed', choices=('elapsed', 'cpu', 'mem', 'data'), help="What does size map")
     subparsers_task_cyto.set_defaults(func=cyto_task)
 
