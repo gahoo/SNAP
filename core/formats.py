@@ -145,6 +145,8 @@ def format_status(status, deleted):
 def format_mapping_tbl(mappings):
     tbl = PrettyTable()
     tbl.field_names = ['id', 'name', 'source', 'destination', 'is_write', 'is_immediate']
+    tbl.align['source'] = "l"
+    tbl.align['destination'] = "l"
     for m in mappings:
         if m.exists():
             destination = dyeOKGREEN(m.destination)
