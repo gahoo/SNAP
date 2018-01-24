@@ -588,6 +588,7 @@ class Task(Base):
     status = Column(Integer, default=CREATED)
     cpu = Column(Integer)
     mem = Column(Float)
+    docker_image = Column(String)
     disk_size = Column(Float)
     disk_type = Column(String)
     project_id = Column(Integer, ForeignKey('project.id'), nullable=False)
@@ -798,9 +799,9 @@ class Task(Base):
         return MountEntry({'Source': source, 'Destination': destination, 'WriteSupport':mapping.is_write})
 
     def prepare_EnvVars(self):
-        if self.app.docker_image:
+        if self.self.docker_image:
             docker_oss_path = os.path.join('oss://', ALI_CONF['bucket'], ALI_CONF['docker_registry_oss_path']) + '/'
-            return {"BATCH_COMPUTE_DOCKER_IMAGE": "localhost:5000/" + self.app.docker_image,
+            return {"BATCH_COMPUTE_DOCKER_IMAGE": "localhost:5000/" + self.self.docker_image,
                     "BATCH_COMPUTE_DOCKER_REGISTRY_OSS_PATH": docker_oss_path}
         else:
             return {}
@@ -1004,7 +1005,7 @@ class Task(Base):
             print dyeOKGREEN("Mappings Changed:")
             print format_mapping_tbl(mappings)
 
-        commom_keys = set(['cpu', 'mem', 'disk_size', 'disk_type', 'aasm_state']) & set(kwargs.keys())
+        commom_keys = set(['cpu', 'mem', 'docker_image', 'disk_size', 'disk_type', 'aasm_state']) & set(kwargs.keys())
         old_setting = [self.__getattribute__(k) for k in commom_keys]
         [self.__setattr__(k, kwargs[k]) for k in commom_keys]
         [self.__setattr__(k, None) for k in commom_keys if kwargs[k] == 'None']

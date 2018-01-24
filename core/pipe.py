@@ -341,6 +341,7 @@ class Pipe(dict):
                         shell = script['filename'],
                         cpu = cpu,
                         mem = unifyUnit(mem),
+                        docker_image = app.docker_image,
                         disk_size = unifyUnit(disk_size),
                         disk_type = disk_type,
                         project = self.proj,

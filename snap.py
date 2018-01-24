@@ -266,7 +266,7 @@ def debug_task(args):
             map(lambda x:x.show_json(args.cache), tasks)
 
 def update_task(args):
-    setting = {k:v for k,v in args._get_kwargs() if k in ('instance', 'cpu', 'mem', 'disk_type', 'disk_size', 'mappings') and v}
+    setting = {k:v for k,v in args._get_kwargs() if k in ('instance', 'cpu', 'mem', 'docker_image', 'disk_type', 'disk_size', 'mappings') and v}
     if args.state:
         setting['aasm_state'] = args.state
 
@@ -606,6 +606,7 @@ if __name__ == "__main__":
     subparsers_task_update.add_argument('-instance', help="Update task instance")
     subparsers_task_update.add_argument('-cpu', help="Update task cpu", type=int)
     subparsers_task_update.add_argument('-mem', help="Update task mem", type=float)
+    subparsers_task_update.add_argument('-docker_image', help="Update task docker image")
     subparsers_task_update.add_argument('-disk_type', help="Update task disk type")
     subparsers_task_update.add_argument('-disk_size', help="Update task disk size", type=float)
     subparsers_task_update.add_argument('-state', help="Update task status")
