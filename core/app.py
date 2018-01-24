@@ -713,13 +713,13 @@ class App(dict):
             else:
                 script_file = None
                 mappings = []
+            [mappings.extend(getMappings(f, 'inputs', extra)) for f in self['inputs']]
+            [mappings.extend(getMappings(f, 'outputs', extra)) for f in self['outputs']]
+
             self.check()
             script = self.renderScript(template, extra=extra)
             if script.count('{{parameters'):
                 script = self.renderScript(script, extra=extra)
-
-            [mappings.extend(getMappings(f, 'inputs', extra)) for f in self['inputs']]
-            [mappings.extend(getMappings(f, 'outputs', extra)) for f in self['outputs']]
 
             self.scripts.append({"filename": script_file, "content": script, "module": self.module, "extra": extra, "mappings": mappings})
 
@@ -770,10 +770,18 @@ class App(dict):
                     print dyeWARNING(msg.format(module=self.module, app=self.appname, name=name, destination=destination, new_destination = new_destination))
                 return new_destination
 
+            def fix_path(each_file):
+                if each_file['name'] != '':
+                    each_file['name'] = checkSource(each_file['name'])
+                    each_file['oss'] = checkDestination(each_file['oss'])
+                    each_file.updatePath()
+
+            map(fix_path, self[file_type][name])
+
             return [{
                 'name': name,
-                'source': checkSource(self.renderScript(f['name'], extra=extra)),
-                'destination': checkDestination(self.renderScript(f['oss'], extra=extra)),
+                'source': self.renderScript(f['name'], extra=extra),
+                'destination': self.renderScript(f['oss'], extra=extra),
                 'is_write': is_write,
                 'is_immediate': isImmediate(f['name']) and isImmediate(f['oss'])
                 } for f in self[file_type][name] if f['name'] != '']
