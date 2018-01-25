@@ -430,6 +430,10 @@ if __name__ == "__main__":
     subparsers_bcs_config.add_argument('-region', help="which Aliyun BCS region you are.")
     subparsers_bcs_config.add_argument('-image', default='img-ubuntu', help="defualt instance image to run BCS.")
     subparsers_bcs_config.add_argument('-registry_path', default='docker-images', help="docker registry path on bucket.")
+    subparsers_bcs_config.add_argument('-vpc_id', help="VPC id for access other ECS instance.")
+    subparsers_bcs_config.add_argument('-vpc_cidr_block', default='172.16.0.0/16', help="VPC cidr block for access other ECS instance.")
+    subparsers_bcs_config.add_argument('-tmate_server', help="tmate server IP.")
+    subparsers_bcs_config.add_argument('-benchmark_interval', help="tmate server IP.")
     subparsers_bcs_config.set_defaults(func=config_bcs)
 
     # bcs stat
