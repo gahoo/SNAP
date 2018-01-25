@@ -740,7 +740,7 @@ class Task(Base):
 
         task.Timeout = 86400 * 3
         task.MaxRetryCount = 0
-        if self.project.cluster:
+        if self.project.cluster and self.instance.name in self.get_cluster_instances():
             task.ClusterId = self.project.cluster
         else:
             task.AutoCluster = self.prepare_cluster()
@@ -810,6 +810,12 @@ class Task(Base):
             env['DEBUG'] = 'TRUE'
         if self.benchmark:
             env['BENCHMARK'] = 'TURE'
+        tmate_server = ALI_CONF.get('tmate_server')
+        if tmate_server:
+            env['TMATE_SERVER'] = tmate_server
+        benchmark_interval = ALI_CONF.get('benchmark_interval')
+        if benchmark_interval:
+            env['BENCHMARK_INTERVAL'] = benchmark_interval
         return env
 
     def prepare_cluster(self):
@@ -833,6 +839,19 @@ class Task(Base):
         cluster.Networks = self.prepare_network()
 
         return cluster
+
+    def get_cluster(self):
+        if self.project.cluster:
+            return CLIENT.get_cluster(self.project.cluster)
+        else:
+            return None
+
+    def get_cluster_instances(self):
+        cluster_info = self.get_cluster()
+        if cluster_info:
+            return {v['InstanceType']:v['ActualVMCount'] for v in cluster_info.Groups.values()}
+        else:
+            return {}
 
     def prepare_disk(self):
         def get_common_prefix():
@@ -897,7 +916,9 @@ class Task(Base):
 
     def prepare_network(self):
         network = Networks()
-        #network.VPC.CidrBlock = "192.168.0.0/16"
+        if self.debug_mode:
+            network.VPC.CidrBlock = ALI_CONF['vpc_cidr_block']
+            network.VPC.VpcId = ALI_CONF['vpc_id']
         return network
 
     @before('restart')
