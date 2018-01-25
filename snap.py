@@ -266,7 +266,7 @@ def debug_task(args):
             map(lambda x:x.show_json(args.cache), tasks)
 
 def update_task(args):
-    setting = {k:v for k,v in args._get_kwargs() if k in ('instance', 'cpu', 'mem', 'docker_image', 'disk_type', 'disk_size', 'mappings') and v}
+    setting = {k:v for k,v in args._get_kwargs() if k in ('instance', 'cpu', 'mem', 'docker_image', 'disk_type', 'disk_size', 'debug_mode', 'benchmark', 'mappings') and v is not None}
     if args.state:
         setting['aasm_state'] = args.state
 
@@ -609,6 +609,10 @@ if __name__ == "__main__":
     subparsers_task_update.add_argument('-docker_image', help="Update task docker image")
     subparsers_task_update.add_argument('-disk_type', help="Update task disk type")
     subparsers_task_update.add_argument('-disk_size', help="Update task disk size", type=float)
+    subparsers_task_update.add_argument('-debug', default=None, dest='debug_mode', action='store_true', help="set task debug to true")
+    subparsers_task_update.add_argument('-no-debug', default=None, dest='debug_mode', action='store_false', help="set task debug to false")
+    subparsers_task_update.add_argument('-benchmark', default=None, dest='benchmark', action='store_true', help="set task benchmark true")
+    subparsers_task_update.add_argument('-no-benchmark', default=None, dest='benchmark', action='store_false', help="set task benchmark false")
     subparsers_task_update.add_argument('-state', help="Update task status")
     subparsers_task_update.add_argument('-mappings', nargs="*", help="Update task mappings. Format: <mapping_id,name,source,destination,is_write,is_immediate>. No name or source or destination will delete mapping")
     subparsers_task_update.set_defaults(func=update_task)

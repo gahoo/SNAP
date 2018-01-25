@@ -591,6 +591,8 @@ class Task(Base):
     docker_image = Column(String)
     disk_size = Column(Float)
     disk_type = Column(String)
+    benchmark = Column(Boolean, default=True)
+    debug_mode = Column(Boolean, default=False)
     project_id = Column(Integer, ForeignKey('project.id'), nullable=False)
     module_id = Column(Integer, ForeignKey('module.id'))
     app_id = Column(Integer, ForeignKey('app.id'))
@@ -724,7 +726,7 @@ class Task(Base):
         script_name = script_name.replace('.', '_')
         oss_script_path = [m for m in self.mapping if m.name=='sh'][0].destination
         oss_log_path = os.path.join(os.path.dirname(oss_script_path), script_name + '_log') + '/'
-        task.Parameters.Command.CommandLine = "sh {sh}".format(sh=self.shell)
+        task.Parameters.Command.CommandLine = "sh -l {sh}".format(sh=self.shell)
         task.Parameters.Command.EnvVars = self.prepare_EnvVars()
         task.Parameters.StdoutRedirectPath = oss_log_path
         task.Parameters.StderrRedirectPath = oss_log_path
@@ -799,12 +801,16 @@ class Task(Base):
         return MountEntry({'Source': source, 'Destination': destination, 'WriteSupport':mapping.is_write})
 
     def prepare_EnvVars(self):
+        env = {}
         if self.docker_image:
             docker_oss_path = os.path.join('oss://', ALI_CONF['bucket'], ALI_CONF['docker_registry_oss_path']) + '/'
-            return {"BATCH_COMPUTE_DOCKER_IMAGE": "localhost:5000/" + self.docker_image,
-                    "BATCH_COMPUTE_DOCKER_REGISTRY_OSS_PATH": docker_oss_path}
-        else:
-            return {}
+            env.update({"BATCH_COMPUTE_DOCKER_IMAGE": "localhost:5000/" + self.docker_image,
+                        "BATCH_COMPUTE_DOCKER_REGISTRY_OSS_PATH": docker_oss_path})
+        if self.debug_mode:
+            env['DEBUG'] = 'TRUE'
+        if self.benchmark:
+            env['BENCHMARK'] = 'TURE'
+        return env
 
     def prepare_cluster(self):
         cluster = AutoCluster()
@@ -1005,7 +1011,7 @@ class Task(Base):
             print dyeOKGREEN("Mappings Changed:")
             print format_mapping_tbl(mappings)
 
-        commom_keys = set(['cpu', 'mem', 'docker_image', 'disk_size', 'disk_type', 'aasm_state']) & set(kwargs.keys())
+        commom_keys = set(['cpu', 'mem', 'docker_image', 'disk_size', 'disk_type', 'debug_mode', 'benchmark', 'aasm_state']) & set(kwargs.keys())
         old_setting = [self.__getattribute__(k) for k in commom_keys]
         [self.__setattr__(k, kwargs[k]) for k in commom_keys]
         [self.__setattr__(k, None) for k in commom_keys if kwargs[k] == 'None']

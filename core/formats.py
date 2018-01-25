@@ -101,9 +101,9 @@ def diff_date(t1, t2):
 def format_detail_task(task):
     tbl = PrettyTable()
     tbl.header = False
-    fields = ['id', 'name', 'status', 'module', 'app', 'instance', 'docker_image', 'cpu', 'mem', 'disk_type', 'disk_size']
+    fields = ['id', 'name', 'status', 'module', 'app', 'instance', 'docker_image', 'cpu', 'mem', 'disk_type', 'disk_size', 'debug_mode', 'benchmark']
     status = format_status(task.aasm_state, task.aasm_state == 'cleaned')
-    values = [task.id, os.path.basename(task.shell), status, task.module.name, task.app.name, task.instance.name, task.docker_image, task.cpu, task.mem, task.disk_type, task.disk_size]
+    values = [task.id, os.path.basename(task.shell), status, task.module.name, task.app.name, task.instance.name, task.docker_image, task.cpu, task.mem, task.disk_type, task.disk_size, task.debug_mode, task.benchmark]
     tbl.add_column("field", fields)
     tbl.add_column("value", values)
     return tbl
