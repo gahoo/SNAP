@@ -725,7 +725,8 @@ class Task(Base):
         (script_name, ext) = os.path.splitext(os.path.basename(self.shell))
         script_name = script_name.replace('.', '_')
         oss_script_path = [m for m in self.mapping if m.name=='sh'][0].destination
-        oss_log_path = os.path.join(os.path.dirname(oss_script_path), script_name + '_log') + '/'
+        (oss_script_prefix, ext) = os.path.splitext(oss_script_path)
+        oss_log_path = oss_script_prefix + '_log/'
         task.Parameters.Command.CommandLine = "sh -l {sh}".format(sh=self.shell)
         task.Parameters.Command.EnvVars = self.prepare_EnvVars()
         task.Parameters.StdoutRedirectPath = oss_log_path
@@ -734,6 +735,10 @@ class Task(Base):
 
         #task.InputMapping = {m.source:m.destination for m in self.mapping if not m.is_write}
         task.OutputMapping = {m.source:m.destination for m in self.mapping if m.is_write}
+        if self.benchmark:
+            (oss_script_prefix, ext) = os.path.splitext(oss_script_path)
+            task.OutputMapping['/var/log/pidstat.log'] = oss_script_prefix + '.pidstat'
+            task.OutputMapping['/var/log/du.log'] = oss_script_prefix + '.disk_usage'
         #task.LogMapping = {m.source:m.destination for m in self.mapping if m.is_write}
         #task.Mounts.Entries = [MountEntry({'Source': m.destination, 'Destination': m.source, 'WriteSupport':m.is_write}) for m in self.mapping if not m.is_write]
         task.Mounts.Entries = self.prepare_Mounts()
