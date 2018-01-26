@@ -98,23 +98,23 @@ def config_bcs(args):
 
 def sync_bcs(args):
     if not args.project:
-        projects = [load_project(name, dbfile) for name, dbfile in db.items()]
+        projects = [load_project(name) for name, dbfile in db.items()]
         map(lambda x: x.sync(), projects)
     else:
-        project = load_project(args.project, db[args.project])
+        project = load_project(args.project)
         project.sync()
 
 def stat_bcs(args):
     if not args.project:
-        projects = [load_project(name, dbfile) for name, dbfile in db.items()]
+        projects = [load_project(name) for name, dbfile in db.items()]
     else:
-        projects = [load_project(args.project, db[args.project])]
+        projects = [load_project(args.project)]
 
     print format_project_tbl(projects, args.size, args.cost)
 
 def show_bcs(args):
     try:
-        proj = load_project(args.project, db[args.project])
+        proj = load_project(args.project)
     except KeyError:
         print dyeFAIL("No such project: %s in ~/.snap/db.yaml" % args.project)
         os._exit(1)
@@ -131,7 +131,7 @@ def update_bcs(args):
     fields = ('name', 'description', 'owner', 'status', 'max_job', 'run_cnt', 'discount', 'email', 'mns', 'cluster')
     setting = {k:v for k,v in args._get_kwargs() if k in fields and v}
     try:
-        proj = load_project(args.project, db[args.project])
+        proj = load_project(args.project)
     except KeyError:
         print dyeFAIL("No such project: %s in ~/.snap/db.yaml" % args.project)
         os._exit(1)
@@ -179,12 +179,12 @@ def cron_bcs(args):
         print job
 
 def clean_bcs(args):
-    proj = load_project(args.project, db[args.project])
+    proj = load_project(args.project)
     proj.clean_files(immediate = not args.all_files)
     proj.clean_bcs()
 
 def cost_bcs(args):
-    proj = load_project(args.project, db[args.project])
+    proj = load_project(args.project)
     if args.bill:
         proj.bcs_cost(args.bill)
 
@@ -193,20 +193,30 @@ def cost_bcs(args):
 
 def instance_bcs(args):
     if args.project:
-        proj = load_project(args.project, db[args.project])
+        proj = load_project(args.project)
     elif db:
-        proj = load_project(db.keys()[0], db.values()[0])
+        proj = load_project(db.keys()[0])
     else:
         print "You must have at least one project to query instance."
         os._exit(1)
     instances = proj.query_instance(args)
     print format_instance_tbl(instances).get_string(sortby="price")
 
-def load_project(name, dbfile):
-    session = new_session(name, dbfile)
+def load_project(name):
+    matches = filter(lambda x:name in x, db.keys())
+    n_matches = len(matches)
+    if n_matches == 0:
+        print dyeFAIL('Project %s not found' % name)
+        os._exit(1)
+    elif n_matches == 1:
+        name = matches.pop()
+    else:
+        print dyeFAIL('More than one project matches: %s' % matches)
+        os._exit(1)
+    session = new_session(name, db[name])
     proj = session.query(models.Project).filter_by(name = name).one()
     proj.session = session
-    proj.logger = new_log(name, dbfile)
+    proj.logger = new_log(name, db[name])
     return proj
 
 def new_session(name, dbfile):
@@ -229,7 +239,7 @@ def new_log(name, dbfile):
     return logger
 
 def list_task(args):
-    proj = load_project(args.project, db[args.project])
+    proj = load_project(args.project)
     if args.source or args.destination or args.write is not None or args.immediate is not None:
         tasks = proj.query_mapping_tasks(args)
     else:
@@ -248,12 +258,12 @@ def show_task(args):
         if args.script:
             task.show_shell()
 
-    proj = load_project(args.project, db[args.project])
+    proj = load_project(args.project)
     tasks = proj.query_tasks(args)
     map(show_each_task, tasks)
 
 def debug_task(args):
-    proj = load_project(args.project, db[args.project])
+    proj = load_project(args.project)
     if args.job:
         bcs = proj.query_bcs(args)
         bcs.debug(args.cache)
@@ -270,7 +280,7 @@ def update_task(args):
     if args.state:
         setting['aasm_state'] = args.state
 
-    proj = load_project(args.project, db[args.project])
+    proj = load_project(args.project)
     tasks = proj.query_tasks(args)
     if setting and tasks:
         map(lambda x: x.update(**setting), tasks)
@@ -280,7 +290,7 @@ def update_task(args):
 def do_task(args, status, event):
     if not args.status:
         args.status = status
-    proj = load_project(args.project, db[args.project])
+    proj = load_project(args.project)
     tasks = proj.query_tasks(args)
     ids = " ".join(map(lambda x: str(x.id), tasks))
     status = " or ".join(args.status)
@@ -306,14 +316,14 @@ stop_task = functools.partial(do_task, status = ['pending', 'waiting', 'running'
 clean_task = functools.partial(do_task, status = ['stopped', 'finished', 'failed'], event = 'clean')
 
 def submit_task(args):
-    proj = load_project(args.project, db[args.project])
+    proj = load_project(args.project)
     tasks = proj.query_tasks(args)
     setting = {'aasm_state': 'pending'}
     map(lambda x: x.update(**setting), tasks)
     do_task(args, ['pending'], 'submit')
 
 def cyto_task(args):
-    proj = load_project(args.project, db[args.project])
+    proj = load_project(args.project)
     proj.cytoscape(args)
 
 if __name__ == "__main__":
