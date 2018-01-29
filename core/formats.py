@@ -36,10 +36,10 @@ def format_project_tbl(projects, size=False, cost=False):
 
     tbl = PrettyTable()
     states = {e.name:e.states() for e in projects}
-    states_column = sum([state.keys() for state in states.values()], [])
+    states_column = set(sum([state.keys() for state in states.values()], []))
     size_field = build_size_field()
     cost_field = build_cost_field()
-    tbl.field_names = ['project'] + states_column + ['progress(%)', 'elapsed'] + size_field + cost_field
+    tbl.field_names = ['project'] + list(states_column) + ['progress(%)', 'elapsed'] + size_field + cost_field
 
     for p in projects:
         row = build_row(p)
