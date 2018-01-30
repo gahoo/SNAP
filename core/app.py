@@ -9,6 +9,7 @@ import errno
 from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
 from colorMessage import dyeWARNING, dyeFAIL
+from core.db import DB
 
 
 class AppParameter(dict):
@@ -126,6 +127,7 @@ class App(dict):
         self.config_file = os.path.join(app_path, 'config.yaml')
         self.parameter_file = None
         self.dependence_file = None
+        self.dependencies = {}
         self.parameters = {}
         self.isGDParameters = True
         self.scripts = []
@@ -260,6 +262,7 @@ class App(dict):
             setShellPath()
             defaults = depend[self.appname].get('defaults')
             setDefault(defaults)
+            self.dependencies[module] = depend
 
     def setModule(self, module=None):
         def inModule(k, v):
@@ -856,8 +859,19 @@ class App(dict):
     def test(self):
         pass
 
-    def run(self):
-        pass
+    def run(self, cpu=None, mem=None, instance=None, disk_type=None, disk_size=None, **kwargs):
+        kwargs.pop('name')
+        kwargs['parameter_file'] = kwargs.pop('param')
+        kwargs['dependence_file'] = kwargs.pop('depend')
+        self.build(**kwargs)
+        #tasks = map(new_task, self.scripts)
+        pdb.set_trace()
+        db = DB(':memory:',
+            pipe_path = os.path.dirname(os.path.abspath(kwargs['dependence_file'])),
+            apps = {self.appname: self},
+            parameters = self.parameters.copy(),
+            dependencies = self.dependencies)
+        db.format()
 
     def dump_parameter(self, parameter_file=None):
         if parameter_file is not None:
