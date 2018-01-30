@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import argparse
-import yaml
 import sys
 import os
 import logging
@@ -12,17 +11,10 @@ from core.pipe import WorkflowParameter
 from core.pipe import Pipe
 from core import models
 from core.formats import *
+from core.misc import *
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from crontab import CronTab
-
-def loadYaml(filename):
-    with open(filename, 'r') as yaml_file:
-        return yaml.load(yaml_file)
-
-def dumpYaml(filename, obj):
-    with open(filename, 'w') as yaml_file:
-        yaml.dump(obj, yaml_file, default_flow_style=False)
 
 def new_app(args):
     if args.name:
@@ -48,6 +40,11 @@ def init_app(args):
 def build_app(args):
     app = init_app(args)
     app.build(parameter_file=args.param, dependence_file=args.depend, debug=args.debug, output=args.out)
+
+def run_app(args):
+    kwargs = {k:v for k,v in args._get_kwargs() if k != 'func' and v is not None}
+    app = init_app(args)
+    app.run(**kwargs)
 
 def node_app(args):
     app = init_app(args)
@@ -82,7 +79,8 @@ def build_pipe(args):
                    pymonitor_path=args.pymonitor_path,
                    proj_name=args.proj_name,
                    queue=args.queue,
-                   priority=args.priority)
+                   priority=args.priority,
+                   overwrite=args.overwrite)
     else:
         print >> sys.stderr, "parameters.conf is missing."
         os._exit(0)
@@ -364,6 +362,26 @@ if __name__ == "__main__":
     subparsers_app_build.add_argument('-debug', action='store_true', help = "show debug render info.")
     subparsers_app_build.add_argument('-out', help = "output render result to file. default write to stdout")
     subparsers_app_build.set_defaults(func=build_app)
+    #app run
+    subparsers_app_run = subparsers_app.add_parser('run',
+        help='Run App directly',
+        description="This command will submit script to Aliyun bcs for direct running",
+        prog='snap app run',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_app_run.add_argument('-name', help = "app name")
+    subparsers_app_run.add_argument('-config', help = "config.yaml file")
+    subparsers_app_run.add_argument('-param', help = "render from parameter.yaml file. default will be use if not specified.")
+    subparsers_app_run.add_argument('-depend', help = "render defaults from dependencies.yaml file. ")
+    subparsers_app_run.add_argument('-debug', action='store_true', help = "show debug render info.")
+    subparsers_app_run.add_argument('-out', help = "output render result to file. default write to stdout")
+    subparsers_app_run.add_argument('-instance', help="Overwrite app instance")
+    subparsers_app_run.add_argument('-cpu', help="Overwrite app cpu", type=int)
+    subparsers_app_run.add_argument('-mem', help="Overwrite app mem", type=float)
+    subparsers_app_run.add_argument('-docker_image', help="Overwrite app docker image")
+    subparsers_app_run.add_argument('-disk_type', help="Overwrite app disk type")
+    subparsers_app_run.add_argument('-disk_size', help="Overwrite app disk size")
+    subparsers_app_run.add_argument('-cluster', help="Run on which cluster")
+    subparsers_app_run.set_defaults(func=run_app)
     #app node
     subparsers_app_node = subparsers_app.add_parser('node',
         help='APP workflow node template',
@@ -419,6 +437,7 @@ if __name__ == "__main__":
     subparsers_pipe_build.add_argument('-priority', help = "priority of qsub", default='RD_test')
     subparsers_pipe_build.add_argument('-queue', help = "queue of qsub", default='all.q')
     subparsers_pipe_build.add_argument('-out', help="output everything needed for a project")
+    subparsers_pipe_build.add_argument('-overwrite', default=False, action='store_true', help="overwrite snap.db")
     subparsers_pipe_build.set_defaults(func=build_pipe)
 
     # bcs
