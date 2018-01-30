@@ -1,8 +1,9 @@
 import oss2
 import os
+import time
 from . import ALI_CONF
 from oss2.exceptions import NoSuchKey
-from ..colorMessage import dyeWARNING
+from ..colorMessage import dyeWARNING, dyeFAIL
 
 def oss2key(destination):
     prefix = os.path.join('oss://', BUCKET.bucket_name)
@@ -48,6 +49,25 @@ def read_object(key):
         byte_range = None
 
     return BUCKET.get_object(key, byte_range).read()
+
+def is_object_exists(destination):
+    key = oss2key(destination)
+    return BUCKET.object_exists(key)
+
+def is_size_differ_and_newer(source, destination):
+    key = oss2key(destination)
+    meta = BUCKET.get_object_meta(key)
+    source_size = os.path.getsize(source)
+    if source_size != meta.content_length:
+        msg = 'Warning: {source}({source_size}) size differ from {destination}({destination_size})'
+        msg = msg.format(source=source, source_size=source_size, destination=destination, destination_size=meta.content_length)
+        if int(time.time()) > meta.last_modified:
+            print dyeFAIL(msg)
+            return True
+        else:
+            raise ValueError(msg + ' but not newer')
+    else:
+        return False
 
 if ALI_CONF:
     endpoint = "http://oss-%s.aliyuncs.com" % ALI_CONF['region']
