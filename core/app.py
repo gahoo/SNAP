@@ -10,6 +10,9 @@ from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
 from colorMessage import dyeWARNING, dyeFAIL
 from core.db import DB
+from core import models
+from core.misc import *
+from core.formats import *
 
 
 class AppParameter(dict):
@@ -130,6 +133,7 @@ class App(dict):
         self.dependencies = {}
         self.parameters = {}
         self.isGDParameters = True
+        self.is_run = False
         self.scripts = []
         self.shell_path = ''
         self.model = None
@@ -710,7 +714,7 @@ class App(dict):
                 renderEachParam(extra=param_dict)
 
         def renderEachParam(template=None, extra=None):
-            if self.shell_path and self.dependence_file is None:
+            if (self.shell_path and self.dependence_file is None) or self.is_run:
                 script_file = self.renderScript(self.shell_path, extra=extra)
                 mappings = [addScriptMapping(script_file)]
             else:
@@ -732,6 +736,8 @@ class App(dict):
             if oss_script_file.startswith('/'):
                  raise ValueError("Auto generate oss script path failed. Because output path is not identical with WORKSPACE: " + self.parameters['CommonParameters']['WORKSPACE'])
             oss_script_file = os.path.join(oss_proj_path, oss_script_file)
+            if not script_file.startswith('/'):
+                script_file = os.path.abspath(script_file)
 
             return {
                 'name': 'sh',
@@ -859,19 +865,64 @@ class App(dict):
     def test(self):
         pass
 
-    def run(self, cpu=None, mem=None, instance=None, disk_type=None, disk_size=None, **kwargs):
+    def run(self, cpu=None, mem=None, instance=None, disk_type=None, disk_size=None, docker_image=None, cluster=None, all=False, upload=True, **kwargs):
+        def update_app(cpu, mem, disk_type, disk_size, instance, docker_image):
+            def update_config(conf, name, value):
+                if value:
+                    conf[name] = value
+
+            resources = self.config['app']['requirements']['resources']
+            update_config(resources, 'cpu', cpu)
+            update_config(resources, 'mem', mem)
+            update_config(resources, 'disk_type', disk_type)
+            update_config(resources, 'disk', disk_size)
+            update_config(self.config['app']['requirements']['instance'], 'id', instance)
+            update_config(self.config['app']['requirements']['container'], 'image', docker_image)
+
+        def prepare_DB():
+            db = DB(':memory:',
+                pipe_path = os.path.dirname(os.path.abspath(kwargs['dependence_file'])),
+                apps = {self.appname: self},
+                parameters = self.parameters.copy(),
+                dependencies = self.dependencies)
+            db.format()
+            db.mkOSSuploadSH()
+            return db
+
+        def upload_scripts():
+            if upload:
+                os.system('sh uploadScript2OSS.sh')
+
+        def prepare_project():
+            proj = db.session.query(models.Project).first()
+            proj.session = db.session
+            proj.logger = new_logger(self.appname)
+            if cluster:
+                proj.update(cluster = cluster)
+            return proj
+
+        def submit_jobs(tasks):
+            concat = lambda x, y: x + y
+            map(lambda x:x.update(debug_mode=True), tasks)
+            map(lambda x:x.start(), tasks)
+            bcs = map(lambda x:x.bcs[0], tasks)
+            mappings = reduce(concat, map(lambda x:x.mapping, tasks))
+            print format_bcs_tbl(bcs, True)
+            print format_mapping_tbl(mappings)
+
         kwargs.pop('name')
         kwargs['parameter_file'] = kwargs.pop('param')
         kwargs['dependence_file'] = kwargs.pop('depend')
+        self.is_run = True
         self.build(**kwargs)
-        #tasks = map(new_task, self.scripts)
-        pdb.set_trace()
-        db = DB(':memory:',
-            pipe_path = os.path.dirname(os.path.abspath(kwargs['dependence_file'])),
-            apps = {self.appname: self},
-            parameters = self.parameters.copy(),
-            dependencies = self.dependencies)
-        db.format()
+        update_app(cpu, mem, disk_type, disk_size, instance, docker_image)
+        db = prepare_DB()
+        upload_scripts()
+        proj = prepare_project()
+        if all:
+            submit_jobs(proj.task)
+        else:
+            submit_jobs([proj.task[0]])
 
     def dump_parameter(self, parameter_file=None):
         if parameter_file is not None:
