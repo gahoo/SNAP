@@ -865,7 +865,7 @@ class App(dict):
     def test(self):
         pass
 
-    def run(self, cpu=None, mem=None, instance=None, disk_type=None, disk_size=None, docker_image=None, cluster=None, all=False, upload=True, **kwargs):
+    def run(self, cpu=None, mem=None, instance=None, disk_type=None, disk_size=None, docker_image=None, cluster=None, all=False, upload=True, show_json=False, **kwargs):
         def update_app(cpu, mem, disk_type, disk_size, instance, docker_image):
             def update_config(conf, name, value):
                 if value:
@@ -910,6 +910,10 @@ class App(dict):
             print format_bcs_tbl(bcs, True)
             print format_mapping_tbl(mappings)
 
+        def show_json(tasks):
+            if show_json:
+                map(lambda x:x.show_json(cache=False), tasks)
+
         kwargs.pop('name')
         kwargs['parameter_file'] = kwargs.pop('param')
         kwargs['dependence_file'] = kwargs.pop('depend')
@@ -921,8 +925,10 @@ class App(dict):
         proj = prepare_project()
         if all:
             submit_jobs(proj.task)
+            show_json(proj.task)
         else:
             submit_jobs([proj.task[0]])
+            show_json([proj.task[0]])
 
     def dump_parameter(self, parameter_file=None):
         if parameter_file is not None:

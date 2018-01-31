@@ -369,6 +369,7 @@ if __name__ == "__main__":
     subparsers_app_run.add_argument('-cluster', help="Run on which cluster")
     subparsers_app_run.add_argument('-upload', default=False, action='store_true', help="Auto upload scripts")
     subparsers_app_run.add_argument('-all', default=False, action='store_true', help="Run all scripts")
+    subparsers_app_run.add_argument('-show_json', default=False, action='store_true', help="Show json")
     subparsers_app_run.set_defaults(func=run_app)
     #app node
     subparsers_app_node = subparsers_app.add_parser('node',
