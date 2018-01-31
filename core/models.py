@@ -768,11 +768,30 @@ class Task(Base):
             return False
 
         def check_nested(nested_func, destination):
-            if any(map(nested_func, destination)):
+            nested_flag = map(nested_func, destination)
+            nested_mount = [dest for dest, flag in zip(destination, nested_flag) if flag]
+            if nested_mount:
                 msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
-                msg += "Has Nested Mounts: {mount}".format(id=self.id, mount=read_destination)
-                self.project.logger.error(msg)
-                raise ValueError(msg)
+                msg += "Has Nested Mounts: {mount}".format(id=self.id, mount=nested_mount)
+                self.project.logger.warning(msg)
+
+            return nested_mount
+
+        def fix_nested(mounts, nested_paths, is_write):
+            def rm_nested_mounts(nested_path):
+                return [m for m in mounts if not m.Destination.startswith(nested_path)]
+
+            def new_nested_mount(nested_path):
+                sources = [m.Source for m in mounts if m.Destination.startswith(nested_path)]
+                source = os.path.commonprefix(sources)
+                return MountEntry({'Source': source, 'Destination': nested_path, 'WriteSupport':is_write})
+
+            for nested_path in nested_paths:
+                m = new_nested_mount(nested_path)
+                mounts = rm_nested_mounts(nested_path)
+                mounts.append(m)
+
+            return mounts
 
 
         mounts_entries = list(set([self.prepare_MountEntry(m) for m in self.mapping]))
@@ -786,8 +805,10 @@ class Task(Base):
 
         is_read_nested = functools.partial(is_nested, destination = read_destination)
         is_write_nested = functools.partial(is_nested, destination = write_destination)
-        check_nested(is_read_nested, read_destination)
-        check_nested(is_write_nested, write_destination)
+        nested_read_source = check_nested(is_read_nested, read_destination)
+        nested_write_destination = check_nested(is_write_nested, write_destination)
+        read_mounts = fix_nested(read_mounts, nested_read_source, False)
+        write_mounts = fix_nested(write_mounts, nested_write_destination, True)
 
         rw_source = read_source & write_source
         if rw_source:
