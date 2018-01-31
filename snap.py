@@ -214,27 +214,13 @@ def load_project(name):
     session = new_session(name, db[name])
     proj = session.query(models.Project).filter_by(name = name).one()
     proj.session = session
-    proj.logger = new_log(name, db[name])
+    proj.logger = new_logger(name, new_log_file_handler(db[name]))
     return proj
 
 def new_session(name, dbfile):
     engine = create_engine('sqlite:///' + dbfile)
     Session = sessionmaker(bind=engine)
     return Session()
-
-def new_log(name, dbfile):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
-    (prefix, ext) =  os.path.splitext(dbfile)
-    log_file = prefix + '.log'
-    fh = logging.FileHandler(log_file)
-    fmt = "%(asctime)-15s\t%(message)s"
-    datefmt = "%Y-%m-%d %H:%M:%S"
-    formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
-    fh.setFormatter(formatter)
-    logger.addHandler(fh)
-
-    return logger
 
 def list_task(args):
     proj = load_project(args.project)
@@ -373,14 +359,16 @@ if __name__ == "__main__":
     subparsers_app_run.add_argument('-param', help = "render from parameter.yaml file. default will be use if not specified.")
     subparsers_app_run.add_argument('-depend', help = "render defaults from dependencies.yaml file. ")
     subparsers_app_run.add_argument('-debug', action='store_true', help = "show debug render info.")
-    subparsers_app_run.add_argument('-out', help = "output render result to file. default write to stdout")
+    subparsers_app_run.add_argument('-output', help = "output render result to file. default write to stdout")
     subparsers_app_run.add_argument('-instance', help="Overwrite app instance")
     subparsers_app_run.add_argument('-cpu', help="Overwrite app cpu", type=int)
-    subparsers_app_run.add_argument('-mem', help="Overwrite app mem", type=float)
+    subparsers_app_run.add_argument('-mem', help="Overwrite app mem")
     subparsers_app_run.add_argument('-docker_image', help="Overwrite app docker image")
     subparsers_app_run.add_argument('-disk_type', help="Overwrite app disk type")
     subparsers_app_run.add_argument('-disk_size', help="Overwrite app disk size")
     subparsers_app_run.add_argument('-cluster', help="Run on which cluster")
+    subparsers_app_run.add_argument('-upload', default=False, action='store_true', help="Auto upload scripts")
+    subparsers_app_run.add_argument('-all', default=False, action='store_true', help="Run all scripts")
     subparsers_app_run.set_defaults(func=run_app)
     #app node
     subparsers_app_node = subparsers_app.add_parser('node',
