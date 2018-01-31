@@ -4,6 +4,7 @@ import functools
 from core import models
 from core.ali.oss import BUCKET, oss2key, is_object_exists, is_size_differ_and_newer
 from core.misc import *
+from colorMessage import dyeWARNING, dyeFAIL
 from sqlalchemy import create_engine, UniqueConstraint
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
@@ -16,7 +17,7 @@ class DB(object):
         self.pipe_path = pipe_path
         self.apps = apps
         self.parameters = parameters
-        self.app_parameters = self.trim_parameters(parameters)
+        self.modules = self.trim_parameters(parameters)
         self.dependencies = dependencies
         self.engine = create_engine('sqlite:///{db_path}'.format(db_path=self.db_path))
         self.proj = None
@@ -35,7 +36,7 @@ class DB(object):
         self.mkProj()
         self.mkInstance()
         # Full Module
-        map(self.mkModule, self.dependencies.keys())
+        map(self.mkModule, self.modules.keys())
         self.mkDepends()
         self.session.commit()
 
@@ -66,8 +67,9 @@ class DB(object):
     def mkModule(self, module_name):
         module = models.Module(name = module_name)
         self.session.commit()
-        for appname in self.dependencies[module_name].keys():
-            self.mkApp(self.apps[appname], module)
+        for appname in self.modules[module_name].keys():
+            if appname in  self.apps:
+                self.mkApp(self.apps[appname], module)
 
     def mkInstance(self):
         instance_list = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'instance.txt')
@@ -122,7 +124,7 @@ class DB(object):
                 return m
 
             script['task'] = models.Task(
-                    shell = script['filename'],
+                    shell = os.path.abspath(script['filename']),
                     cpu = cpu,
                     mem = unifyUnit(mem),
                     docker_image = app.docker_image,
@@ -232,9 +234,9 @@ class DB(object):
                 return
             if not is_object_exists(destination):
                 file_size[source] = os.path.getsize(source)
-                cmd.append("ossutil cp %s %s" % (source, destination))
+                cmd.append("ossutil cp -f %s %s" % (source, destination))
             elif is_size_differ_and_newer(source, destination):
-                cmd.append("ossutil cp %s %s" % (source, destination))
+                cmd.append("ossutil cp -f %s %s" % (source, destination))
 
         def tryAddSourceWithPrefix(source, destination):
             for each_source in glob.glob(source+'*'):
