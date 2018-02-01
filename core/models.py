@@ -799,12 +799,18 @@ class Task(Base):
             destinations = list(set([get_folder(m.Destination) for m in mounts]))
             read_destinations = set([get_folder(m.Destination) for m in mounts if not m.WriteSupport])
             write_destinations = set([get_folder(m.Destination) for m in mounts if m.WriteSupport])
+            # find read and write the same
             rw_destinations = list(read_destinations & write_destinations)
-            is_destination_nested = functools.partial(is_nested, destination = destinations)
-            nested_destinations = check_nested(is_destination_nested, destinations)
+            # find nested read inside read
+            is_read_destination_nested = functools.partial(is_nested, destination = read_destinations)
+            nested_read_destinations = check_nested(is_read_destination_nested, read_destinations)
+            # find nested write inside read
+            is_write_destination_nested = functools.partial(is_nested, destination = write_destinations)
+            nested_write_destinations = check_nested(is_write_destination_nested, read_destinations)
+
             nested_mounts = []
 
-            for nested_path in set(nested_destinations + rw_destinations):
+            for nested_path in set(nested_read_destinations + nested_write_destinations + rw_destinations):
                 m = new_nested_mount(nested_path)
                 mounts = rm_nested_mounts(nested_path)
                 if m:
