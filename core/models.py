@@ -753,9 +753,6 @@ class Task(Base):
         return script_name, task
 
     def prepare_Mounts(self):
-        def is_rw(m):
-            return get_folder(m.Source) not in rw_source and m.Source not in rw_source
-
         def get_folder(path):
             if not path.endswith('/'):
                 path = os.path.dirname(path) + '/'
@@ -777,54 +774,52 @@ class Task(Base):
 
             return nested_mount
 
-        def fix_nested(mounts, nested_paths, is_write):
+        def fix_nested(mounts):
             def rm_nested_mounts(nested_path):
                 return [m for m in mounts if not m.Destination.startswith(nested_path)]
 
             def new_nested_mount(nested_path):
                 sources = [m.Source for m in mounts if m.Destination.startswith(nested_path)]
+                write_supports = [m.WriteSupport for m in mounts if m.Destination.startswith(nested_path)]
+                is_write = any(write_supports)
+                all_write = all(write_supports)
+                if all_write:
+                    return None
                 source = os.path.commonprefix(sources)
+                if not source.endswith('/'):
+                    source = os.path.dirname(source) + '/'
+                common_suffix = os.path.commonprefix([source.strip('/')[::-1], nested_path.strip('/')[::-1]])
+                if not common_suffix:
+                    msg = 'Nested Mount fix might failed: %s %s' % (source, nested_path)
+                    self.project.logger.error(msg)
+                    raise ValueError(msg)
+
                 return MountEntry({'Source': source, 'Destination': nested_path, 'WriteSupport':is_write})
 
-            for nested_path in nested_paths:
+            destinations = list(set([get_folder(m.Destination) for m in mounts]))
+            read_destinations = set([get_folder(m.Destination) for m in mounts if not m.WriteSupport])
+            write_destinations = set([get_folder(m.Destination) for m in mounts if m.WriteSupport])
+            rw_destinations = list(read_destinations & write_destinations)
+            is_destination_nested = functools.partial(is_nested, destination = destinations)
+            nested_destinations = check_nested(is_destination_nested, destinations)
+            nested_mounts = []
+
+            for nested_path in set(nested_destinations + rw_destinations):
                 m = new_nested_mount(nested_path)
                 mounts = rm_nested_mounts(nested_path)
-                mounts.append(m)
+                if m:
+                    nested_mounts.append(m)
 
-            return mounts
-
+            entries = [m for m in mounts if not m.WriteSupport]
+            entries.extend(nested_mounts)
+            return entries
 
         mounts_entries = list(set([self.prepare_MountEntry(m) for m in self.mapping]))
-        read_mounts = [m for m in mounts_entries if not m.WriteSupport]
-        read_source = set([get_folder(m.Source) for m in read_mounts])
-        read_destination = set([get_folder(m.Destination) for m in read_mounts])
-
-        write_mounts = [m for m in mounts_entries if m.WriteSupport]
-        write_source = set([m.Source for m in write_mounts])
-        write_destination = set([m.Destination for m in write_mounts])
-
-        is_read_nested = functools.partial(is_nested, destination = read_destination)
-        is_write_nested = functools.partial(is_nested, destination = write_destination)
-        nested_read_source = check_nested(is_read_nested, read_destination)
-        nested_write_destination = check_nested(is_write_nested, write_destination)
-        read_mounts = fix_nested(read_mounts, nested_read_source, False)
-        write_mounts = fix_nested(write_mounts, nested_write_destination, True)
-
-        rw_source = read_source & write_source
-        if rw_source:
-            entries = filter(is_rw, read_mounts)
-            write_entries = filter(is_rw, write_mounts)
-            entries.extend(write_mounts)
-        else:
-            entries = read_mounts
-        return entries
+        return fix_nested(mounts_entries)
 
     def prepare_MountEntry(self, mapping):
         source = mapping.destination
         destination = mapping.source
-        if mapping.is_write and not source.endswith('/'):
-            source = os.path.dirname(source) + '/'
-            destination = os.path.dirname(destination) + '/'
         return MountEntry({'Source': source, 'Destination': destination, 'WriteSupport':mapping.is_write})
 
     def prepare_EnvVars(self):
@@ -1277,9 +1272,14 @@ class Mapping(Base):
         return "<Mapping(id={id} {source}:{destination} write={is_write})>".format(
 	    id=self.id, source=self.source, destination=self.destination, is_write=self.is_write)
 
-    def oss_delete(self):
+    def oss_delete(self, recursive=False):
         key = oss2key(self.destination)
-        BUCKET.delete_object(key)
+        is_exists = BUCKET.object_exists(key)
+        if is_exists:
+            BUCKET.delete_object(key)
+        elif not is_exists and recursive:
+            keys = [obj.key for obj in ObjectIterator(BUCKET, prefix=key)]
+            BUCKET.batch_delete_objects(keys)
 
     def size(self):
         key = oss2key(self.destination)
@@ -1287,4 +1287,12 @@ class Mapping(Base):
 
     def exists(self):
         key = oss2key(self.destination)
-        return BUCKET.object_exists(key)
+        is_exists = BUCKET.object_exists(key)
+        if not is_exists:
+            try:
+                ObjectIterator(BUCKET, prefix=key).next()
+                return True
+            except StopIteration:
+                return False
+        else:
+            return is_exists
