@@ -1039,7 +1039,7 @@ class Task(Base):
                 m.is_write = eval(is_write)
                 m.is_immediate = eval(is_immediate)
 
-            if not mid:
+            if not mid or mid not in map(lambda x:x.id, self.mapping):
                 self.mapping.append(m)
 
             return m
