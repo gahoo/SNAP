@@ -127,7 +127,7 @@ def update_bcs(args):
         cron_bcs(dummy_args)
 
     fields = ('name', 'description', 'owner', 'status', 'max_job', 'run_cnt', 'discount', 'email', 'mns', 'cluster')
-    setting = {k:v for k,v in args._get_kwargs() if k in fields and v}
+    setting = {k:v for k,v in args._get_kwargs() if k in fields and v is not None}
     try:
         proj = load_project(args.project)
     except KeyError:
@@ -486,7 +486,7 @@ if __name__ == "__main__":
     subparsers_bcs_update.add_argument('-owner', help="Who is in charge of this project now")
     subparsers_bcs_update.add_argument('-status', help="Project status")
     subparsers_bcs_update.add_argument('-max_job', type=int, help="Max concurrent running job.")
-    subparsers_bcs_update.add_argument('-discount', type=float, help="Expected discount for instances.")
+    subparsers_bcs_update.add_argument('-discount', type=float, help="Expected discount for instances. When discount is 0, SpotStrategy will be SpotAsPriceGo otherwise SpotWithPriceLimit.")
     subparsers_bcs_update.add_argument('-email', help="Which Email address will be sent when job failed.")
     subparsers_bcs_update.add_argument('-mns', help="MNS endpoint for notification.")
     subparsers_bcs_update.add_argument('-cluster', help="Cluster ID for existed cluster.")
