@@ -859,8 +859,11 @@ class Task(Base):
             cluster.ResourceType = "OnDemand"
         else:
             cluster.ResourceType = "Spot"
-            #cluster.SpotStrategy = "SpotWithPriceLimit"
-            cluster.SpotPriceLimit = self.project.discount * self.instance.price
+            if self.project.discount > 0:
+                cluster.SpotStrategy = "SpotWithPriceLimit"
+            else:
+                cluster.SpotStrategy = "SpotAsPriceGo"
+            cluster.SpotPriceLimit = round(self.project.discount * self.instance.price, 3)
 
         cluster.Configs.Disks = self.prepare_disk()
         cluster.Notification = self.prepare_notify()
@@ -1088,6 +1091,14 @@ class Task(Base):
 
     def cost(self):
         return sum([b.cost for b in self.bcs])
+
+    @after('submit')
+    @after('retry')
+    @after('redo')
+    def reset_finish_date(self):
+        if self.project.finish_date:
+            self.project.finish_date = None
+            self.save()
 
 class Bcs(Base):
     __tablename__ = 'bcs'
