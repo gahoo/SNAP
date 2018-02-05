@@ -937,7 +937,7 @@ class App(dict):
             print format_bcs_tbl(bcs, True)
             print format_mapping_tbl(mappings)
 
-        def show_json(tasks):
+        def show_jobs_json(tasks):
             if show_json:
                 map(lambda x:x.show_json(cache=False), tasks)
 
@@ -952,10 +952,10 @@ class App(dict):
         proj = prepare_project()
         if all:
             submit_jobs(proj.task)
-            show_json(proj.task)
+            show_jobs_json(proj.task)
         else:
             submit_jobs([proj.task[0]])
-            show_json([proj.task[0]])
+            show_jobs_json([proj.task[0]])
 
     def dump_parameter(self, parameter_file=None):
         if parameter_file is not None:
