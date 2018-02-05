@@ -873,13 +873,23 @@ class App(dict):
                 if value:
                     conf[name] = value
 
+            def get_config(conf, name, attr):
+                value = conf.get(name)
+                if value:
+                    return value
+                else:
+                    conf[name] = {attr: None}
+                    return conf[name]
+
             resources = self.config['app']['requirements']['resources']
+            instance_conf = get_config(self.config['app']['requirements'], 'instance', 'id')
+            docker_image_conf = get_config(self.config['app']['requirements'], 'container', 'image')
             update_config(resources, 'cpu', cpu)
             update_config(resources, 'mem', mem)
             update_config(resources, 'disk_type', disk_type)
             update_config(resources, 'disk', disk_size)
-            update_config(self.config['app']['requirements']['instance'], 'id', instance)
-            update_config(self.config['app']['requirements']['container'], 'image', docker_image)
+            update_config(instance_conf, 'id', instance)
+            update_config(docker_image_conf, 'image', docker_image)
 
         def prepare_DB():
             db = DB(':memory:',
