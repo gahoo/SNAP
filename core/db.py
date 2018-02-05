@@ -35,9 +35,9 @@ class DB(object):
     def format(self):
         self.mkProj()
         self.mkInstance()
-        # Full Module
         map(self.mkModule, self.modules.keys())
-        self.mkDepends()
+        if self.db_path != ':memory:':
+            self.mkDepends()
         self.session.commit()
 
     def add(self):
