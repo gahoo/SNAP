@@ -21,7 +21,8 @@ def new_logger(name, handler = logging.StreamHandler()):
     datefmt = "%Y-%m-%d %H:%M:%S"
     formatter = logging.Formatter(fmt=fmt, datefmt=datefmt)
     handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    if not logger.handlers:
+        logger.addHandler(handler)
 
     return logger
 
