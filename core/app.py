@@ -716,7 +716,9 @@ class App(dict):
         def renderEachParam(template=None, extra=None):
             if (self.shell_path and self.dependence_file is None) or self.is_run:
                 script_file = self.renderScript(self.shell_path, extra=extra)
-                mappings = [addScriptMapping(script_file)]
+                sh_mapping = addScriptMapping(script_file)
+                script_file = sh_mapping['source']
+                mappings = [sh_mapping]
             else:
                 script_file = None
                 mappings = []
@@ -737,7 +739,10 @@ class App(dict):
                  raise ValueError("Auto generate oss script path failed. Because output path is not identical with WORKSPACE: " + self.parameters['CommonParameters']['WORKSPACE'])
             oss_script_file = os.path.join(oss_proj_path, oss_script_file)
             if not script_file.startswith('/'):
-                script_file = os.path.abspath(script_file)
+                if self.is_run:
+                    script_file = os.path.join(self.parameters['CommonParameters']['WORKSPACE'], script_file)
+                else:
+                    script_file = os.path.abspath(script_file)
 
             return {
                 'name': 'sh',
