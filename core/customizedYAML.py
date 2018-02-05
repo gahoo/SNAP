@@ -1,6 +1,7 @@
 import yaml
 import os
 import re
+import pdb
 from collections import OrderedDict
 
 # codes form stackoverflow.com
@@ -78,3 +79,10 @@ def refer_constructor(loader, node):
     return refer
 
 yaml.add_constructor(u'!refer', refer_constructor)
+
+def mapping_constructor(loader, node):
+    data = loader.construct_scalar(node)
+    (local, oss) = data.split(':', 1)
+    return {'local': local, 'oss': oss}
+
+yaml.add_constructor(u'!mapping', mapping_constructor)

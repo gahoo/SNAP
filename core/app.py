@@ -350,7 +350,7 @@ class App(dict):
             file_path = self.loadParameterValue(name, is_oss)
             # Parameters CommonData
             if not file_path:
-                file_path = self.parameters['CommonData'].get(name)
+                file_path = getCommonData(name, is_oss)
             # Parameters defaults
             if (not file_path or '{{extra.sample_name}}' in file_path) and (self.config['app'][file_type]) and (name in self.config['app'][file_type].keys()):
                 file_path = renderDefaultPath(file_path, file_type)
@@ -359,6 +359,15 @@ class App(dict):
                 return file_path
             else:
                 return [file_path]
+
+        def getCommonData(name, is_oss):
+            file_path = self.parameters['CommonData'].get(name)
+            if isinstance(file_path, dict):
+                if is_oss:
+                    file_path = file_path['oss']
+                else:
+                    file_path = file_path['local']
+            return file_path
 
         def renderDefaultPath(path_template, file_type):
             def renderPath(sample):
@@ -553,6 +562,8 @@ class App(dict):
 
         def checkInputs(input_name):
             def isExists(app_file):
+                if input_name in ['R_LIB', 'PYTHON_LIB']:
+                    return
                 path = app_file.path
                 if (path is not '') and ('{{' not in path) and (not os.path.exists(path)):
                     print dyeWARNING('%s.%s: %s not found' % (self.appname, input_name, path))
