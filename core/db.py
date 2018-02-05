@@ -1,6 +1,7 @@
 import os
 import pdb
 import functools
+import glob
 from core import models
 from core.ali.oss import BUCKET, oss2key, is_object_exists, is_size_differ_and_newer
 from core.misc import *
@@ -182,6 +183,10 @@ class DB(object):
 
         def mkAppDepends(app, module_name, depends):
             for dep_appname in depends[app.name]['depends']:
+                if dep_appname not in apps_in_param:
+                    print dyeWARNING("{appname}: skipping dependence app {dep_appname} since it's not in parameters.conf".format(appname=app.name, dep_appname=dep_appname))
+                    continue
+
                 if dep_appname in depends:
                     dep_module_name = module_name
                     dep_module = self.session.query(models.Module).filter_by(name = dep_module_name).one()
@@ -226,8 +231,10 @@ class DB(object):
             for app in module.app:
                 mkAppDepends(app, module.name, depends)
 
-        for name, depends in self.dependencies.iteritems():
-            mkModuleDepend(name, depends)
+        apps_in_param = reduce(concat, [apps.keys() for apps in self.modules.values()])
+
+        for name in self.modules.keys():
+            mkModuleDepend(name, self.dependencies[name])
 
     def mkOSSuploadSH(self):
         def addSource(source, destination):
@@ -251,9 +258,10 @@ class DB(object):
                if os.path.exists(m.source):
                    addSource(m.source, m.destination)
                else:
-                   msg = "{name}:{source} not exist.".format(name = m.name, source = m.source)
-                   print dyeFAIL(msg)
-                   tryAddSourceWithPrefix(m.source, m.destination)
+                   if not m.exists():
+                       msg = "{name}:{source} not exist.".format(name = m.name, source = m.source)
+                       print dyeFAIL(msg)
+                       tryAddSourceWithPrefix(m.source, m.destination)
 
             content = "\n".join(['set -ex'] + list(set(cmd)))
             print "uploadData2OSS.sh: %d files(%d GB) to upload" % (len(file_size), sum(file_size.values())/2**30)
