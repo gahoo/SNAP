@@ -774,6 +774,25 @@ class Task(Base):
 
             return nested_mount
 
+        def is_input_exists(mapping):
+            if not mapping.is_write:
+                is_exist = mapping.exists()
+            else:
+                return True
+
+            if not is_exist and mapping.is_required:
+                msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
+                msg += '%s not found on oss.' % mapping.destination
+                self.project.logger.error(msg)
+                raise IOError(msg)
+            elif not is_exist and not mapping.is_required:
+                msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
+                msg += '%s not found on oss.' % mapping.destination
+                self.project.logger.warning(msg)
+                print dyeWARNING(msg)
+                return False
+            return True
+
         def fix_nested(mounts):
             def rm_nested_mounts(nested_path):
                 return [m for m in mounts if not m.Destination.startswith(nested_path)]
@@ -820,7 +839,7 @@ class Task(Base):
             entries.extend(nested_mounts)
             return entries
 
-        mounts_entries = list(set([self.prepare_MountEntry(m) for m in self.mapping]))
+        mounts_entries = list(set([self.prepare_MountEntry(m) for m in self.mapping if is_input_exists(m)]))
         return fix_nested(mounts_entries)
 
     def prepare_MountEntry(self, mapping):
@@ -1027,7 +1046,7 @@ class Task(Base):
 
     def update(self, **kwargs):
         def update_mapping(mapping):
-            (mid, name, source, destination, is_write, is_immediate) = mapping.split(',')
+            (mid, name, source, destination, is_write, is_immediate, is_required) = mapping.split(',')
             if not mid:
                 m = Mapping()
             else:
@@ -1041,6 +1060,7 @@ class Task(Base):
                 m.destination = destination
                 m.is_write = eval(is_write)
                 m.is_immediate = eval(is_immediate)
+                m.is_required = eval(is_required)
 
             if not mid or mid not in map(lambda x:x.id, self.mapping):
                 self.mapping.append(m)
@@ -1282,6 +1302,7 @@ class Mapping(Base):
     destination = Column(String)
     is_write = Column(Boolean, default=False)
     is_immediate = Column(Boolean, default=True)
+    is_required = Column(Boolean)
 
     task = relationship("Task", secondary=task_mapping_table)
 

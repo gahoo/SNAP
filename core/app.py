@@ -744,6 +744,7 @@ class App(dict):
                 'source': script_file,
                 'destination': oss_script_file,
                 'is_write': False,
+                'is_required': True,
                 'is_immediate': False}
 
         def getMappings(name, file_type, extra):
@@ -792,7 +793,8 @@ class App(dict):
                 'source': self.renderScript(f['name'], extra=extra),
                 'destination': self.renderScript(f['oss'], extra=extra),
                 'is_write': is_write,
-                'is_immediate': isImmediate(f['name']) and isImmediate(f['oss'])
+                'is_immediate': isImmediate(f['name']) and isImmediate(f['oss']),
+                'is_required': f['required']
                 } for f in self[file_type][name] if f['name'] != '']
 
         def isImmediate(path):

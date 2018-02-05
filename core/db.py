@@ -109,7 +109,8 @@ class DB(object):
                     source = mapping['source'],
                     destination = mapping['destination'],
                     is_write = mapping['is_write'],
-                    is_immediate = mapping['is_immediate'])
+                    is_immediate = mapping['is_immediate'],
+                    is_required = mapping['is_required'])
                 try:
                     self.session.add(m)
                     self.session.commit()
