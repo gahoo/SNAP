@@ -1110,7 +1110,7 @@ class Task(Base):
                 msg += '{oss} is not found.'.format(oss=m.destination)
                 print dyeWARNNING(msg)
                 self.project.logger.warning(msg)
-             else:
+            else:
                 if m.size() == 0:
                     msg += '{oss} has 0 size.'.format(oss=m.destination)
                     print dyeWARNNING(msg)
