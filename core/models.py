@@ -1103,6 +1103,23 @@ class Task(Base):
     def delete_bcs(self):
         map(lambda x:x.delete(), self.bcs)
 
+    @after('finish')
+    def check_output(self):
+        def check_each_output(m):
+            if not m.exists():
+                msg += '{oss} is not found.'.format(oss=m.destination)
+                print dyeWARNNING(msg)
+                self.project.logger.warning(msg)
+             else:
+                if m.size() == 0:
+                    msg += '{oss} has 0 size.'.format(oss=m.destination)
+                    print dyeWARNNING(msg)
+                    self.project.logger.warning(msg)
+
+        msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
+        output_mappings = [m for m in self.mapping if m.is_write and m.is_required]
+        map(check_each_output, output_mappings)
+
     def size(self, is_write=None):
         if is_write is None:
             return sum([m.size() for m in self.mapping])
