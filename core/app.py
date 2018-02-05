@@ -914,7 +914,6 @@ class App(dict):
             return proj
 
         def submit_jobs(tasks):
-            concat = lambda x, y: x + y
             map(lambda x:x.update(debug_mode=True), tasks)
             map(lambda x:x.start(), tasks)
             bcs = map(lambda x:x.bcs[0], tasks)
