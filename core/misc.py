@@ -30,3 +30,5 @@ def new_log_file_handler(dbfile):
     (prefix, ext) =  os.path.splitext(dbfile)
     log_file = prefix + '.log'
     return logging.FileHandler(log_file)
+
+concat = lambda x, y: x + y
