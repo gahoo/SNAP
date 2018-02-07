@@ -262,7 +262,7 @@ class Pipe(dict):
 
             app_path = self.dependencies[module][appname].get('APP_PATH')
             if not app_path:
-                app_path = os.path.join(module, appname)
+                app_path = os.path.join(module, appname) + '/'
             parameters[module][appname]['APP_PATH'] = app_path
 
             try:

@@ -262,7 +262,7 @@ class App(dict):
         def setAppPath():
             app_path = depend[self.appname].get('APP_PATH')
             if app_path is None:
-                app_path = os.path.join(self.module, self.appname)
+                app_path = os.path.join(self.module, self.appname) + '/'
             self.parameters[module][self.appname]['APP_PATH'] = app_path
 
         if dependence_file:
