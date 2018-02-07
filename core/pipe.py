@@ -260,6 +260,11 @@ class Pipe(dict):
                 else:
                     parameters[module][appname] = defaults
 
+            app_path = self.dependencies[module][appname].get('APP_PATH')
+            if not app_path:
+                app_path = os.path.join(module, appname)
+            parameters[module][appname]['APP_PATH'] = app_path
+
             try:
                 sh_file = os.path.join(self.proj_path, self.dependencies[module][appname]['sh_file'])
             except KeyError:

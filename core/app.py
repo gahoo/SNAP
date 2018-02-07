@@ -259,6 +259,12 @@ class App(dict):
                 self.dependence_file = dependence_file
                 self.shell_path = depend[self.appname].get('sh_file')
 
+        def setAppPath():
+            app_path = depend[self.appname].get('APP_PATH')
+            if app_path is None:
+                app_path = os.path.join(self.module, self.appname)
+            self.parameters[module][self.appname]['APP_PATH'] = app_path
+
         if dependence_file:
             depend = self.loadYaml(dependence_file)
             module = depend.pop('name')
@@ -266,6 +272,7 @@ class App(dict):
             setShellPath()
             defaults = depend[self.appname].get('defaults')
             setDefault(defaults)
+            setAppPath()
             self.dependencies[module] = depend
 
     def setModule(self, module=None):
@@ -334,8 +341,23 @@ class App(dict):
                 value = os.path.join(WORKSPACE, value)
             return value
 
+        def addAppPath(name, value):
+            if name != 'APP_PATH':
+                return value
+
+            app_path = self.parameters['CommonParameters']['APP_PATH']
+            if isinstance(app_path, dict):
+                if is_oss:
+                    prefix = app_path['oss']
+                else:
+                    prefix = app_path['local']
+            else:
+                prefix = app_path
+            return os.path.join(prefix, value)
+
         try:
             value = self.parameters[self.module][self.appname].get(name)
+            value = addAppPath(name, value)
             value = addWorkspace4FilePath(name, value)
         except (KeyError, AttributeError) as e:
             value = None
@@ -502,6 +524,9 @@ class App(dict):
         formatInputFiles = functools.partial(formatFiles, file_type='Inputs')
         formatOutputFiles = functools.partial(formatFiles, file_type='Outputs')
 
+        def add_APP_PATH_Input():
+            self.config['app']['inputs']['APP_PATH'] = {'hint': 'APP Path', 'default': '', 'required': True, 'item': {'separator': ' '}, 'minitems': 1, 'maxitems': 1, 'formats': [], 'type': 'file'}
+
         def addSampleNameParam():
             self.config['app']['parameters']['sample_name'] = {'quotes': False, 'prefix': '', 'separator': '', 'hint': '', 'default': '', 'required': True, 'type': 'string', 'value': None}
 
@@ -530,6 +555,7 @@ class App(dict):
             }
 
         needNew = not self.parameters or not self.isGDParameters
+        add_APP_PATH_Input()
         if hasSampleName():
             addSampleNameParam()
         map(makeParameters, ['Parameters', 'Inputs', 'Outputs'])
@@ -786,7 +812,7 @@ class App(dict):
 
                 new_destination = destination
                 if not destination.startswith('oss://'):
-                    if destination.startswith('/data/database'):
+                    if destination.startswith('/data/database') or destination.startswith('/data/pipeline'):
                         new_destination = destination.replace('/data/', 'oss://igenecode-bcs/')
                     else:
                         folder = os.path.basename(os.path.dirname(destination))
@@ -809,7 +835,7 @@ class App(dict):
                 'source': self.renderScript(f['name'], extra=extra),
                 'destination': self.renderScript(f['oss'], extra=extra),
                 'is_write': is_write,
-                'is_immediate': isImmediate(f['name']) and isImmediate(f['oss']),
+                'is_immediate': isImmediate(f['name']) and isImmediate(f['oss']) and name != 'APP_PATH',
                 'is_required': f['required']
                 } for f in self[file_type][name] if f['name'] != '']
 
