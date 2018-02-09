@@ -198,7 +198,7 @@ def instance_bcs(args):
         print "You must have at least one project to query instance."
         os._exit(1)
     instances = proj.query_instance(args)
-    print format_instance_tbl(instances).get_string(sortby="price")
+    print format_instance_tbl(instances, args.latest).get_string(sortby="price")
 
 def load_project(name):
     matches = filter(lambda x:name in x, db.keys())
@@ -313,7 +313,6 @@ def cyto_task(args):
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
         description = "SNAP is Not A Pipeline.",
-        version = "0.1",
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers = parsers.add_subparsers()
 
@@ -548,6 +547,7 @@ if __name__ == "__main__":
     subparsers_bcs_instance.add_argument('-disk_type', choices=('SSD', 'HDD'), help="disk type: SSD/HDD")
     subparsers_bcs_instance.add_argument('-disk_size', help="local disk size")
     subparsers_bcs_instance.add_argument('-price', type=float, help="instance price")
+    subparsers_bcs_instance.add_argument('-latest', default=False, action='store_true', help="checkout latest spot price.")
     subparsers_bcs_instance.set_defaults(func=instance_bcs)
     #bcs task
     #subparsers_bcs_task = subparsers_bcs.add_parser('task',
