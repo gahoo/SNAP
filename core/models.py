@@ -1326,7 +1326,11 @@ class Instance(Base):
             utc_start = utc_now - datetime.timedelta(days=day)
             request.set_StartTime(utc_start.strftime("%Y-%m-%dT%H:%M:%SZ"))
             request.set_EndTime(utc_now.strftime("%Y-%m-%dT%H:%M:%SZ"))
-        response = client.do_action_with_exception(request)
+        try:
+            response = client.do_action_with_exception(request)
+        except ServerException, e:
+            print dyeFAIL(str(e) + " Instance Type: %s" % self.name)
+            return []
         prices = json.loads(response)
         return prices['SpotPrices']['SpotPriceType']
 
