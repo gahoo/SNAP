@@ -157,11 +157,21 @@ def format_mapping_tbl(mappings):
 
     return tbl
 
-def format_instance_tbl(instances):
+def format_instance_tbl(instances, latest_price = False):
     tbl = PrettyTable()
-    tbl.field_names = ['name', 'cpu', 'mem', 'disk type', 'disk size', 'price']
+    fields = ['name', 'cpu', 'mem', 'disk type', 'disk size', 'price']
+    if latest_price:
+        fields += ['spot price', 'origin price', 'discount']
+    tbl.field_names = fields
     for i in instances:
         row = [i.name, i.cpu, i.mem, i.disk_type, i.disk_size, i.price]
+        if latest_price:
+            (spot_price, origin_price) = i.latest_price()
+            if origin_price:
+                discount = spot_price / origin_price
+            else:
+                discount = None
+            row += [spot_price, origin_price, discount]
         tbl.add_row(row)
 
     return tbl
