@@ -10,6 +10,10 @@ from batchcompute.resources import (
     GroupDescription, ClusterDescription, Disks, Notification, )
 from batchcompute.resources.cluster import Mounts, MountEntry
 from batchcompute import ClientError
+from aliyunsdkcore.client import AcsClient
+from aliyunsdkcore.acs_exception.exceptions import ClientException
+from aliyunsdkcore.acs_exception.exceptions import ServerException
+from aliyunsdkecs.request.v20140526 import DescribeSpotPriceHistoryRequest
 from core.ali.bcs import CLIENT
 from core.ali import ALI_CONF
 from core.ali.oss import BUCKET, oss2key, OSSkeys, read_object
@@ -156,7 +160,7 @@ class Project(Base):
         return bcs
 
     def query_instance(self, args):
-        q_filter = {k:v for k, v in args.__dict__.items() if v and k not in ('func', 'mode', 'project')}
+        q_filter = {k:v for k, v in args.__dict__.items() if v and k not in ('func', 'mode', 'project', 'latest')}
         q = self.session.query(Instance)
         if 'name' in q_filter:
             q = q.filter(Instance.name.like("%" + q_filter.pop('name') + "%"))
@@ -1311,6 +1315,28 @@ class Instance(Base):
     def __repr__(self):
         return "<Instance(id={id} name={name} cpu={cpu} mem={mem}, price={price})>".format(
 	    id=self.id, name=self.name, cpu=self.cpu, mem=self.mem, price=self.price)
+
+    def history_price(self, day=None):
+        client = AcsClient(ALI_CONF['accesskey_id'], ALI_CONF['accesskey_secret'], ALI_CONF['region'])
+        request = DescribeSpotPriceHistoryRequest.DescribeSpotPriceHistoryRequest()
+        request.set_NetworkType('vpc')
+        request.set_InstanceType(self.name)
+        if day:
+            utc_now = datetime.datetime.utcnow()
+            utc_start = utc_now - datetime.timedelta(days=day)
+            request.set_StartTime(utc_start.strftime("%Y-%m-%dT%H:%M:%SZ"))
+            request.set_EndTime(utc_now.strftime("%Y-%m-%dT%H:%M:%SZ"))
+        response = client.do_action_with_exception(request)
+        prices = json.loads(response)
+        return prices['SpotPrices']['SpotPriceType']
+
+    def latest_price(self):
+        prices = self.history_price()
+        if prices:
+            (SpotPrice, OriginPrice) = (prices[-1]['SpotPrice'], prices[-1]['OriginPrice'])
+        else:
+            (SpotPrice, OriginPrice) = (None, None)
+        return SpotPrice, OriginPrice
 
 class Mapping(Base):
     __tablename__ = 'mapping'
