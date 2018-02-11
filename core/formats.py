@@ -181,3 +181,12 @@ def format_cost_tbl(costs):
     tbl.field_names = ['id', 'name', 'size', 'size cost', 'bcs cost', 'total']
     map(tbl.add_row, costs)
     return tbl
+
+def format_history_price_tbl(prices):
+    tbl = PrettyTable()
+    tbl.field_names = ['InstanceType', 'Timestamp', 'ZoneId', 'IoOptimized', 'NetworkType', 'OriginPrice', 'SpotPrice', 'Discount']
+    for p in prices:
+        p['Discount'] = round(p['SpotPrice'] / p['OriginPrice'], 2)
+        tbl.add_row([p[key] for key in tbl.field_names])
+
+    return tbl
