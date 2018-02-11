@@ -12,6 +12,7 @@ from core.pipe import Pipe
 from core import models
 from core.formats import *
 from core.misc import *
+from core.ali.price import app as price_app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from crontab import CronTab
@@ -199,6 +200,9 @@ def instance_bcs(args):
         os._exit(1)
     instances = proj.query_instance(args)
     print format_instance_tbl(instances, args.latest).get_string(sortby="price")
+
+def price_bcs(args):
+    price_app.run_server(host='0.0.0.0', port=args.port)
 
 def load_project(name):
     matches = filter(lambda x:name in x, db.keys())
@@ -537,7 +541,7 @@ if __name__ == "__main__":
     # bcs instance
     subparsers_bcs_instance = subparsers_bcs.add_parser('instance',
         help='Show available instances.',
-        description="This command will clean files and jobs on Aliyun BCS",
+        description="This command will show aviailable instances.",
         prog='snap bcs instance',
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_bcs_instance.add_argument('-project', default=None, help="ContractID or ProjectID")
@@ -549,6 +553,15 @@ if __name__ == "__main__":
     subparsers_bcs_instance.add_argument('-price', type=float, help="instance price")
     subparsers_bcs_instance.add_argument('-latest', default=False, action='store_true', help="checkout latest spot price.")
     subparsers_bcs_instance.set_defaults(func=instance_bcs)
+
+    #bcs price
+    subparsers_bcs_price = subparsers_bcs.add_parser('price',
+        help='Show instances history price.',
+        description="This command will show instance history price",
+        prog='snap bcs price',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_bcs_price.add_argument('-port', default=8000, type=int, help="Port expose")
+    subparsers_bcs_price.set_defaults(func=price_bcs)
     #bcs task
     #subparsers_bcs_task = subparsers_bcs.add_parser('task',
     #    help='Sync and update task states with Aliyun BCS.',
