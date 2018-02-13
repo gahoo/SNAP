@@ -353,6 +353,8 @@ class App(dict):
                     prefix = app_path['local']
             else:
                 prefix = app_path
+            if not value.endswith('/'):
+                value = value + '/'
             return os.path.join(prefix, value)
 
         try:
