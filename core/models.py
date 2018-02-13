@@ -209,7 +209,13 @@ class Project(Base):
         def add_cluster_cost(b):
             elapsed = diff_date(b.start_date, b.finish_date)
             if elapsed:
-                b.cost = clusters[b.cluster] * elapsed.total_seconds() / project_elapsed.total_seconds()
+                b.cost = clusters[b.cluster] * elapsed.total_seconds() / total_elapsed
+
+        def get_total_cluster_elapsed(bcs):
+            bcs_with_cluster = [b for b in bcs if b.cluster]
+            get_each_elapsed = lambda x: diff_date(x.start_date, x.finish_date)
+            each_elapsed = map(get_each_elapsed, bcs_with_cluster)
+            return sum([e.total_seconds() for e in each_elapsed if e])
 
         def zero_cost(element):
             element.cost = 0
@@ -219,7 +225,8 @@ class Project(Base):
         bcs = self.session.query(Bcs).all()
         map(zero_cost, bcs)
         clusters = {c:0 for c in set([b.cluster for b in bcs])}
-        project_elapsed = diff_date(self.start_date, self.finish_date)
+        #project_elapsed = diff_date(self.start_date, self.finish_date)
+        total_elapsed = get_total_cluster_elapsed(bcs)
         bcs = {b.id:b for b in bcs}
         dates = date_dirs()
         for root, dirs, files in os.walk(billing_path):
