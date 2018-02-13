@@ -200,16 +200,26 @@ class Project(Base):
 
         def add_cost(row):
             job_id = row[11].split('_')[0]
+            cluster_id = row[11].split(';')[0]
             if job_id in bcs:
                 bcs[job_id].cost += float(row[21])
+            if cluster_id in clusters:
+                clusters[cluster_id] += float(row[21])
 
-        def zero_bcs(b):
-            b.cost = 0
+        def add_cluster_cost(b):
+            elapsed = diff_date(b.start_date, b.finish_date)
+            if elapsed:
+                b.cost = clusters[b.cluster] * elapsed.total_seconds() / project_elapsed.total_seconds()
+
+        def zero_cost(element):
+            element.cost = 0
 
         if not self.finish_date:
             print dyeWARNING("Project not finished yet. Billing might be incompelte.")
         bcs = self.session.query(Bcs).all()
-        map(zero_bcs, bcs)
+        map(zero_cost, bcs)
+        clusters = {c:0 for c in set([b.cluster for b in bcs])}
+        project_elapsed = diff_date(self.start_date, self.finish_date)
         bcs = {b.id:b for b in bcs}
         dates = date_dirs()
         for root, dirs, files in os.walk(billing_path):
@@ -217,6 +227,7 @@ class Project(Base):
             for billing_file in files:
                 if billing_file.endswith('.csv'):
                     read_bill(os.path.join(root, billing_file))
+        map(add_cluster_cost, [b for b in bcs.values() if b.cluster])
         self.save()
 
     def cost_stat(self, mode):
@@ -706,7 +717,8 @@ class Task(Base):
         bcs = Bcs(
             name = task_name,
             spot_price_limit = task.AutoCluster.SpotPriceLimit,
-            instance = self.instance)
+            instance = self.instance,
+            cluster = self.project.cluster)
         bcs.dag.add_task(task_name=task_name, task=task)
         bcs.job.Name = "{project}-{sh}".format(project=self.project.name, sh = task_name)
         oss_script_path = [m for m in self.mapping if m.name=='sh'][0].destination
@@ -1151,6 +1163,7 @@ class Bcs(Base):
     name = Column(String)
     status = Column(String)
     deleted = Column(Boolean, default=False)
+    cluster = Column(String)
     spot_price = Column(Float)
     stdout = Column(String) # Path
     stderr = Column(String)
