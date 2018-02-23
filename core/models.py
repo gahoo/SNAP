@@ -832,7 +832,8 @@ class Task(Base):
                     source = os.path.dirname(source) + '/'
                 common_suffix = os.path.commonprefix([source.strip('/')[::-1], nested_path.strip('/')[::-1]])
                 if not common_suffix:
-                    msg = 'Nested Mount fix might failed: %s %s' % (source, nested_path)
+                    msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
+                    msg += 'Nested Mount fix might failed: %s %s' % (source, nested_path)
                     self.project.logger.error(msg)
                     raise ValueError(msg)
 
