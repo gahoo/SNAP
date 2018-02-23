@@ -848,7 +848,9 @@ class Task(Base):
             is_read_destination_nested = functools.partial(is_nested, destination = read_destinations)
             nested_read_destinations = check_nested(is_read_destination_nested, read_destinations)
             # find duplicated read
-            duplicated_read_destinations = list(set([x for x in duplicated_read_destinations if duplicated_read_destinations.count(x) > 1]))
+            duplicated_read_destinations = set([x for x in duplicated_read_destinations if duplicated_read_destinations.count(x) > 1])
+            duplicated_read_destinations = duplicated_read_destinations & set([m.Destination for m in mounts])
+            duplicated_read_destinations = list(duplicated_read_destinations)
             # find nested write inside read
             is_write_destination_nested = functools.partial(is_nested, destination = write_destinations)
             nested_write_destinations = check_nested(is_write_destination_nested, read_destinations)
