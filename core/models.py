@@ -1108,7 +1108,8 @@ class Task(Base):
 
     def show_mapping_tbl(self):
         if self.mapping:
-            print dyeOKGREEN("File Mappings:")
+            mids = " ".join([str(m.id) for m in self.mapping])
+            print dyeOKGREEN("File Mappings: " + mids)
             print format_mapping_tbl(self.mapping)
 
     def show_depends_tbl(self):
@@ -1463,6 +1464,7 @@ class Mapping(Base):
         print format_detail_mapping(self, size)
 
     def show_task_tbl(self):
-        tids = ", ".join([str(t.id) for t in self.task])
-        print dyeOKGREEN("Related Tasks: " + tids)
-        print format_tasks_tbl(self.task)
+        if self.task:
+            tids = " ".join([str(t.id) for t in self.task])
+            print dyeOKGREEN("Related Tasks: " + tids)
+            print format_tasks_tbl(self.task)
