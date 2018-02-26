@@ -775,6 +775,7 @@ if __name__ == "__main__":
         prog='snap mapping add',
         parents=[share_mapping_parser],
         formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_mapping_add.add_argument('-task', default=None, help="Related Task id", nargs="*", type = int)
     subparsers_mapping_add.set_defaults(func=add_mapping)
 
     #mapping list

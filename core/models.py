@@ -192,13 +192,23 @@ class Project(Base):
         return q.all()
 
     def add_mapping(self, args):
+        def get_task():
+            dummy_args = Namespace(id = None, status = None, shell = None, app = None, module = None)
+            dummy_args.id = args.task
+            tasks = self.query_tasks(dummy_args)
+            return tasks
+
         keys = ['name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required']
         setting = {k:v for k,v in args._get_kwargs() if k in keys and v is not None}
+        tasks = get_task()
         if not all(map(lambda x:x in setting, keys)):
             print dyeFAIL(', '.join(keys) + ' is required.')
             os._exit(1)
+
+        m = Mapping(**setting)
+        if tasks:
+            m.task = tasks
         try:
-            m = Mapping(**setting)
             self.session.add(m)
             self.session.commit()
         except IntegrityError:
