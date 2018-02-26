@@ -144,6 +144,8 @@ class Project(Base):
 
     def query_mappings(self, args, fuzzy=True):
         q = self.session.query(Mapping)
+        if args.id:
+            q = q.filter(Mapping.id.in_(args.id))
         if args.name:
             q = q.filter(Mapping.name == args.name)
         if args.source:
@@ -169,6 +171,13 @@ class Project(Base):
         mappings = self.query_mappings(args)
         tasks = set(sum([m.task for m in mappings], []))
         return tasks
+
+    def query_task_mappings(self,args):
+        if args.task:
+            args.id = args.task
+        tasks = self.query_tasks(args)
+        mappings = set(sum([t.mapping for t in tasks], []))
+        return mappings
 
     def query_bcs(self, args):
         bcs = self.session.query(Bcs).filter_by(id = args.job).one()
