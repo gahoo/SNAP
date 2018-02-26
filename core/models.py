@@ -1370,12 +1370,12 @@ class Mapping(Base):
     __table_args__ = (UniqueConstraint('name', 'source', 'destination', 'is_write', 'is_immediate'), )
 
     id = Column(Integer, primary_key=True)
-    name = Column(String)
-    source = Column(String)
-    destination = Column(String)
-    is_write = Column(Boolean, default=False)
-    is_immediate = Column(Boolean, default=True)
-    is_required = Column(Boolean)
+    name = Column(String, nullable=False)
+    source = Column(String, nullable=False)
+    destination = Column(String, nullable=False)
+    is_write = Column(Boolean, nullable=False, default=False)
+    is_immediate = Column(Boolean, nullable=False, default=True)
+    is_required = Column(Boolean, nullable=False, default=True)
 
     task = relationship("Task", secondary=task_mapping_table)
 
