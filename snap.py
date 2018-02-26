@@ -229,7 +229,7 @@ def new_session(name, dbfile):
 
 def list_task(args):
     proj = load_project(args.project)
-    if args.source or args.destination or args.write is not None or args.immediate is not None:
+    if args.source or args.destination or args.is_write is not None or args.is_immediate is not None:
         tasks = proj.query_mapping_tasks(args)
     else:
         tasks = proj.query_tasks(args)
@@ -614,10 +614,12 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task_list.add_argument('-source', default=None, help="Task with source mapping")
     subparsers_task_list.add_argument('-destination', default=None, help="Task with destination mapping")
-    subparsers_task_list.add_argument('-is_write', default=None, dest='write', action='store_true', help="This is a writable mapping")
-    subparsers_task_list.add_argument('-is_not_write', default=None, dest='write', action='store_false', help="This is not a writable mapping")
-    subparsers_task_list.add_argument('-is_immediate', default=None, dest='immediate', action='store_true', help="This is a immediate mapping")
-    subparsers_task_list.add_argument('-is_not_immediate', default=None, dest='immediate', action='store_false', help="This is not a immediate mapping")
+    subparsers_task_list.add_argument('-is_write', default=None, dest='is_write', action='store_true', help="This is a writable mapping")
+    subparsers_task_list.add_argument('-is_not_write', default=None, dest='is_write', action='store_false', help="This is not a writable mapping")
+    subparsers_task_list.add_argument('-is_immediate', default=None, dest='is_immediate', action='store_true', help="This is a immediate mapping")
+    subparsers_task_list.add_argument('-is_not_immediate', default=None, dest='is_immediate', action='store_false', help="This is not a immediate mapping")
+    subparsers_task_list.add_argument('-is_required', default=None, dest='is_required', action='store_true', help="This is a required mapping")
+    subparsers_task_list.add_argument('-is_not_requried', default=None, dest='is_required', action='store_false', help="This is not a required mapping")
     subparsers_task_list.add_argument('-cost', default=False, action='store_true', help="Show task cost or not")
     subparsers_task_list.set_defaults(func=list_task)
 
