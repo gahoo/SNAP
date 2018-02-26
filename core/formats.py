@@ -1,4 +1,5 @@
 from core.colorMessage import dyeWARNING, dyeFAIL, dyeOKGREEN, dyeOKBLUE
+from core.misc import human_size
 from prettytable import PrettyTable
 import os
 import datetime
@@ -155,6 +156,25 @@ def format_mapping_tbl(mappings):
         row = [m.id, m.name, m.source, destination, m.is_write, m.is_immediate, m.is_required]
         tbl.add_row(row)
 
+    return tbl
+
+def format_detail_mapping(mapping, size=False):
+    tbl = PrettyTable()
+    tbl.header = False
+    fields = ['id', 'name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required']
+    values = [mapping.__getattribute__(k) for k in fields]
+
+    if mapping.exists():
+        values[3] = dyeOKGREEN(values[3])
+    else:
+        values[3] = dyeFAIL(values[3])
+
+    if size:
+        fields += ['size']
+        values += [human_size(mapping.size())]
+
+    tbl.add_column("field", fields)
+    tbl.add_column("value", values)
     return tbl
 
 def format_instance_tbl(instances, latest_price = False):
