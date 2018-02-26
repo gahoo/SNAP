@@ -1447,3 +1447,12 @@ class Mapping(Base):
                 return False
         else:
             return is_exists
+
+    def show_detail_tbl(self, size=False):
+        print dyeOKGREEN("Mapping details:")
+        print format_detail_mapping(self, size)
+
+    def show_task_tbl(self):
+        tids = ", ".join([str(t.id) for t in self.task])
+        print dyeOKGREEN("Related Tasks: " + tids)
+        print format_tasks_tbl(self.task)
