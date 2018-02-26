@@ -31,4 +31,11 @@ def new_log_file_handler(dbfile):
     log_file = prefix + '.log'
     return logging.FileHandler(log_file)
 
+def human_size(num):
+    for unit in ['','K','M','G','T','P','E','Z']:
+        if abs(num) < 1024.0:
+            return "%3.1f%sB" % (num, unit)
+        num /= 1024.0
+    return "%.1f%sB" % (num, 'Y')
+
 concat = lambda x, y: x + y
