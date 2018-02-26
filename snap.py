@@ -318,6 +318,14 @@ def add_mapping(args):
     proj = load_project(args.project)
     proj.add_mapping(args)
 
+def list_mapping(args):
+    proj = load_project(args.project)
+    if not args.id and (args.task or args.app or args.module or args.status or args.shell):
+        mappings = proj.query_task_mappings(args)
+    else:
+        mappings = proj.query_mappings(args, fuzzy=args.fuzzy)
+    print format_mapping_tbl(mappings).get_string(sortby="destination")
+
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
         description = "SNAP is Not A Pipeline.",
@@ -749,6 +757,8 @@ if __name__ == "__main__":
     share_mapping_parser.add_argument('-is_required', default=None, dest='is_required', action='store_true', help="This is a required mapping")
     share_mapping_parser.add_argument('-is_not_required', default=None, dest='is_required', action='store_false', help="This is not a required mapping")
     share_mapping_parser.add_argument('-task', default=None, help="Task id", nargs="*", type = int)
+    share_mapping_parser.add_argument('-shell', default='.', help="Task shell")
+    share_mapping_parser.add_argument('-status', default=None, help="Task status", nargs="*")
     share_mapping_parser.add_argument('-app', default=None, help="Task app")
     share_mapping_parser.add_argument('-module', default=None, help="Task module")
     share_mapping_parser.add_argument('-yes', action='store_true', help="Don't ask.")
@@ -761,6 +771,16 @@ if __name__ == "__main__":
         parents=[share_mapping_parser],
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_mapping_add.set_defaults(func=add_mapping)
+
+    #mapping list
+    subparsers_mapping_list = subparsers_mapping.add_parser('list',
+        help='list mappings',
+        description="This command will list mappings.",
+        prog='snap mapping list',
+        parents=[share_mapping_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_mapping_list.add_argument('-fuzzy', default=False, action='store_true', help="Fuzzy search source and destination")
+    subparsers_mapping_list.set_defaults(func=list_mapping)
 
     # bcs cron
     # bcs cron add
