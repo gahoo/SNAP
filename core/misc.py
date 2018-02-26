@@ -34,8 +34,8 @@ def new_log_file_handler(dbfile):
 def human_size(num):
     for unit in ['','K','M','G','T','P','E','Z']:
         if abs(num) < 1024.0:
-            return "%3.1f%sB" % (num, unit)
+            return "%3.1f %sB" % (num, unit)
         num /= 1024.0
-    return "%.1f%sB" % (num, 'Y')
+    return "%.1f %sB" % (num, 'Y')
 
 concat = lambda x, y: x + y
