@@ -1106,11 +1106,11 @@ class Task(Base):
             print dyeOKGREEN("Jobs on bcs:")
             print format_bcs_tbl(self.bcs, with_instance).get_string(sortby="create", reversesort=True)
 
-    def show_mapping_tbl(self):
+    def show_mapping_tbl(self, size=False):
         if self.mapping:
             mids = " ".join([str(m.id) for m in self.mapping])
             print dyeOKGREEN("File Mappings: " + mids)
-            print format_mapping_tbl(self.mapping)
+            print format_mapping_tbl(self.mapping, size)
 
     def show_depends_tbl(self):
         if self.depend_on:
