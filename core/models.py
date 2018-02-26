@@ -141,14 +141,20 @@ class Project(Base):
         tasks = q.all()
         return tasks
 
-    def query_mapping_tasks(self, args):
+    def query_mappings(self, args, fuzzy=True):
         q = self.session.query(Mapping)
         if args.name:
             q = q.filter(Mapping.name == args.name)
         if args.source:
-            q = q.filter(Mapping.source.like("%" + args.source + "%"))
+            if fuzzy:
+                q = q.filter(Mapping.source.like("%" + args.source + "%"))
+            else:
+                q = q.filter(Mapping.source == args.source)
         if args.destination:
-            q = q.filter(Mapping.destination.like("%" + args.destination + "%"))
+            if fuzzy:
+                q = q.filter(Mapping.destination.like("%" + args.destination + "%"))
+            else:
+                q = q.filter(Mapping.destination == args.destination)
         if args.is_write is not None:
             q = q.filter(Mapping.is_write == args.is_write)
         if args.is_immediate is not None:
@@ -156,6 +162,10 @@ class Project(Base):
         if args.is_required is not None:
             q = q.filter(Mapping.is_required == args.is_required)
         mappings = q.all()
+        return mappings
+
+    def query_mapping_tasks(self, args):
+        mappings = self.query_mappings(args)
         tasks = set(sum([m.task for m in mappings], []))
         return tasks
 
