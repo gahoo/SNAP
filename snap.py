@@ -326,6 +326,16 @@ def list_mapping(args):
         mappings = proj.query_mappings(args, fuzzy=args.fuzzy)
     print format_mapping_tbl(mappings).get_string(sortby="destination")
 
+def show_mapping(args):
+    def show_each_mapping(mapping):
+        mapping.show_detail_tbl(args.size)
+        if args.tasks:
+            mapping.show_task_tbl()
+
+    proj = load_project(args.project)
+    mappings = proj.query_mappings(args, fuzzy=args.fuzzy)
+    map(show_each_mapping, mappings)
+
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
         description = "SNAP is Not A Pipeline.",
@@ -756,11 +766,6 @@ if __name__ == "__main__":
     share_mapping_parser.add_argument('-is_not_immediate', default=None, dest='is_immediate', action='store_false', help="This is not a immediate mapping")
     share_mapping_parser.add_argument('-is_required', default=None, dest='is_required', action='store_true', help="This is a required mapping")
     share_mapping_parser.add_argument('-is_not_required', default=None, dest='is_required', action='store_false', help="This is not a required mapping")
-    share_mapping_parser.add_argument('-task', default=None, help="Task id", nargs="*", type = int)
-    share_mapping_parser.add_argument('-shell', default='.', help="Task shell")
-    share_mapping_parser.add_argument('-status', default=None, help="Task status", nargs="*")
-    share_mapping_parser.add_argument('-app', default=None, help="Task app")
-    share_mapping_parser.add_argument('-module', default=None, help="Task module")
     share_mapping_parser.add_argument('-yes', action='store_true', help="Don't ask.")
 
     #mapping add
@@ -779,8 +784,25 @@ if __name__ == "__main__":
         prog='snap mapping list',
         parents=[share_mapping_parser],
         formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_mapping_list.add_argument('-task', default=None, help="Task id", nargs="*", type = int)
+    subparsers_mapping_list.add_argument('-shell', default='.', help="Task shell")
+    subparsers_mapping_list.add_argument('-status', default=None, help="Task status", nargs="*")
+    subparsers_mapping_list.add_argument('-app', default=None, help="Task app")
+    subparsers_mapping_list.add_argument('-module', default=None, help="Task module")
     subparsers_mapping_list.add_argument('-fuzzy', default=False, action='store_true', help="Fuzzy search source and destination")
     subparsers_mapping_list.set_defaults(func=list_mapping)
+
+    #mapping show
+    subparsers_mapping_show = subparsers_mapping.add_parser('show',
+        help='show mappings',
+        description="This command will show mappings details.",
+        prog='snap mapping show',
+        parents=[share_mapping_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_mapping_show.add_argument('-fuzzy', default=False, action='store_true', help="Fuzzy search source and destination")
+    subparsers_mapping_show.add_argument('-size', default=False, action='store_true', help="Show size of mapping")
+    subparsers_mapping_show.add_argument('-tasks', default=False, action='store_true', help="Show related Tasks")
+    subparsers_mapping_show.set_defaults(func=show_mapping)
 
     # bcs cron
     # bcs cron add
