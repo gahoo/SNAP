@@ -3,6 +3,7 @@ from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.exc import IntegrityError
 from state_machine import *
 from crontab import CronTab
 from batchcompute.resources import (
@@ -180,6 +181,22 @@ class Project(Base):
             q = q.filter(Instance.name.like("%" + q_filter.pop('name') + "%"))
         q = q.filter_by(**q_filter)
         return q.all()
+
+    def add_mapping(self, args):
+        keys = ['name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required']
+        setting = {k:v for k,v in args._get_kwargs() if k in keys and v is not None}
+        if not all(map(lambda x:x in setting, keys)):
+            print dyeFAIL(', '.join(keys) + ' is required.')
+            os._exit(1)
+        try:
+            m = Mapping(**setting)
+            self.session.add(m)
+            self.session.commit()
+        except IntegrityError:
+            self.session.rollback()
+            mappings = self.query_mappings(args, fuzzy=False)
+            print dyeFAIL('Following mapping already exists.')
+            print format_mapping_tbl(mappings)
 
     def count_active_jobs(self):
         return self.session.query(Bcs).filter(Bcs.status.in_(['Waiting', 'Running'])).count()

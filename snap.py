@@ -15,7 +15,6 @@ from core.misc import *
 from core.ali.price import app as price_app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.exc import IntegrityError
 from crontab import CronTab
 
 def new_app(args):
@@ -317,18 +316,7 @@ def cyto_task(args):
 
 def add_mapping(args):
     proj = load_project(args.project)
-    keys = ['name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required']
-    setting = {k:v for k,v in args._get_kwargs() if k in keys and v is not None}
-    if not all(map(lambda x:x in setting, keys)):
-        print dyeFAIL(', '.join(keys) + ' is required.')
-        os._exit(1)
-    try:
-        m = models.Mapping(**setting)
-        proj.session.add(m)
-        proj.session.commit()
-    except IntegrityError:
-        print dyeFAIL('Following mapping already exists.')
-        print format_mapping_tbl([m])
+    proj.add_mapping(args)
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
