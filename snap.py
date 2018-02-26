@@ -15,6 +15,7 @@ from core.misc import *
 from core.ali.price import app as price_app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import IntegrityError
 from crontab import CronTab
 
 def new_app(args):
@@ -313,6 +314,21 @@ def submit_task(args):
 def cyto_task(args):
     proj = load_project(args.project)
     proj.cytoscape(args)
+
+def add_mapping(args):
+    proj = load_project(args.project)
+    keys = ['name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required']
+    setting = {k:v for k,v in args._get_kwargs() if k in keys and v is not None}
+    if not all(map(lambda x:x in setting, keys)):
+        print dyeFAIL(', '.join(keys) + ' is required.')
+        os._exit(1)
+    try:
+        m = models.Mapping(**setting)
+        proj.session.add(m)
+        proj.session.commit()
+    except IntegrityError:
+        print dyeFAIL('Following mapping already exists.')
+        print format_mapping_tbl([m])
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -721,6 +737,40 @@ if __name__ == "__main__":
     subparsers_task_cyto.set_defaults(func=cyto_task)
 
 
+    # mapping
+    parsers_mapping = subparsers.add_parser('mapping',
+        help = "Operations of mappings",
+        description = "Add Remove List Update Link Unlink Mappings",
+        prog = 'snap mapping',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_mapping = parsers_mapping.add_subparsers()
+
+    # mapping select common args
+    share_mapping_parser = argparse.ArgumentParser(add_help=False)
+    share_mapping_parser.add_argument('-project', required=True, help="ContractID or ProjectID")
+    share_mapping_parser.add_argument('-id', default=None, help="Mapping id", nargs="*", type = int)
+    share_mapping_parser.add_argument('-name', default=None, help="Mapping name")
+    share_mapping_parser.add_argument('-source', default=None, help="Task with source mapping")
+    share_mapping_parser.add_argument('-destination', default=None, help="Task with destination mapping")
+    share_mapping_parser.add_argument('-is_write', default=None, dest='is_write', action='store_true', help="This is a writable mapping")
+    share_mapping_parser.add_argument('-is_not_write', default=None, dest='is_write', action='store_false', help="This is not a writable mapping")
+    share_mapping_parser.add_argument('-is_immediate', default=None, dest='is_immediate', action='store_true', help="This is a immediate mapping")
+    share_mapping_parser.add_argument('-is_not_immediate', default=None, dest='is_immediate', action='store_false', help="This is not a immediate mapping")
+    share_mapping_parser.add_argument('-is_required', default=None, dest='is_required', action='store_true', help="This is a required mapping")
+    share_mapping_parser.add_argument('-is_not_required', default=None, dest='is_required', action='store_false', help="This is not a required mapping")
+    share_mapping_parser.add_argument('-task', default=None, help="Task id", nargs="*", type = int)
+    share_mapping_parser.add_argument('-app', default=None, help="Task app")
+    share_mapping_parser.add_argument('-module', default=None, help="Task module")
+    share_mapping_parser.add_argument('-yes', action='store_true', help="Don't ask.")
+
+    #mapping add
+    subparsers_mapping_add = subparsers_mapping.add_parser('add',
+        help='Add new mapping',
+        description="This command will add new mapping to db.",
+        prog='snap mapping add',
+        parents=[share_mapping_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_mapping_add.set_defaults(func=add_mapping)
 
     # bcs cron
     # bcs cron add
