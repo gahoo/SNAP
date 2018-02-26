@@ -143,17 +143,23 @@ def format_status(status, deleted):
         status = status + " (D)"
     return status
 
-def format_mapping_tbl(mappings):
+def format_mapping_tbl(mappings, size=False):
     tbl = PrettyTable()
-    tbl.field_names = ['id', 'name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required']
+    fields = ['id', 'name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required']
+    if size:
+        fields += ['size']
+    tbl.field_names = fields
     tbl.align['source'] = "l"
     tbl.align['destination'] = "l"
+    tbl.align['size'] = "r"
     for m in mappings:
         if m.exists():
             destination = dyeOKGREEN(m.destination)
         else:
             destination = dyeFAIL(m.destination)
         row = [m.id, m.name, m.source, destination, m.is_write, m.is_immediate, m.is_required]
+        if size:
+            row += [human_size(m.size())]
         tbl.add_row(row)
 
     return tbl

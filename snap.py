@@ -240,7 +240,7 @@ def show_task(args):
         if args.jobs:
             task.show_bcs_tbl(args.instance)
         if args.mappings:
-            task.show_mapping_tbl()
+            task.show_mapping_tbl(args.size)
         if args.depends:
             task.show_depends_tbl()
         if args.script:
@@ -324,7 +324,7 @@ def list_mapping(args):
         mappings = proj.query_task_mappings(args)
     else:
         mappings = proj.query_mappings(args, fuzzy=args.fuzzy)
-    print format_mapping_tbl(mappings).get_string(sortby="destination")
+    print format_mapping_tbl(mappings, args.size).get_string(sortby=args.sort)
 
 def show_mapping(args):
     def show_each_mapping(mapping):
@@ -639,6 +639,7 @@ if __name__ == "__main__":
     subparsers_task_show.add_argument('-jobs', default=False, action='store_true', help="Show jobs or not")
     subparsers_task_show.add_argument('-instance', default=False, action='store_true', help="Show instance detail or not")
     subparsers_task_show.add_argument('-mappings', default=False, action='store_true', help="Show mappings or not")
+    subparsers_task_show.add_argument('-size', default=False, action='store_true', help="Show mappings size")
     subparsers_task_show.add_argument('-depends', action='store_true', help="Show depends or not")
     subparsers_task_show.add_argument('-script', action='store_true', help="Show script on oss")
     subparsers_task_show.set_defaults(func=show_task)
@@ -790,7 +791,9 @@ if __name__ == "__main__":
     subparsers_mapping_list.add_argument('-status', default=None, help="Task status", nargs="*")
     subparsers_mapping_list.add_argument('-app', default=None, help="Task app")
     subparsers_mapping_list.add_argument('-module', default=None, help="Task module")
+    subparsers_mapping_list.add_argument('-size', default=False, action='store_true', help="Show size of mapping")
     subparsers_mapping_list.add_argument('-fuzzy', default=False, action='store_true', help="Fuzzy search source and destination")
+    subparsers_mapping_list.add_argument('-sort', default='destination', choices=['id', 'name', 'source', 'destination', 'size'], help="Fuzzy search source and destination")
     subparsers_mapping_list.set_defaults(func=list_mapping)
 
     #mapping show
