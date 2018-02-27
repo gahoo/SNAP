@@ -38,4 +38,11 @@ def human_size(num):
         num /= 1024.0
     return "%.1f %sB" % (num, 'Y')
 
+def question(msg):
+    confirm = raw_input(msg)
+    if confirm not in ['y', 'yes']:
+        return False
+    else:
+        return True
+
 concat = lambda x, y: x + y
