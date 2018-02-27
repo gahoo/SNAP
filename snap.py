@@ -15,6 +15,7 @@ from core.misc import *
 from core.ali.price import app as price_app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import IntegrityError
 from crontab import CronTab
 
 def new_app(args):
@@ -345,9 +346,13 @@ def update_mapping(args):
     setting = {k:v for k,v in args._get_kwargs() if k in ('name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required', 'task') and v is not None}
 
     if setting and mappings:
-        map(lambda x: x.update(**setting), mappings)
-        proj.session.commit()
-        print "Changes commited."
+        try:
+            map(lambda x: x.update(**setting), mappings)
+            proj.session.commit()
+            print "Changes commited."
+        except IntegrityError, e:
+            proj.session.rollback()
+            print dyeFAIL("There might be an identical mapping exists. Failed to change.\n" + str(e))
 
 def remove_mapping(args):
     proj = load_project(args.project)
