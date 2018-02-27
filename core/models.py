@@ -19,6 +19,7 @@ from core.ali.bcs import CLIENT
 from core.ali import ALI_CONF
 from core.ali.oss import BUCKET, oss2key, OSSkeys, read_object
 from core.formats import *
+from core.misc import *
 from colorMessage import dyeWARNING, dyeFAIL, dyeOKGREEN
 from collections import Counter
 from oss2.exceptions import NoSuchKey
@@ -216,6 +217,50 @@ class Project(Base):
             mappings = self.query_mappings(args, fuzzy=False)
             print dyeFAIL('Following mapping already exists.')
             print format_mapping_tbl(mappings)
+
+    def remove_mapping(self, args):
+        def remove_mapping_task(mapping):
+            affected_task.extend([t for t in mapping.task if t.id in args.task])
+            mapping.task = [t for t in mapping.task if t.id not in args.task]
+
+        def clean_mapping_task(mapping):
+            mapping.task = []
+
+        def get_mapping_tasks(mappings):
+            tasks = []
+            map(lambda x: tasks.extend(x.task), mappings)
+            return set(tasks)
+
+        def unlink_mapping_tasks(mappings, tasks):
+            tids = " ".join([str(t.id) for t in tasks])
+            msg = dyeWARNING('Unlink all related Task({tids})?[y/n]: '.format(tids=tids))
+            if args.task:
+                affected_task = []
+                map(remove_mapping_task, mappings)
+                self.session.commit()
+                print dyeOKGREEN('Affected tasks:')
+                print format_tasks_tbl(affected_task)
+            elif tids and (args.yes or question(msg)):
+                map(clean_mapping_task, mappings)
+                self.session.commit()
+                print dyeOKGREEN('Affected tasks:')
+                print format_tasks_tbl(tasks)
+
+        def delete_mappings(mappings_no_task):
+            if mappings_no_task:
+                mids = " ".join([str(m.id) for m in mappings_no_task])
+                msg = "Mapping({mids}) without task will be deleted, proceed?[y/n]: ".format(mids=mids)
+                if args.yes or question(dyeWARNING(msg)):
+                    map(self.session.delete, mappings_no_task)
+                    self.session.commit()
+                    print dyeOKGREEN('Deleted Mappings:')
+                    print format_mapping_tbl(mappings_no_task)
+
+        mappings = self.query_mappings(args, fuzzy=args.fuzzy)
+        tasks = get_mapping_tasks(mappings)
+        unlink_mapping_tasks(mappings, tasks)
+        mappings_no_task = [m for m in mappings if not m.task]
+        delete_mappings(mappings_no_task)
 
     def count_active_jobs(self):
         return self.session.query(Bcs).filter(Bcs.status.in_(['Waiting', 'Running'])).count()

@@ -350,40 +350,8 @@ def update_mapping(args):
         print "Changes commited."
 
 def remove_mapping(args):
-    def remove_mapping_task(mapping):
-        affected_task.extend([t for t in mapping.task if t.id in args.task])
-        mapping.task = [t for t in mapping.task if t.id not in args.task]
-
-    def clean_mapping_task(mapping):
-        mapping.task = []
-
     proj = load_project(args.project)
-    mappings = proj.query_mappings(args, fuzzy=args.fuzzy)
-    tasks = []
-    map(lambda x: tasks.extend(x.task), mappings)
-    tids = " ".join([str(t.id) for t in tasks])
-    msg = dyeWARNING('Unlink all related Task({tids})?[y/n]: '.format(tids=tids))
-    if args.task:
-        affected_task = []
-        map(remove_mapping_task, mappings)
-        proj.session.commit()
-        print dyeOKGREEN('Affected tasks:')
-        print format_tasks_tbl(affected_task)
-    elif tids and (args.yes or question(msg)):
-        map(clean_mapping_task, mappings)
-        proj.session.commit()
-        print dyeOKGREEN('Affected tasks:')
-        print format_tasks_tbl(tasks)
-
-    mappings_no_task = [m for m in mappings if not m.task]
-    if mappings_no_task:
-        mids = " ".join([str(m.id) for m in mappings_no_task])
-        msg = "Mapping({mids}) without task will be deleted, proceed?[y/n]: ".format(mids=mids)
-        if args.yes or question(dyeWARNING(msg)):
-            map(proj.session.delete, mappings_no_task)
-            proj.session.commit()
-            print dyeOKGREEN('Deleted Mappings:')
-            print format_mapping_tbl(mappings_no_task)
+    proj.remove_mapping(args)
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
