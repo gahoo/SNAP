@@ -320,7 +320,7 @@ def add_mapping(args):
 
 def list_mapping(args):
     proj = load_project(args.project)
-    if not args.id and (args.task or args.app or args.module or args.status or args.shell):
+    if not args.id and (args.task or args.app or args.module or args.status or args.shell != '.'):
         mappings = proj.query_task_mappings(args)
     else:
         mappings = proj.query_mappings(args, fuzzy=args.fuzzy)
@@ -348,6 +348,42 @@ def update_mapping(args):
         map(lambda x: x.update(**setting), mappings)
         proj.session.commit()
         print "Changes commited."
+
+def remove_mapping(args):
+    def remove_mapping_task(mapping):
+        affected_task.extend([t for t in mapping.task if t.id in args.task])
+        mapping.task = [t for t in mapping.task if t.id not in args.task]
+
+    def clean_mapping_task(mapping):
+        mapping.task = []
+
+    proj = load_project(args.project)
+    mappings = proj.query_mappings(args, fuzzy=args.fuzzy)
+    tasks = []
+    map(lambda x: tasks.extend(x.task), mappings)
+    tids = " ".join([str(t.id) for t in tasks])
+    msg = dyeWARNING('Unlink all related Task({tids})?[y/n]: '.format(tids=tids))
+    if args.task:
+        affected_task = []
+        map(remove_mapping_task, mappings)
+        proj.session.commit()
+        print dyeOKGREEN('Affected tasks:')
+        print format_tasks_tbl(affected_task)
+    elif tids and (args.yes or question(msg)):
+        map(clean_mapping_task, mappings)
+        proj.session.commit()
+        print dyeOKGREEN('Affected tasks:')
+        print format_tasks_tbl(tasks)
+
+    mappings_no_task = [m for m in mappings if not m.task]
+    if mappings_no_task:
+        mids = " ".join([str(m.id) for m in mappings_no_task])
+        msg = "Mapping({mids}) without task will be deleted, proceed?[y/n]: ".format(mids=mids)
+        if args.yes or question(dyeWARNING(msg)):
+            map(proj.session.delete, mappings_no_task)
+            proj.session.commit()
+            print dyeOKGREEN('Deleted Mappings:')
+            print format_mapping_tbl(mappings_no_task)
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -830,6 +866,17 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_mapping_update.add_argument('-task', default=None, help="Related Task id", nargs="*", type = int)
     subparsers_mapping_update.set_defaults(func=update_mapping)
+
+    #mapping rm
+    subparsers_mapping_remove = subparsers_mapping.add_parser('rm',
+        help='remove mappings',
+        description="This command will remove mappings.",
+        prog='snap mapping rm',
+        parents=[share_mapping_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_mapping_remove.add_argument('-task', default=None, help="Related Task id", nargs="*", type = int)
+    subparsers_mapping_remove.add_argument('-fuzzy', default=False, action='store_true', help="Fuzzy search source and destination")
+    subparsers_mapping_remove.set_defaults(func=remove_mapping)
 
     # bcs cron
     # bcs cron add
