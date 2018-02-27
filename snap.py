@@ -336,6 +336,19 @@ def show_mapping(args):
     mappings = proj.query_mappings(args, fuzzy=args.fuzzy)
     map(show_each_mapping, mappings)
 
+def update_mapping(args):
+    proj = load_project(args.project)
+    mappings = proj.session.query(models.Mapping).filter(models.Mapping.id.in_(args.id)).all()
+    if args.task:
+        args.task = proj.session.query(models.Task).filter(models.Task.id.in_(args.task)).all()
+
+    setting = {k:v for k,v in args._get_kwargs() if k in ('name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required', 'task') and v is not None}
+
+    if setting and mappings:
+        map(lambda x: x.update(**setting), mappings)
+        proj.session.commit()
+        print "Changes commited."
+
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
         description = "SNAP is Not A Pipeline.",
@@ -807,6 +820,16 @@ if __name__ == "__main__":
     subparsers_mapping_show.add_argument('-size', default=False, action='store_true', help="Show size of mapping")
     subparsers_mapping_show.add_argument('-tasks', default=False, action='store_true', help="Show related Tasks")
     subparsers_mapping_show.set_defaults(func=show_mapping)
+
+    #mapping update
+    subparsers_mapping_update = subparsers_mapping.add_parser('update',
+        help='update mappings',
+        description="This command will update mappings.",
+        prog='snap mapping update',
+        parents=[share_mapping_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_mapping_update.add_argument('-task', default=None, help="Related Task id", nargs="*", type = int)
+    subparsers_mapping_update.set_defaults(func=update_mapping)
 
     # bcs cron
     # bcs cron add

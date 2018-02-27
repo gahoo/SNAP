@@ -1468,3 +1468,24 @@ class Mapping(Base):
             tids = " ".join([str(t.id) for t in self.task])
             print dyeOKGREEN("Related Tasks: " + tids)
             print format_tasks_tbl(self.task)
+
+    def update(self, **kwargs):
+        task_updated = ''
+        affected_task = []
+        affected_task.extend(self.task)
+        if 'task' in kwargs:
+            old_tids = " ".join([str(t.id) for t in self.task])
+            self.task = kwargs.pop('task')
+            tids = " ".join([str(t.id) for t in self.task])
+            affected_task.extend(self.task)
+            task_updated = "task:\t{old} => {new}".format(old=old_tids, new=tids)
+
+        commom_keys = set(['name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required']) & set(kwargs.keys())
+        old_setting = [self.__getattribute__(k) for k in commom_keys]
+        [self.__setattr__(k, kwargs[k]) for k in commom_keys]
+        kwargs = {k:kwargs[k] for k in commom_keys}
+        updated = "\n".join(["%s:\t%s => %s" % (k, old, new) for k, old, new in zip(commom_keys, old_setting, kwargs.values())])
+        print "\n".join([dyeOKGREEN("Mapping {id} updated:").format(id = self.id), updated, task_updated])
+        if affected_task:
+            print dyeOKGREEN('Affected tasks:')
+            print format_tasks_tbl(set(affected_task))
