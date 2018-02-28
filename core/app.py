@@ -969,7 +969,8 @@ class App(dict):
             if show_json:
                 map(lambda x:x.show_json(cache=False), tasks)
 
-        kwargs.pop('name')
+        if 'name' in kwargs:
+            kwargs.pop('name')
         kwargs['parameter_file'] = kwargs.pop('param')
         kwargs['dependence_file'] = kwargs.pop('depend')
         self.is_run = True
