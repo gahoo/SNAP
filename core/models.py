@@ -194,9 +194,12 @@ class Project(Base):
 
     def add_mapping(self, args):
         def get_task():
-            dummy_args = Namespace(id = None, status = None, shell = None, app = None, module = None)
-            dummy_args.id = args.task
-            tasks = self.query_tasks(dummy_args)
+            if args.task:
+                dummy_args = Namespace(id = None, status = None, shell = None, app = None, module = None)
+                dummy_args.id = args.task
+                tasks = self.query_tasks(dummy_args)
+            else:
+                tasks = []
             return tasks
 
         keys = ['name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required']
@@ -235,7 +238,6 @@ class Project(Base):
             tids = " ".join([str(t.id) for t in tasks])
             msg = dyeWARNING('Unlink all related Task({tids})?[y/n]: '.format(tids=tids))
             if args.task:
-                affected_task = []
                 map(remove_mapping_task, mappings)
                 self.session.commit()
                 print dyeOKGREEN('Affected tasks:')
@@ -258,6 +260,7 @@ class Project(Base):
 
         mappings = self.query_mappings(args, fuzzy=args.fuzzy)
         tasks = get_mapping_tasks(mappings)
+        affected_task = []
         unlink_mapping_tasks(mappings, tasks)
         mappings_no_task = [m for m in mappings if not m.task]
         delete_mappings(mappings_no_task)
