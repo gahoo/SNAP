@@ -358,6 +358,9 @@ def remove_mapping(args):
     proj = load_project(args.project)
     proj.remove_mapping(args)
 
+def sync_mapping(args):
+    proj = load_project(args.project)
+
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
         description = "SNAP is Not A Pipeline.",
@@ -841,15 +844,30 @@ if __name__ == "__main__":
     subparsers_mapping_update.set_defaults(func=update_mapping)
 
     #mapping rm
-    subparsers_mapping_remove = subparsers_mapping.add_parser('rm',
+    subparsers_mapping_remove = subparsers_mapping.add_parser('remove',
         help='remove mappings',
         description="This command will remove mappings.",
-        prog='snap mapping rm',
+        prog='snap mapping remove',
         parents=[share_mapping_parser],
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_mapping_remove.add_argument('-task', default=None, help="Related Task id", nargs="*", type = int)
     subparsers_mapping_remove.add_argument('-fuzzy', default=False, action='store_true', help="Fuzzy search source and destination")
     subparsers_mapping_remove.set_defaults(func=remove_mapping)
+
+    #mapping sync
+    subparsers_mapping_sync = subparsers_mapping.add_parser('sync',
+        help='sync mappings',
+        description="This command will download or upload mappings.",
+        prog='snap mapping sync',
+        parents=[share_mapping_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_mapping_sync.add_argument('-fuzzy', default=False, action='store_true', help="Fuzzy search source and destination")
+    subparsers_mapping_sync.add_argument('-task', default=None, help="Related Task id", nargs="*", type = int)
+    subparsers_mapping_sync.add_argument('-shell', default='.', help="Task shell")
+    subparsers_mapping_sync.add_argument('-status', default=None, help="Task status", nargs="*")
+    subparsers_mapping_sync.add_argument('-app', default=None, help="Task app")
+    subparsers_mapping_sync.add_argument('-module', default=None, help="Task module")
+    subparsers_mapping_sync.set_defaults(func=sync_mapping)
 
     # bcs cron
     # bcs cron add
