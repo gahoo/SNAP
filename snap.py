@@ -417,6 +417,7 @@ if __name__ == "__main__":
     subparsers_app_run.add_argument('-disk_type', help="Overwrite app disk type")
     subparsers_app_run.add_argument('-disk_size', help="Overwrite app disk size")
     subparsers_app_run.add_argument('-cluster', help="Run on which cluster")
+    subparsers_app_run.add_argument('-discount', type=float, help="Run on which cluster")
     subparsers_app_run.add_argument('-upload', default=False, action='store_true', help="Auto upload scripts")
     subparsers_app_run.add_argument('-all', default=False, action='store_true', help="Run all scripts")
     subparsers_app_run.add_argument('-show_json', default=False, action='store_true', help="Show json")
