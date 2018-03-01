@@ -971,6 +971,8 @@ class App(dict):
 
         if 'name' in kwargs:
             kwargs.pop('name')
+        if 'config' in kwargs:
+            self.config_file = kwargs.pop('config')
         kwargs['parameter_file'] = kwargs.pop('param')
         kwargs['dependence_file'] = kwargs.pop('depend')
         self.is_run = True
