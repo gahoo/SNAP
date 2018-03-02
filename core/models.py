@@ -178,6 +178,18 @@ class Project(Base):
             args.id = args.task
         tasks = self.query_tasks(args)
         mappings = set(sum([t.mapping for t in tasks], []))
+
+        kwargs = {k:v for k,v in args._get_kwargs() if k in ('name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required', 'fuzzy') and v is not None}
+        mappings = self.filter_mappings(mappings, **kwargs)
+        return mappings
+
+    def filter_mappings(self, mappings, **kwargs):
+        is_fuzzy = kwargs.pop('fuzzy')
+        for k in kwargs:
+            if is_fuzzy:
+                mappings = filter(lambda x: kwargs[k] in x.__getattribute__(k), mappings)
+            else:
+                mappings = filter(lambda x: x.__getattribute__(k) == kwargs[k], mappings)
         return mappings
 
     def query_bcs(self, args):
