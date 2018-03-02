@@ -6,6 +6,7 @@ import os
 import logging
 import pdb
 import functools
+import commands
 from core.app import App
 from core.pipe import WorkflowParameter
 from core.pipe import Pipe
@@ -320,12 +321,16 @@ def add_mapping(args):
     proj.add_mapping(args)
 
 def list_mapping(args):
+    mappings = query_mappings(args)
+    print format_mapping_tbl(mappings, args.size).get_string(sortby=args.sort)
+
+def query_mappings(args):
     proj = load_project(args.project)
     if not args.id and (args.task or args.app or args.module or args.status or args.shell != '.'):
         mappings = proj.query_task_mappings(args)
     else:
         mappings = proj.query_mappings(args, fuzzy=args.fuzzy)
-    print format_mapping_tbl(mappings, args.size).get_string(sortby=args.sort)
+    return mappings
 
 def show_mapping(args):
     def show_each_mapping(mapping):
@@ -359,7 +364,16 @@ def remove_mapping(args):
     proj.remove_mapping(args)
 
 def sync_mapping(args):
-    proj = load_project(args.project)
+    def check_ossutil_exist():
+        EXIT_CODE, OSSUTIL_PATH = commands.getstatusoutput('which ossutil')
+        if EXIT_CODE != 0:
+            print dyeWARNING('ossutil not found.')
+            os._exit(1)
+
+    check_ossutil_exist()
+    mappings = query_mappings(args)
+    map(lambda x: x.sync(overwrite=args.overwrite), mappings)
+
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -868,6 +882,7 @@ if __name__ == "__main__":
     subparsers_mapping_sync.add_argument('-status', default=None, help="Task status", nargs="*")
     subparsers_mapping_sync.add_argument('-app', default=None, help="Task app")
     subparsers_mapping_sync.add_argument('-module', default=None, help="Task module")
+    subparsers_mapping_sync.add_argument('-overwrite', default=False, action='store_true', help="overwrite snap.db")
     subparsers_mapping_sync.set_defaults(func=sync_mapping)
 
     # bcs cron
