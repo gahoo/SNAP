@@ -1537,3 +1537,66 @@ class Mapping(Base):
         if affected_task:
             print dyeOKGREEN('Affected tasks:')
             print format_tasks_tbl(set(affected_task))
+
+    def sync(self, overwrite=False):
+        if self.is_write:
+            self.download(overwrite)
+        else:
+            self.upload(overwrite)
+
+    def download(self, overwrite=False):
+        self._ossutil(self.destination, self.source, overwrite)
+
+    def upload(self, overwrite=False):
+        self._ossutil(self.source, self.destination, overwrite)
+
+    def _ossutil(self, source, destination, overwrite=False):
+        def is_path_exists(path):
+            if path.startswith('oss://'):
+                return self.exists()
+            else:
+                return os.path.exists(path)
+
+        def dye_path(is_exists, path):
+            if is_exists:
+                return dyeOKGREEN(path)
+            else:
+                return dyeFAIL(path)
+
+        def is_dir(path):
+            return path.endswith('/') or (not path.startswith('oss://') and os.path.isdir(path))
+
+        def traversal_key(source, destination):
+            if source.startswith('oss://') and source.endswith('/'):
+                key = oss2key(source)
+                sources = [obj.key for obj in ObjectIterator(BUCKET, prefix=key)]
+                sources = filter(lambda x:not x.endswith('/'), sources)
+                destinations = [destination + s.replace(key, '') for s in sources]
+                sources = ["oss://{bucket}/{key}".format(bucket=BUCKET.bucket_name, key=s) for s in sources]
+            else:
+                sources = [source]
+                destinations = [destination]
+            return zip(sources, destinations)
+
+        def cp(src, dest):
+            cmdline = " ".join(cmd + [src, dest])
+            os.system(cmdline)
+
+        cmd = ['ossutil', 'cp']
+        if not source.startswith('oss://') and is_dir(source):
+            cmd.append('-r')
+        if overwrite:
+            cmd.append('-f')
+
+        is_source_exists = is_path_exists(source)
+        is_destination_exists = is_path_exists(destination)
+        msg = 'Mapping({id}) %s: {source} => {dest}'.format(
+          id=self.id,
+          dest=dye_path(is_destination_exists, destination),
+          source=dye_path(is_source_exists, source))
+
+        if (overwrite or not is_destination_exists) and is_source_exists:
+            print dyeOKBLUE(msg % 'Syncing')
+            [cp(src, dest) for src, dest in traversal_key(source, destination)]
+        else:
+            print dyeWARNING(msg % 'Skipped')
