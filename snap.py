@@ -316,6 +316,11 @@ def cyto_task(args):
     proj = load_project(args.project)
     proj.cytoscape(args)
 
+def attach_task(args):
+    proj = load_project(args.project)
+    tasks = proj.query_tasks(args)
+    tasks[0].attach()
+
 def add_mapping(args):
     proj = load_project(args.project)
     proj.add_mapping(args)
@@ -785,6 +790,14 @@ if __name__ == "__main__":
     subparsers_task_cyto.add_argument('-size', default='elapsed', choices=('elapsed', 'cpu', 'mem', 'data'), help="What does size map")
     subparsers_task_cyto.set_defaults(func=cyto_task)
 
+    #task attach
+    subparsers_task_attach = subparsers_task.add_parser('attach',
+        help='Attach to running task. debug_mode must be True',
+        description="This command will attach to running task for easy debug.",
+        prog='snap task attach',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_attach.set_defaults(func=attach_task)
 
     # mapping
     parsers_mapping = subparsers.add_parser('mapping',
