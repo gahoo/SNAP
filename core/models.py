@@ -851,6 +851,7 @@ class Task(Base):
             msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
             print dyeFAIL(msg + str(e))
             self.project.logger.error(msg + str(e))
+            print bcs.job
             raise ClientError(e)
             self.fail()
 
