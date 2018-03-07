@@ -1277,6 +1277,17 @@ class Task(Base):
             self.project.finish_date = None
             self.save()
 
+    def attach(self):
+        if self.aasm_state not in ['waiting', 'running']:
+            print dyeWARNING('Task status is not running.')
+        elif not self.debug_mode:
+            print dyeWARNING('debug_mode is not True.')
+        elif not self.bcs:
+            print dyeWARNING('No task submited yet.')
+        elif self.debug_mode and self.bcs:
+            bcs = self.bcs[-1]
+            bcs.attach()
+
 class Bcs(Base):
     __tablename__ = 'bcs'
 
@@ -1430,6 +1441,15 @@ class Bcs(Base):
             return read_cache()
         else:
             return None
+
+    def attach(self):
+        key = oss2key(self.stdout)
+        content = read_object(key, (0, 5000))
+        ssh = filter(lambda x:x.startswith('ssh'), content.split('\n'))
+        if ssh:
+            os.system(ssh.pop())
+        else:
+            print dyeWARNING('Is debug mode really on? Is this image has tmate? Or maybe task is still waiting')
 
 class Instance(Base):
     __tablename__ = 'instance'
