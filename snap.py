@@ -206,6 +206,10 @@ def instance_bcs(args):
 def price_bcs(args):
     price_app.run_server(host='0.0.0.0', port=args.port)
 
+def inspect_bcs(args):
+    proj = load_project(args.project)
+    proj.interactive_task(args.docker_image, inputs=args.inputs, outputs=args.outputs, instance_type=args.instance, cluster=args.cluster, timeout=args.timeout)
+
 def load_project(name):
     matches = filter(lambda x:name in x, db.keys())
     n_matches = len(matches)
@@ -637,6 +641,21 @@ if __name__ == "__main__":
     #    formatter_class=argparse.RawTextHelpFormatter)
     #subparsers_bcs_task.add_argument('-project', default=None, help="ContractID or ProjectID, syn all project in ~/.snap/db.yaml")
     #subparsers_bcs_task.set_defaults(func=sync_bcs)
+
+    #bcs inspect
+    subparsers_bcs_inspect = subparsers_bcs.add_parser('inspect',
+        help='Inspect Project.',
+        description="This command will enter interactive shell for inspect.",
+        prog='snap bcs inspect',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_bcs_inspect.add_argument('-project', default=None, required=True, help="ContractID or ProjectID")
+    subparsers_bcs_inspect.add_argument('-docker_image', default='alpine:3.7-2.2.1a-2', help="docker image for the shell")
+    subparsers_bcs_inspect.add_argument('-inputs', help="input mappings, k:v paris. local_dir:oss_dir", nargs="*")
+    subparsers_bcs_inspect.add_argument('-outputs', help="output mappings, k:v paris. local_dir:oss_dir", nargs="*")
+    subparsers_bcs_inspect.add_argument('-instance', default='ecs.sn1.medium', help="which instance to use.")
+    subparsers_bcs_inspect.add_argument('-cluster', help="which cluster to use.")
+    subparsers_bcs_inspect.add_argument('-timeout', default=600, help="Auto quit timeout.", type=int)
+    subparsers_bcs_inspect.set_defaults(func=inspect_bcs)
 
     # task
     parsers_task = subparsers.add_parser('task',

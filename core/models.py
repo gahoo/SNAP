@@ -30,10 +30,12 @@ from jinja2 import Template
 import functools
 import getpass
 import datetime
+import time
 import os
 import json
 import csv
 import pdb
+import sys
 
 Base = declarative_base()
 
@@ -650,6 +652,117 @@ class Project(Base):
             clean_total += obj.size
 
         return {'clean': round(float(clean_total) / 2 ** 30, 3), 'project': round(float(total) / 2 ** 30, 3)}
+
+    def interactive_task(self, docker_image, inputs, outputs, instance_type, instance_image=None, cluster=None, timeout=60):
+        def build_env():
+            docker_oss_path = os.path.join('oss://', ALI_CONF['bucket'], ALI_CONF['docker_registry_oss_path']) + '/'
+            return {
+                "DEBUG": "TRUE",
+                "TMATE_SERVER": ALI_CONF.get('tmate_server'),
+                "BATCH_COMPUTE_DOCKER_IMAGE": "localhost:5000/" + docker_image,
+                "BATCH_COMPUTE_DOCKER_REGISTRY_OSS_PATH": docker_oss_path
+            }
+
+        def prepare_cluster():
+            cluster = AutoCluster()
+
+            if instance_image is None:
+                cluster.ImageId = ALI_CONF['default_image']
+            else:
+                cluster.ImageId = instance_image
+            cluster.InstanceType = instance_type
+
+            if cluster.InstanceType.startswith('bcs.'):
+                cluster.ResourceType = "OnDemand"
+            else:
+                cluster.ResourceType = "Spot"
+                cluster.SpotStrategy = "SpotAsPriceGo"
+
+            cluster.Configs.Networks.VPC.CidrBlock = ALI_CONF['vpc_cidr_block']
+            cluster.Configs.Networks.VPC.VpcId = ALI_CONF['vpc_id']
+
+            return cluster
+
+        def prepare_mapipngs(pairs):
+            mappings = {}
+            if pairs is None:
+                return {}
+            for pair in pairs:
+                (source, destination) = pair.split(":", 1)
+                mappings[source] = destination
+
+            return mappings
+
+        def prepare_task():
+            task = TaskDescription()
+            task.Parameters.Command.CommandLine = "sh -l -c 'sleep {timeout}'".format(timeout=timeout)
+            task.Parameters.Command.EnvVars = build_env()
+            task.Parameters.StdoutRedirectPath = "oss://{bucket}/project/{name}/log/".format(bucket=ALI_CONF['bucket'], name=self.name)
+            task.Parameters.StderrRedirectPath = "oss://{bucket}/project/{name}/log/".format(bucket=ALI_CONF['bucket'], name=self.name)
+            task.WriteSupport = True
+
+            input_mapping = prepare_mapipngs(inputs)
+            input_mapping.update({self.path: "oss://{bucket}/project/{name}/".format(bucket=ALI_CONF['bucket'], name=self.name)})
+            task.Mounts.Entries = [MountEntry({'Source': oss, 'Destination': local, 'WriteSupport':True}) for local, oss in input_mapping.iteritems()]
+
+            output_mapping = prepare_mapipngs(outputs)
+            output_mapping.update({os.path.join(self.path, 'inspector') + '/': "oss://{bucket}/project/{name}/inspector/".format(bucket=ALI_CONF['bucket'], name=self.name)})
+            task.OutputMapping = output_mapping
+
+            task.Timeout = 86400 * 3
+            task.MaxRetryCount = 0
+            if cluster:
+                task.ClusterId = cluster
+            else:
+                task.AutoCluster = prepare_cluster()
+
+            return task
+
+        def submit_job(task):
+            job = JobDescription()
+            job.Name = '{name}-inspector'.format(name=self.name)
+            job.Description = '{name}-inspector'.format(name=self.name)
+            job.DAG.add_task('inspector', task)
+            job.Priority = 100
+            job.AutoRelease = True
+            return CLIENT.create_job(job).Id
+
+        def check_stdout(id):
+            log_id = "{id}.inspector.0".format(id = id)
+            stdout = os.path.join(task.Parameters.StdoutRedirectPath, "stdout." + log_id)
+            key = oss2key(stdout)
+            content = read_object(key, (0, 5000), False)
+            ssh = filter(lambda x:x.startswith('ssh'), content.split('\n'))
+            return ssh
+
+        def check_status(id):
+            info = CLIENT.get_job(id)
+            return info.State
+
+        def wait4connect(id):
+            print dyeOKBLUE('Inspector has been submit. Please wait until connection established. 1~5 min is normal. Make sure your docker image supports debug mode.')
+            ssh = []
+            progress = '\r'
+            while not ssh:
+                if check_status(id) == 'Running':
+                    ssh = check_stdout(id)
+                elif check_status(id) == 'Failed':
+                    print dyeFAIL('\ninspect failed.')
+                    print CLIENT.get_instance(id, 'inspector', 0).get('Result')
+                    print CLIENT.get_job(id).get('Message')
+                    return
+                sys.stdout.write(progress)
+                sys.stdout.flush()
+                progress += '='
+                time.sleep(15)
+            os.system(ssh.pop())
+
+        task = prepare_task()
+        id = submit_job(task)
+        wait4connect(id)
+        if check_status(id) == 'Running':
+            CLIENT.stop_job(id)
+        CLIENT.delete_job(id)
 
 class Module(Base):
     __tablename__ = 'module'
