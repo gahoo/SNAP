@@ -34,13 +34,14 @@ class OSSkeys(object):
             raise StopIteration()
 
 
-def read_object(key, byte_range = None):
+def read_object(key, byte_range = None, warn=True):
     try:
         meta = BUCKET.get_object_meta(key)
     except Exception, e:
         if not isinstance(e, NoSuchKey):
             raise e
-        print dyeWARNING("{key} not found.".format(key=key))
+        if warn:
+            print dyeWARNING("{key} not found.".format(key=key))
         return ''
 
     if byte_range is None and meta.content_length > 100 * 1024:
