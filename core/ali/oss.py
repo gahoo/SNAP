@@ -68,6 +68,18 @@ def is_size_differ_and_newer(source, destination):
     else:
         return False
 
+def is_source_newer(source, destination):
+    key = oss2key(destination)
+    meta = BUCKET.get_object_meta(key)
+    msg = 'Warning: {source}({source_size}) is newer than {destination}({destination_size})'
+    print dyeWARNNING(msg)
+    return int(int(os.path.getmtime(source))) > meta.last_modified
+
+def is_size_differ(source, destination):
+    key = oss2key(destination)
+    meta = BUCKET.get_object_meta(key)
+    return os.path.getsize(source) != meta.content_length
+
 if ALI_CONF:
     endpoint = "http://oss-%s.aliyuncs.com" % ALI_CONF['region']
     AUTH = oss2.Auth(ALI_CONF['accesskey_id'], ALI_CONF['accesskey_secret'])
