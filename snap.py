@@ -738,7 +738,7 @@ if __name__ == "__main__":
     subparsers_task_update.add_argument('-benchmark', default=None, dest='benchmark', action='store_true', help="set task benchmark true")
     subparsers_task_update.add_argument('-no-benchmark', default=None, dest='benchmark', action='store_false', help="set task benchmark false")
     subparsers_task_update.add_argument('-state', help="Update task status")
-    subparsers_task_update.add_argument('-mappings', nargs="*", help="Update task mappings. Format: <mapping_id,name,source,destination,is_write,is_immediate>. No name or source or destination will delete mapping")
+    subparsers_task_update.add_argument('-mappings', nargs="*", help="Update task mappings. Mapping id is needed.")
     subparsers_task_update.set_defaults(func=update_task)
 
     #task restart

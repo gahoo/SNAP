@@ -1299,27 +1299,11 @@ class Task(Base):
         self.save()
 
     def update(self, **kwargs):
-        def update_mapping(mapping):
-            (mid, name, source, destination, is_write, is_immediate, is_required) = mapping.split(',')
-            if not mid:
-                m = Mapping()
+        def update_mapping(mappings):
+            if mappings:
+                return self.project.session.query(Mapping).filter(Mapping.id.in_(mappings)).all()
             else:
-                m = self.project.session.query(Mapping).filter_by(id = mid).one()
-
-            if name is '' or source is '' or destination is '':
-                self.project.session.delete(m)
-            else:
-                m.name = name
-                m.source = source
-                m.destination = destination
-                m.is_write = eval(is_write)
-                m.is_immediate = eval(is_immediate)
-                m.is_required = eval(is_required)
-
-            if not mid or mid not in map(lambda x:x.id, self.mapping):
-                self.mapping.append(m)
-
-            return m
+                return []
 
         if 'instance' in kwargs:
             instance_name = kwargs.pop('instance')
@@ -1333,9 +1317,9 @@ class Task(Base):
             instance_updated = ""
 
         if 'mappings' in kwargs:
-            mappings = map(update_mapping, kwargs.pop('mappings'))
+            self.mapping = update_mapping(kwargs.pop('mappings'))
             print dyeOKGREEN("Mappings Changed:")
-            print format_mapping_tbl(mappings)
+            print format_mapping_tbl(self.mapping)
 
         commom_keys = set(['cpu', 'mem', 'docker_image', 'disk_size', 'disk_type', 'debug_mode', 'benchmark', 'aasm_state']) & set(kwargs.keys())
         old_setting = [self.__getattribute__(k) for k in commom_keys]
