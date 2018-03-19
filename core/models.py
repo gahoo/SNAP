@@ -107,8 +107,8 @@ class Project(Base):
         to_check = [t for t in self.task if t.is_created or t.is_pending or t.is_failed]
         map(lambda x:x.check(), to_sync)
         map(lambda x:x.check(), to_check)
-        self.log_date()
         self.notify()
+        self.log_date()
 
     def log_date(self):
         if not self.start_date:
@@ -120,15 +120,15 @@ class Project(Base):
             self.save()
 
     def notify(self):
-        is_work_time = datetime.datetime.now().hour in range(8, 19)
+        is_work_time = datetime.datetime.now().hour in range(8, 21)
         if self.message and is_work_time:
             task_info = "\n".join(self.message)
-            message = "# {project}\n{task}".format(project=self.name, task=task_info)
+            message = "**{project} ({progress}%)**\n{task}".format(project=self.name, progress=self.progress(), task=task_info)
             send_msg(message, title=self.name)
 
         all_finished = all([t.is_finished or t.is_cleaned for t in self.task])
-        if all_finished and is_work_time:
-            message = "{project}: all task finished.".format(project=self.name)
+        if not self.finish_date and all_finished and is_work_time:
+            message = "**{project} (100%)**".format(project=self.name)
             send_msg(message, title=self.name)
 
     def poll(self):
@@ -1403,8 +1403,8 @@ class Task(Base):
 
     @after('fail')
     def enqueue_failed_message(self):
-        if self.reach_max_jobs():
-            msg = "{id}\t{module}.{app}\t{sh}\t{status}".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell), status=self.aasm_state)
+        if self.reach_max_failed(3):
+            msg = "- <{id}> *{sh}* {status} | [detail](#)".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell), status=self.aasm_state)
             self.project.message.append(msg)
 
 class Bcs(Base):
