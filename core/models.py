@@ -20,6 +20,7 @@ from core.ali import ALI_CONF
 from core.ali.oss import BUCKET, oss2key, OSSkeys, read_object
 from core.formats import *
 from core.misc import *
+from core.notification.dingtalk import send_msg
 from colorMessage import dyeWARNING, dyeFAIL, dyeOKGREEN
 from collections import Counter
 from oss2.exceptions import NoSuchKey
@@ -91,6 +92,7 @@ class Project(Base):
 
     session = None
     logger = None
+    message = []
 
     def __repr__(self):
         return "<Project(id={id}, name={name})>".format(id=self.id, name=self.name)
@@ -106,6 +108,7 @@ class Project(Base):
         map(lambda x:x.check(), to_sync)
         map(lambda x:x.check(), to_check)
         self.log_date()
+        self.notify()
 
     def log_date(self):
         if not self.start_date:
@@ -115,6 +118,18 @@ class Project(Base):
         if not self.finish_date and all_finished:
             self.finish_date = datetime.datetime.now()
             self.save()
+
+    def notify(self):
+        is_work_time = datetime.datetime.now().hour in range(8, 19)
+        if self.message and is_work_time:
+            task_info = "\n".join(self.message)
+            message = "# {project}\n{task}".format(project=self.name, task=task_info)
+            send_msg(message, title=self.name)
+
+        all_finished = all([t.is_finished or t.is_cleaned for t in self.task])
+        if all_finished and is_work_time:
+            message = "{project}: all task finished.".format(project=self.name)
+            send_msg(message, title=self.name)
 
     def poll(self):
         bcs = self.session.query(Bcs).filter( (Bcs.status=='Waiting') | (Bcs.status=='Running') ).all()
@@ -1385,6 +1400,12 @@ class Task(Base):
         elif self.debug_mode and self.bcs:
             bcs = self.bcs[-1]
             bcs.attach()
+
+    @after('fail')
+    def enqueue_failed_message(self):
+        if self.reach_max_jobs():
+            msg = "{id}\t{module}.{app}\t{sh}\t{status}".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell), status=self.aasm_state)
+            self.project.message.append(msg)
 
 class Bcs(Base):
     __tablename__ = 'bcs'
