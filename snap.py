@@ -89,13 +89,22 @@ def build_pipe(args):
         os._exit(0)
 
 def config_bcs(args):
+    def update_config(conf_file, new_conf):
+        if not new_conf:
+            return
+        conf = {}
+        if os.path.exists(conf_file):
+            conf = loadYaml(conf_file)
+        conf.update(new_conf)
+        dumpYaml(conf_file, conf)
+
     ali_conf_file = os.path.expanduser("~/.snap/ali.conf")
-    conf = {}
-    if os.path.exists(ali_conf_file):
-        conf = loadYaml(ali_conf_file)
-    new_conf = {k:v for k,v in args._get_kwargs() if v and k != 'func'}
-    conf.update(new_conf)
-    dumpYaml(ali_conf_file, conf)
+    ali_new_conf = {k:v for k,v in args._get_kwargs() if v and k not in ('func', 'access_token', 'mobile')}
+    update_config(ali_conf_file, ali_new_conf)
+
+    dingtalk_conf_file = os.path.expanduser("~/.snap/dingtalk.conf")
+    dingtalk_new_conf = {k:v for k,v in args._get_kwargs() if v and k in ('access_token', 'mobile')}
+    update_config(dingtalk_conf_file, dingtalk_new_conf)
 
 def sync_bcs(args):
     if not args.project:
@@ -526,6 +535,8 @@ if __name__ == "__main__":
     subparsers_bcs_config.add_argument('-vpc_cidr_block', default='172.16.0.0/16', help="VPC cidr block for access other ECS instance.")
     subparsers_bcs_config.add_argument('-tmate_server', help="tmate server IP.")
     subparsers_bcs_config.add_argument('-benchmark_interval', help="tmate server IP.")
+    subparsers_bcs_config.add_argument('-access_token', help="Access token for dingtalk notification")
+    subparsers_bcs_config.add_argument('-mobile', type=int, help="mobile phone for dingtalk notification")
     subparsers_bcs_config.set_defaults(func=config_bcs)
 
     # bcs stat
