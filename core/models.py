@@ -120,7 +120,7 @@ class Project(Base):
             self.save()
 
     def notify(self):
-        is_work_time = datetime.datetime.now().hour in range(8, 21)
+        is_work_time = datetime.datetime.now().hour in range(8, 19)
         if self.message and is_work_time:
             task_info = "\n".join(self.message)
             message = "**{project} ({progress}%)**\n{task}".format(project=self.name, progress=self.progress(), task=task_info)
