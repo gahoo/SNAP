@@ -536,7 +536,7 @@ if __name__ == "__main__":
     subparsers_bcs_config.add_argument('-tmate_server', help="tmate server IP.")
     subparsers_bcs_config.add_argument('-benchmark_interval', help="tmate server IP.")
     subparsers_bcs_config.add_argument('-access_token', help="Access token for dingtalk notification")
-    subparsers_bcs_config.add_argument('-mobile', type=int, help="mobile phone for dingtalk notification")
+    subparsers_bcs_config.add_argument('-mobile', help="mobile phone for dingtalk notification")
     subparsers_bcs_config.set_defaults(func=config_bcs)
 
     # bcs stat
