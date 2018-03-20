@@ -11,15 +11,15 @@ def send_msg(content, msgtype='markdown', contact=None, **kwargs):
     headers = {'Content-type': 'application/json'}
     data = {
     'msgtype': msgtype,
-    msgtype: build_msg_content(content=content, msgtype=msgtype, **kwargs),
+    msgtype: build_msg_content(content=content, msgtype=msgtype, contact=contact, **kwargs),
     'at': {'atMobiles': [contact]}
     }
     resp = requests.post(url, headers=headers, data=json.dumps(data))
     return resp
 
-def build_msg_content(content, msgtype, title='', msg_url='', pic_url='', **kwargs):
+def build_msg_content(content, msgtype, title='', msg_url='', pic_url='', contact=None, **kwargs):
     if msgtype == 'markdown':
-        data = {'title': title, 'text': content}
+        data = {'title': title, 'text': content + '\n\n @' + contact}
     elif msgtype == 'text':
         data = {'content': content}
     elif msgtype == 'link':
