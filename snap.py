@@ -348,7 +348,16 @@ def query_mappings(args):
         mappings = proj.query_task_mappings(args)
     else:
         mappings = proj.query_mappings(args, fuzzy=args.fuzzy)
+
+    if args.skip_existed:
+        mappings = filter(lambda x:not is_mapping_existed(x), mappings)
     return mappings
+
+def is_mapping_existed(mapping):
+    if mapping.is_write:
+        return os.path.exists(mapping.source)
+    else:
+        return mapping.exists()
 
 def show_mapping(args):
     def show_each_mapping(mapping):
@@ -850,6 +859,7 @@ if __name__ == "__main__":
     share_mapping_parser.add_argument('-is_not_immediate', default=None, dest='is_immediate', action='store_false', help="This is not a immediate mapping")
     share_mapping_parser.add_argument('-is_required', default=None, dest='is_required', action='store_true', help="This is a required mapping")
     share_mapping_parser.add_argument('-is_not_required', default=None, dest='is_required', action='store_false', help="This is not a required mapping")
+    share_mapping_parser.add_argument('-skip_existed', default=False, dest='skip_existed', action='store_true', help="Skip existed mapping")
     share_mapping_parser.add_argument('-yes', action='store_true', help="Don't ask.")
 
     #mapping add
