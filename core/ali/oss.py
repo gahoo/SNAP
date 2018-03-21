@@ -58,8 +58,8 @@ def is_size_differ_and_newer(source, destination):
     meta = BUCKET.get_object_meta(key)
     source_size = os.path.getsize(source)
     if source_size != meta.content_length:
-        msg = 'Warning: {source}({source_size}) size differ from {destination}({destination_size})'
-        msg = msg.format(source=source, source_size=source_size, destination=destination, destination_size=meta.content_length)
+        msg = 'Warning: {source}({source_size}) size differ from {destination}({destination_size})'.format(
+            source=source, source_size=source_size, destination=destination, destination_size=meta.content_length)
         if int(time.time()) > meta.last_modified:
             print dyeFAIL(msg)
             return True
