@@ -220,16 +220,21 @@ def inspect_bcs(args):
     proj.interactive_task(args.docker_image, inputs=args.inputs, outputs=args.outputs, instance_type=args.instance, cluster=args.cluster, timeout=args.timeout)
 
 def load_project(name):
-    matches = filter(lambda x:name in x, db.keys())
-    n_matches = len(matches)
-    if n_matches == 0:
-        print dyeFAIL('Project %s not found' % name)
-        os._exit(1)
-    elif n_matches == 1:
-        name = matches.pop()
-    else:
-        print dyeFAIL('More than one project matches: %s' % matches)
-        os._exit(1)
+    def fuzzy_match(name):
+        matches = filter(lambda x:name in x, db.keys())
+        n_matches = len(matches)
+        if n_matches == 0:
+            print dyeFAIL('Project %s not found' % name)
+            os._exit(1)
+        elif n_matches == 1:
+            name = matches.pop()
+        else:
+            print dyeFAIL('More than one project matches: %s' % matches)
+            os._exit(1)
+        return name
+
+    if name not in db:
+        name = fuzzy_match(name)
     session = new_session(name, db[name])
     proj = session.query(models.Project).filter_by(name = name).one()
     proj.session = session
