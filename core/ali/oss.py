@@ -71,7 +71,9 @@ def is_size_differ_and_newer(source, destination):
 def is_source_newer(source, destination):
     key = oss2key(destination)
     meta = BUCKET.get_object_meta(key)
-    msg = 'Warning: {source}({source_size}) is newer than {destination}({destination_size})'
+    source_size = os.path.getsize(source)
+    msg = 'Warning: {source}({source_size}) is newer than {destination}({destination_size})'.format(
+            source=source, source_size=source_size, destination=destination, destination_size=meta.content_length)
     print dyeWARNING(msg)
     return int(int(os.path.getmtime(source))) > meta.last_modified
 
