@@ -298,6 +298,7 @@ class Pipe(dict):
     def buildDepends(self):
         def getAppScripts(module, appname):
             if appname not in self.apps:
+                print dyeFAIL("Warning: dependencies.yaml: make sure {appname} in {module} is an alias App and not in parameter.conf".format(module=module, appname=appname))
                 return []
             return [sh['filename'] for sh in self.apps[appname].scripts if sh['module'] == module]
 
