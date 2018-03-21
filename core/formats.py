@@ -144,6 +144,12 @@ def format_status(status, deleted):
     return status
 
 def format_mapping_tbl(mappings, size=False):
+    def dye_path(is_exists, path):
+        if is_exists:
+            return dyeOKGREEN(path)
+        else:
+            return dyeFAIL(path)
+
     tbl = PrettyTable()
     fields = ['id', 'name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required']
     if size:
@@ -153,11 +159,9 @@ def format_mapping_tbl(mappings, size=False):
     tbl.align['destination'] = "l"
     tbl.align['size'] = "r"
     for m in mappings:
-        if m.exists():
-            destination = dyeOKGREEN(m.destination)
-        else:
-            destination = dyeFAIL(m.destination)
-        row = [m.id, m.name, m.source, destination, m.is_write, m.is_immediate, m.is_required]
+        source = dye_path(os.path.exists(m.source), m.source)
+        destination = dye_path(m.exists(), m.destination)
+        row = [m.id, m.name, source, destination, m.is_write, m.is_immediate, m.is_required]
         if size:
             row += [human_size(m.size())]
         tbl.add_row(row)
