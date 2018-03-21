@@ -297,6 +297,8 @@ class Pipe(dict):
 
     def buildDepends(self):
         def getAppScripts(module, appname):
+            if appname not in self.apps:
+                return []
             return [sh['filename'] for sh in self.apps[appname].scripts if sh['module'] == module]
 
         def getSampleAppScripts(module, appname, sample_name):
