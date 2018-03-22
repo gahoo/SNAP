@@ -32,7 +32,8 @@ def format_project_tbl(projects, size=False, cost=False):
         row_size = build_size()
         row_cost = build_cost()
         if size and row_cost:
-            row_cost = [sum(row_size) * 0.148 + row_cost[0]]
+            row_cost = [round((float(sum(row_size)) / (2 ** 30)) * 0.148, 3) + row_cost[0]]
+        row_size = map(human_size, row_size)
         return [p.name] + [state.get(column, 0) for column in states_column] + [progress, elapsed] + row_size + row_cost
 
     tbl = PrettyTable()

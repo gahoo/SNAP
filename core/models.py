@@ -642,8 +642,8 @@ class Project(Base):
         for keys in oss_keys:
             result = BUCKET.batch_delete_objects(keys)
         num_keys = len(result.deleted_keys)
-        deleted_size = self.size_stat(to_delete)['project']
-        print "{num} files({size}G) deleted.".format(num=num_keys, size=deleted_size)
+        deleted_size = human_size(self.size_stat(to_delete)['project'])
+        print "{num} files({size}) deleted.".format(num=num_keys, size=deleted_size)
 
     def clean_bcs(self):
         bcs = self.session.query(Bcs).filter_by(deleted=False).all()
@@ -663,10 +663,10 @@ class Project(Base):
             else:
                 total += obj.size
 
-        for obj in ObjectIterator(BUCKET, prefix="clean/%s" % self.name):
+        for obj in ObjectIterator(BUCKET, prefix="clean/%s/" % self.name):
             clean_total += obj.size
 
-        return {'clean': round(float(clean_total) / 2 ** 30, 3), 'project': round(float(total) / 2 ** 30, 3)}
+        return {'clean': clean_total, 'project': total}
 
     def interactive_task(self, docker_image, inputs, outputs, instance_type, instance_image=None, cluster=None, timeout=60):
         def build_env():
