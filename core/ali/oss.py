@@ -1,6 +1,7 @@
 import oss2
 import os
 import time
+import hashlib
 from . import ALI_CONF
 from oss2.exceptions import NoSuchKey
 from ..colorMessage import dyeWARNING, dyeFAIL
@@ -71,16 +72,24 @@ def is_size_differ_and_newer(source, destination):
 def is_source_newer(source, destination):
     key = oss2key(destination)
     meta = BUCKET.get_object_meta(key)
-    source_size = os.path.getsize(source)
-    msg = 'Warning: {source}({source_size}) is newer than {destination}({destination_size})'.format(
-            source=source, source_size=source_size, destination=destination, destination_size=meta.content_length)
-    print dyeWARNING(msg)
     return int(int(os.path.getmtime(source))) > meta.last_modified
 
 def is_size_differ(source, destination):
     key = oss2key(destination)
     meta = BUCKET.get_object_meta(key)
     return os.path.getsize(source) != meta.content_length
+
+def is_md5_differ(source, destination):
+    key = oss2key(destination)
+    meta = BUCKET.get_object_meta(key)
+    return md5(source) != meta.etag.lower()
+
+def md5(fname):
+    hash_md5 = hashlib.md5()
+    with open(fname, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
 
 if ALI_CONF:
     endpoint = "http://oss-%s.aliyuncs.com" % ALI_CONF['region']

@@ -245,8 +245,8 @@ class DB(object):
                 cmd.append("ossutil cp -f %s %s" % (source, destination))
             elif is_size_differ_and_newer(source, destination):
                 cmd.append("ossutil cp -f %s %s" % (source, destination))
-            elif is_source_newer(source, destination):
-                cmd.append("ossutil cp %s %s" % (source, destination))
+            elif is_source_newer(source, destination) and is_md5_differ(source, destination):
+                cmd.append("ossutil cp -f %s %s" % (source, destination))
 
         def tryAddSourceWithPrefix(source, destination):
             for each_source in glob.glob(source+'*'):
