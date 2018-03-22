@@ -1046,6 +1046,9 @@ class Task(Base):
                 msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
                 msg += '%s not found on oss.' % mapping.destination
                 self.project.logger.error(msg)
+                task_info = "- <{id}> *{sh}* {status} | input not exist.".format(id=self.id, sh=os.path.basename(self.shell), status=self.aasm_state)
+                self.project.message.append(task_info)
+                self.project.notify()
                 raise IOError(msg)
             elif not is_exist and not mapping.is_required:
                 msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
