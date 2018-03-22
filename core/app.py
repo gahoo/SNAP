@@ -645,12 +645,14 @@ class App(dict):
         if not parameters:
             parameters = self.get('parameters')
         samples = self.parameters.get('Samples')
+        groups = self.parameters.get('Groups')
         template = Template(cmd_template)
         return template.render(
             inputs = self.get('inputs'),
             outputs = self.get('outputs'),
             parameters = parameters,
             samples = samples,
+            groups = groups,
             extra = extra,
             )
 
@@ -973,8 +975,9 @@ class App(dict):
             kwargs.pop('name')
         if 'config' in kwargs:
             self.config_file = kwargs.pop('config')
+        if 'depend' in kwargs:
+            kwargs['dependence_file'] = kwargs.pop('depend')
         kwargs['parameter_file'] = kwargs.pop('param')
-        kwargs['dependence_file'] = kwargs.pop('depend')
         self.is_run = True
         self.build(**kwargs)
         update_app(cpu, mem, disk_type, disk_size, instance, docker_image)
