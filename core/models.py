@@ -370,13 +370,13 @@ class Project(Base):
                 name = element.name
             else:
                 name = os.path.basename(element.shell)
-            size = element.size(is_write=True) / (2 ** 30)
-            data_cost = size * 0.148
+            size = element.size(is_write=True)
+            data_cost = round((float(size) / (2 ** 30)) * 0.148, 3)
             bcs_cost = element.cost()
             return (
                 element.id,
                 name,
-                size,
+                human_size(size),
                 data_cost,
                 bcs_cost,
                 data_cost + bcs_cost)
