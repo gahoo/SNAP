@@ -656,7 +656,7 @@ class Project(Base):
     def size_stat(self, to_delete=None):
         total = 0
         clean_total = 0
-        for obj in ObjectIterator(BUCKET, prefix="projects/%s" % self.name):
+        for obj in ObjectIterator(BUCKET, prefix="project/%s/" % self.name):
             if to_delete:
                 if obj.key in to_delete:
                     total += obj.size
