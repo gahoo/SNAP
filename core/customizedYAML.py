@@ -86,3 +86,18 @@ def mapping_constructor(loader, node):
     return {'local': local, 'oss': oss}
 
 yaml.add_constructor(u'!mapping', mapping_constructor)
+
+def plan_constructor(loader, node):
+    data = loader.construct_scalar(node)
+    if ';' in data:
+        return {'elements': data.lstrip('~').split(';')}
+    match = plan_regex.match(data)
+    if match:
+        case, control, method = match.groups()
+        return {'control': control, 'case': case, 'method': method}
+    else:
+        raise ValueError('Invalid Plan format: %s' % data)
+
+plan_regex = re.compile(r'^~(\w+)\|?(\w+)?@?(\w+)?')
+yaml.add_constructor(u'!plan', plan_constructor)
+yaml.add_implicit_resolver(u'!plan', plan_regex)
