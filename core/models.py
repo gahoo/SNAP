@@ -960,7 +960,16 @@ class Task(Base):
 
     @before('submit')
     def new_bcs(self):
-        (task_name, task) = self.prepare_task()
+        try:
+            (task_name, task) = self.prepare_task()
+        except Exception, e:
+            msg = self.msg(str(e))
+            self.project.logger.error(msg)
+            task_info = "- <{id}> *{sh}* {status} | **FATAL ERROR**".format(id=self.id, sh=os.path.basename(self.shell), status=self.aasm_state)
+            self.project.message.append(task_info)
+            self.project.notify()
+            raise
+
         bcs = Bcs(
             name = task_name,
             spot_price_limit = task.AutoCluster.SpotPriceLimit,
@@ -1044,12 +1053,7 @@ class Task(Base):
                 return True
 
             if not is_exist and mapping.is_required:
-                msg = self.msg('%s not found on oss.' % mapping.destination)
-                self.project.logger.error(msg)
-                task_info = "- <{id}> *{sh}* {status} | input not exist.".format(id=self.id, sh=os.path.basename(self.shell), status=self.aasm_state)
-                self.project.message.append(task_info)
-                self.project.notify()
-                raise IOError(msg)
+                raise IOError('%s not found on oss.' % mapping.destination)
             elif not is_exist and not mapping.is_required:
                 msg = self.msg('%s not found on oss.' % mapping.destination)
                 self.project.logger.warning(msg)
@@ -1073,9 +1077,7 @@ class Task(Base):
                     source = os.path.dirname(source) + '/'
                 common_suffix = os.path.commonprefix([source.strip('/')[::-1], nested_path.strip('/')[::-1]])
                 if not common_suffix:
-                    msg = self.msg('Nested Mount fix might failed: %s %s' % (source, nested_path))
-                    self.project.logger.error(msg)
-                    raise ValueError(msg)
+                    raise ValueError('Nested Mount fix might failed: %s %s' % (source, nested_path))
 
                 return MountEntry({'Source': source, 'Destination': nested_path, 'WriteSupport':is_write})
 
@@ -1178,8 +1180,7 @@ class Task(Base):
             if not prefix.endswith('/'):
                 prefix = os.path.dirname(prefix) + '/'
             if prefix == '/':
-                msg = self.msg("Invalid common prefix: /")
-                raise Error(msg)
+                raise IOError("Invalid common prefix: /")
             prefix = "/" + prefix.split('/')[1] + "/"
             return prefix
 
@@ -1221,8 +1222,7 @@ class Task(Base):
         elif not disk_type and not drive_type:
             pass
         else:
-            msg = self.msg("disk_type '%s' is illegal." % disk_type)
-            raise SyntaxError(msg)
+            raise SyntaxError("disk_type '%s' is illegal." % disk_type)
 
         return disks
 
