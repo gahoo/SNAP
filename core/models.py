@@ -898,6 +898,9 @@ class Task(Base):
     def __repr__(self):
         return "<Task(id={id} sh={shell} status={status})>".format(id=self.id, shell=os.path.basename(self.shell), status=self.status)
 
+    def msg(self, info):
+        return "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell)) + info
+
     @after('start')
     @after('restart')
     @after('stop')
@@ -931,8 +934,7 @@ class Task(Base):
             self.retry()
 
         if self.aasm_state != old_state:
-           msg = "{task}\t{module}.{app}\t{sh}\t{old_state} => {state}".format(module=self.module.name, app=self.app.name,
-                sh=os.path.basename(self.shell), task=self.id, old_state=old_state, state=self.aasm_state)
+           msg = self.msg("{old_state} => {state}".format(old_state=old_state, state=self.aasm_state))
            self.project.logger.info(msg)
 
     def is_dependence_satisfied(self):
@@ -976,9 +978,9 @@ class Task(Base):
             self.bcs.append(bcs)
         except ClientError, e:
             # better try in check section
-            msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
-            print dyeFAIL(msg + str(e))
-            self.project.logger.error(msg + str(e))
+            msg = self.msg(str(e))
+            print dyeFAIL(msg)
+            self.project.logger.error(msg)
             print bcs.job
             raise ClientError(e)
             self.fail()
@@ -1030,8 +1032,7 @@ class Task(Base):
             nested_flag = map(nested_func, destination)
             nested_mount = [dest for dest, flag in zip(destination, nested_flag) if flag]
             if nested_mount:
-                msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
-                msg += "Has Nested Mounts: {mount}".format(id=self.id, mount=nested_mount)
+                msg = self.msg("Has Nested Mounts: {mount}".format(mount=nested_mount))
                 self.project.logger.warning(msg)
 
             return nested_mount
@@ -1043,16 +1044,14 @@ class Task(Base):
                 return True
 
             if not is_exist and mapping.is_required:
-                msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
-                msg += '%s not found on oss.' % mapping.destination
+                msg = self.msg('%s not found on oss.' % mapping.destination)
                 self.project.logger.error(msg)
                 task_info = "- <{id}> *{sh}* {status} | input not exist.".format(id=self.id, sh=os.path.basename(self.shell), status=self.aasm_state)
                 self.project.message.append(task_info)
                 self.project.notify()
                 raise IOError(msg)
             elif not is_exist and not mapping.is_required:
-                msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
-                msg += '%s not found on oss.' % mapping.destination
+                msg = self.msg('%s not found on oss.' % mapping.destination)
                 self.project.logger.warning(msg)
                 print dyeWARNING(msg)
                 return False
@@ -1074,8 +1073,7 @@ class Task(Base):
                     source = os.path.dirname(source) + '/'
                 common_suffix = os.path.commonprefix([source.strip('/')[::-1], nested_path.strip('/')[::-1]])
                 if not common_suffix:
-                    msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
-                    msg += 'Nested Mount fix might failed: %s %s' % (source, nested_path)
+                    msg = self.msg('Nested Mount fix might failed: %s %s' % (source, nested_path))
                     self.project.logger.error(msg)
                     raise ValueError(msg)
 
@@ -1180,7 +1178,8 @@ class Task(Base):
             if not prefix.endswith('/'):
                 prefix = os.path.dirname(prefix) + '/'
             if prefix == '/':
-                raise Error("Invalid common prefix: /")
+                msg = self.msg("Invalid common prefix: /")
+                raise Error(msg)
             prefix = "/" + prefix.split('/')[1] + "/"
             return prefix
 
@@ -1222,7 +1221,8 @@ class Task(Base):
         elif not disk_type and not drive_type:
             pass
         else:
-            raise SyntaxError("disk_type '%s' is illegal." % disk_type)
+            msg = self.msg("disk_type '%s' is illegal." % disk_type)
+            raise SyntaxError(msg)
 
         return disks
 
@@ -1246,20 +1246,20 @@ class Task(Base):
     def restart_task(self):
         bcs = self.bcs[-1]
         bcs.restart()
-        msg = "{task}\t{module}.{app}\t{sh}\tstopped => pending".format(task=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
+        msg = self.msg("stopped => pending")
         self.project.logger.info(msg)
 
     @before('stop')
     def stop_task(self):
         bcs = self.bcs[-1]
         bcs.stop()
-        msg = "{task}\t{module}.{app}\t{sh}\t{state} => stopped".format(task=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell), state=self.aasm_state)
+        msg = self.msg("{state} => stopped".format(state=self.aasm_state))
         self.project.logger.info(msg)
 
     @before('clean')
     def delete_tasks(self):
         map(lambda x:x.delete(), self.bcs)
-        msg = "{task}\t{module}.{app}\t{sh}\t{state} => cleaned".format(task=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell), state=self.aasm_state)
+        msg = self.msg("{state} => cleaned".format(state=self.aasm_state))
         self.project.logger.info(msg)
 
     @before('clean')
@@ -1363,16 +1363,15 @@ class Task(Base):
     def check_output(self):
         def check_each_output(m):
             if not m.exists():
-                msg += '{oss} is not found.'.format(oss=m.destination)
+                msg = self.msg('{oss} is not found.'.format(oss=m.destination))
                 print dyeWARNNING(msg)
                 self.project.logger.warning(msg)
             else:
                 if m.size() == 0:
-                    msg += '{oss} has 0 size.'.format(oss=m.destination)
+                    msg = self.msg('{oss} has 0 size.'.format(oss=m.destination))
                     print dyeWARNNING(msg)
                     self.project.logger.warning(msg)
 
-        msg = "{id}\t{module}.{app}\t{sh}\t".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell))
         output_mappings = [m for m in self.mapping if m.is_write and m.is_required]
         map(check_each_output, output_mappings)
 
