@@ -82,6 +82,9 @@ def is_size_differ(source, destination):
 def is_md5_differ(source, destination):
     key = oss2key(destination)
     meta = BUCKET.get_object_meta(key)
+    if '-' in meta.etag:
+        print dyeFAIL('Warnning: {destination} is a Multipart file, has no md5sum on oss.')
+        return False
     return md5(source) != meta.etag.lower()
 
 def md5(fname):
