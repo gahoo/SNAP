@@ -991,8 +991,8 @@ class App(dict):
             submit_jobs(proj.task)
             show_jobs_json(proj.task)
         else:
-            submit_jobs([proj.task[0]])
-            show_jobs_json([proj.task[0]])
+            submit_jobs(proj.task[:1])
+            show_jobs_json(proj.task[:1])
 
     def dump_parameter(self, parameter_file=None):
         if parameter_file is not None:
