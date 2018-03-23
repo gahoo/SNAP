@@ -38,6 +38,14 @@ def human_size(num):
         num /= 1024.0
     return "%.1f %sB" % (num, 'Y')
 
+def get_folder_size(path):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            total_size += os.path.getsize(fp)
+    return total_size
+
 def question(msg):
     confirm = raw_input(msg)
     if confirm not in ['y', 'yes']:
