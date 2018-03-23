@@ -402,10 +402,35 @@ def sync_mapping(args):
             print dyeWARNING('ossutil not found.')
             os._exit(1)
 
+    def estimate_size():
+        if args.estimate_size:
+            download_size = [m.size() for m in mappings if m.is_write and m.exists() and (args.overwrite or not os.path.exists(m.source))]
+            upload_size = [m.source_size() for m in mappings if not m.is_write and os.path.exists(m.source) and (args.overwrite or not m.exists())]
+            count_and_print_size(download_size, 'download')
+            count_and_print_size(upload_size, 'upload')
+
+    def count_and_print_size(sizes, sync_type):
+        if sizes:
+            count = len(sizes)
+            sizes = human_size(sum(sizes))
+            print dyeOKBLUE("{count} files({size}) to {sync_type}.".format(count=count, size=sizes, sync_type=sync_type))
+
+    def question_overwrite():
+        if args.overwrite:
+            print dyeWARNING('The following mappings will be overwrite:')
+            overwrite_mappings = [m for m in mappings if (m.is_write and os.path.exists(m.source)) or (not m.is_write and m.exists()) ]
+            print format_mapping_tbl(overwrite_mappings)
+            if args.yes or question(dyeWARNING('Proceed risky overwrite sync?[y/n]:')):
+                return
+            else:
+                os._exit(0)
+
     check_ossutil_exist()
     mappings = query_mappings(args)
-    map(lambda x: x.sync(overwrite=args.overwrite), mappings)
+    estimate_size()
+    question_overwrite()
 
+    map(lambda x: x.sync(overwrite=args.overwrite), mappings)
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -941,6 +966,7 @@ if __name__ == "__main__":
     subparsers_mapping_sync.add_argument('-app', default=None, help="Task app")
     subparsers_mapping_sync.add_argument('-module', default=None, help="Task module")
     subparsers_mapping_sync.add_argument('-overwrite', default=False, action='store_true', help="overwrite snap.db")
+    subparsers_mapping_sync.add_argument('-estimate_size', default=False, action='store_true', help="estimate sync data size")
     subparsers_mapping_sync.set_defaults(func=sync_mapping)
 
     # bcs cron
