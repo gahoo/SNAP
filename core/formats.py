@@ -32,7 +32,7 @@ def format_project_tbl(projects, size=False, cost=False):
         row_size = build_size()
         row_cost = build_cost()
         if size and row_cost:
-            row_cost = [round((float(sum(row_size)) / (2 ** 30)) * 0.148, 3) + row_cost[0]]
+            row_cost = [round(sum(row_size) / (2.0 ** 30) * 0.148, 3) + row_cost[0]]
         row_size = map(human_size, row_size)
         return [p.name] + [state.get(column, 0) for column in states_column] + [progress, elapsed] + row_size + row_cost
 
@@ -152,17 +152,20 @@ def format_mapping_tbl(mappings, size=False):
             return dyeFAIL(path)
 
     tbl = PrettyTable()
-    fields = ['id', 'name', 'source', 'destination', 'is_write', 'is_immediate', 'is_required']
+    fields = ['id', 'name', 'source', '', 'destination', 'is_write', 'is_immediate', 'is_required']
     if size:
         fields += ['size']
     tbl.field_names = fields
     tbl.align['source'] = "l"
     tbl.align['destination'] = "l"
     tbl.align['size'] = "r"
+
+    direction = {True: '<=', False: '=>'}
+
     for m in mappings:
         source = dye_path(os.path.exists(m.source), m.source)
         destination = dye_path(m.exists(), m.destination)
-        row = [m.id, m.name, source, destination, m.is_write, m.is_immediate, m.is_required]
+        row = [m.id, m.name, source, direction[m.is_write], destination, m.is_write, m.is_immediate, m.is_required]
         if size:
             row += [human_size(m.size())]
         tbl.add_row(row)
