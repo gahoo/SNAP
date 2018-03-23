@@ -371,7 +371,7 @@ class Project(Base):
             else:
                 name = os.path.basename(element.shell)
             size = element.size(is_write=True)
-            data_cost = round((float(size) / (2 ** 30)) * 0.148, 3)
+            data_cost = round(size / (2.0 ** 30) * 0.148, 3)
             bcs_cost = element.cost()
             return (
                 element.id,
@@ -1011,8 +1011,8 @@ class Task(Base):
         task.OutputMapping = {m.source:m.destination for m in self.mapping if m.is_write}
         if self.benchmark:
             (oss_script_prefix, ext) = os.path.splitext(oss_script_path)
-            task.OutputMapping['/var/log/pidstat.log'] = oss_script_prefix + '.pidstat'
-            task.OutputMapping['/var/log/du.log'] = oss_script_prefix + '.disk_usage'
+            task.OutputMapping['/var/log/pidstat.log'] = oss_script_prefix + '.{cnt}.pidstat'.format(cnt=len(self.bcs) + 1)
+            task.OutputMapping['/var/log/du.log'] = oss_script_prefix + '.{cnt}.disk_usage'.format(cnt=len(self.bcs) + 1)
         #task.LogMapping = {m.source:m.destination for m in self.mapping if m.is_write}
         #task.Mounts.Entries = [MountEntry({'Source': m.destination, 'Destination': m.source, 'WriteSupport':m.is_write}) for m in self.mapping if not m.is_write]
         task.Mounts.Entries = self.prepare_Mounts()
@@ -1647,6 +1647,15 @@ class Mapping(Base):
     def size(self):
         key = oss2key(self.destination)
         return sum([obj.size for obj in ObjectIterator(BUCKET, prefix=key)])
+
+    def source_size(self):
+        if os.path.exists(self.source):
+            if os.path.isdir(self.source):
+                return get_folder_size(self.source)
+            else:
+                return os.path.getsize(self.source)
+        else:
+            return 0
 
     def exists(self):
         key = oss2key(self.destination)
