@@ -319,7 +319,7 @@ def do_task(args, status, event):
 
 restart_task = functools.partial(do_task, status = ['stopped'], event = 'restart')
 retry_task = functools.partial(do_task, status = ['failed'], event = 'retry')
-redo_task = functools.partial(do_task, status = ['finished'], event = 'redo')
+redo_task = functools.partial(do_task, status = ['finished', 'cleaned'], event = 'redo')
 stop_task = functools.partial(do_task, status = ['pending', 'waiting', 'running'], event = 'stop')
 clean_task = functools.partial(do_task, status = ['stopped', 'finished', 'failed'], event = 'clean')
 
