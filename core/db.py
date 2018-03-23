@@ -30,7 +30,7 @@ class DB(object):
         self.session = Session()
 
     def trim_parameters(self, parameters):
-        skips = ['Inputs', 'Property', 'Parameters', 'CommonData', 'Samples', 'Outputs', 'Conditions', 'CommonParameters']
+        skips = ['Inputs', 'Property', 'Parameters', 'CommonData', 'Samples', 'Groups', 'Outputs', 'Conditions', 'CommonParameters']
         return {k:v for k, v in parameters.iteritems() if k not in skips}
 
     def format(self):
@@ -284,6 +284,27 @@ class DB(object):
         mkDataUpload()
         cmd = []
         mkScriptUpload()
+
+    def mkOssSyncSH(self):
+        def mkDataSync():
+            content = "\n".join([
+                '{snap_path}/snap mapping list -p {project} -is_not_write -is_not_immediate -skip_existed',
+                'read -p "Mappings above will be sync. Press enter to continue"',
+                '{snap_path}/snap mapping sync -p {project} -is_not_write -is_not_immediate -estimate_size' ]).format(snap_path=snap_path, project=self.proj.name)
+            script_file = os.path.join(self.proj_path, 'uploadData2OSS.sh')
+            write(script_file, content)
+
+        def mkScriptSync():
+            content = "\n".join([
+                '{snap_path}/snap mapping list -p {project} -name sh -skip_existed',
+                'read -p "Mappings above will be sync. Press enter to continue"',
+                '{snap_path}/snap mapping sync -p {project} -name sh -estimate_size' ]).format(snap_path=snap_path, project=self.proj.name)
+            script_file = os.path.join(self.proj_path, 'uploadScript2OSS.sh')
+            write(script_file, content)
+
+        snap_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        mkDataSync()
+        mkScriptSync()
 
 def unifyUnit(size):
     if isinstance(size, int) or isinstance(size, float):
