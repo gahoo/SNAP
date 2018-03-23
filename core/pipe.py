@@ -243,7 +243,7 @@ class Pipe(dict):
             dependencies = self.dependencies,
             overwrite = overwrite)
         db.format()
-        db.mkOSSuploadSH()
+        db.mkOssSyncSH()
         db.add()
 
     def buildApps(self):
@@ -281,7 +281,7 @@ class Pipe(dict):
         for k, v in self.parameters.iteritems():
             if v is None:
                 raise ValueError('Module "{module}" contains no app!'.format(module=k))
-            if k not in ('Samples', 'CommonData', 'CommonParameters'):
+            if k not in ('Samples', 'Groups', 'CommonData', 'CommonParameters'):
                 buildEachModule(k)
 
     def checkAppAlias(self, module, appname):
