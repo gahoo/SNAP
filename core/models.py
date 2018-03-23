@@ -1364,12 +1364,12 @@ class Task(Base):
         def check_each_output(m):
             if not m.exists():
                 msg = self.msg('{oss} is not found.'.format(oss=m.destination))
-                print dyeWARNNING(msg)
+                print dyeWARNING(msg)
                 self.project.logger.warning(msg)
             else:
                 if m.size() == 0:
                     msg = self.msg('{oss} has 0 size.'.format(oss=m.destination))
-                    print dyeWARNNING(msg)
+                    print dyeWARNING(msg)
                     self.project.logger.warning(msg)
 
         output_mappings = [m for m in self.mapping if m.is_write and m.is_required]
