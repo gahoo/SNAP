@@ -535,6 +535,9 @@ class App(dict):
         def hasSampleName():
             return self.shell_path is not None and self.shell_path.count('sample_name}}') > 0
 
+        def hasAppBin():
+            return 'APP_PATH' in self.config['app']['cmd_template']
+
         def makeParameters(name):
             lower_name = name.lower()
             if self.config['app'][lower_name] is not None and needNew:
@@ -557,7 +560,8 @@ class App(dict):
             }
 
         needNew = not self.parameters or not self.isGDParameters
-        add_APP_PATH_Input()
+        if hasAppBin():
+            add_APP_PATH_Input()
         if hasSampleName():
             addSampleNameParam()
         map(makeParameters, ['Parameters', 'Inputs', 'Outputs'])
