@@ -3,7 +3,7 @@ import pdb
 import functools
 import glob
 from core import models
-from core.ali.oss import BUCKET, oss2key, is_object_exists, is_size_differ_and_newer, is_source_newer
+from core.ali.oss import BUCKET, oss2key, is_object_exists, is_size_differ_and_newer, is_source_newer, is_md5_differ
 from core.misc import *
 from colorMessage import dyeWARNING, dyeFAIL
 from sqlalchemy import create_engine, UniqueConstraint
