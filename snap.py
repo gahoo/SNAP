@@ -13,6 +13,7 @@ from core.pipe import Pipe
 from core import models
 from core.formats import *
 from core.misc import *
+from core.db import DB
 from core.ali.price import app as price_app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -202,14 +203,12 @@ def cost_bcs(args):
     print format_cost_tbl(costs).get_string(sortby="total", reversesort=True)
 
 def instance_bcs(args):
-    if args.project:
-        proj = load_project(args.project)
-    elif db:
-        proj = load_project(db.keys()[0])
-    else:
-        print "You must have at least one project to query instance."
-        os._exit(1)
-    instances = proj.query_instance(args)
+    fake_db = DB(':memory:', pipe_path = '', apps = {}, dependencies = {},
+        parameters = {'CommonParameters':{'ContractID':'fake', 'project_description': ''}})
+    fake_db.mkProj()
+    fake_db.mkInstance()
+    fake_db.proj.session = fake_db.session
+    instances = fake_db.proj.query_instance(args)
     print format_instance_tbl(instances, args.latest).get_string(sortby="price")
 
 def price_bcs(args):
@@ -665,7 +664,6 @@ if __name__ == "__main__":
         description="This command will show aviailable instances.",
         prog='snap bcs instance',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_bcs_instance.add_argument('-project', default=None, help="ContractID or ProjectID")
     subparsers_bcs_instance.add_argument('-name', help="instance name")
     subparsers_bcs_instance.add_argument('-cpu', type=int, help="how many core")
     subparsers_bcs_instance.add_argument('-mem', type=float, help="memory size")
