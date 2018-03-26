@@ -329,6 +329,15 @@ def submit_task(args):
     map(lambda x: x.update(**setting), tasks)
     do_task(args, ['pending'], 'submit')
 
+def sync_task(args):
+    def sync_each_task(task):
+        task.bcs[-1].poll()
+        task.check()
+
+    proj = load_project(args.project)
+    tasks = proj.query_tasks(args)
+    map(sync_each_task, tasks)
+
 def cyto_task(args):
     proj = load_project(args.project)
     proj.cytoscape(args)
@@ -842,6 +851,15 @@ if __name__ == "__main__":
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task_clean.set_defaults(func=submit_task)
+
+    #task sync
+    subparsers_task_clean = subparsers_task.add_parser('sync',
+        help='Sync seleted task only.',
+        description="This command will sync status of selected tasks.",
+        prog='snap task sync',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_clean.set_defaults(func=sync_task)
 
     #task cyto
     subparsers_task_cyto = subparsers_task.add_parser('cyto',
