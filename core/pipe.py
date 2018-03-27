@@ -224,9 +224,10 @@ class Pipe(dict):
     def build(self, parameter_file=None, proj_path=None,
               pymonitor_path='monitor', proj_name=None,
               queue='all.q', priority='RD_test',
-              overwrite = False):
+              overwrite = False, verbose=False):
         if proj_path:
             self.proj_path = os.path.abspath(proj_path)
+        self.verbose = verbose
         self.loadParameters(parameter_file)
         self.loadPipe()
         self.buildApps()
@@ -271,7 +272,7 @@ class Pipe(dict):
                 raise KeyError('dependencies.yaml {module} {appname} has no "sh_file"'.format(module=module, appname=appname))
 
             self.checkAppAlias(module, appname)
-            self.apps[appname].build(parameters=parameters, module=module, output=sh_file)
+            self.apps[appname].build(parameters=parameters, module=module, output=sh_file, verbose=self.verbose)
 
         def buildEachModule(module):
             module_param = dict([(k, self.parameters[k]) for k in ('Samples', 'CommonData', 'CommonParameters', module)])
