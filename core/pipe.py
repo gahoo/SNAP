@@ -272,6 +272,7 @@ class Pipe(dict):
                 raise KeyError('dependencies.yaml {module} {appname} has no "sh_file"'.format(module=module, appname=appname))
 
             self.checkAppAlias(module, appname)
+            self.updateResourceConfig(module, appname)
             self.apps[appname].build(parameters=parameters, module=module, output=sh_file, verbose=self.verbose)
 
         def buildEachModule(module):
@@ -295,6 +296,14 @@ class Pipe(dict):
                 self.apps[appname] = copy.deepcopy(self.apps[source])
                 self.apps[appname].scripts = []
                 self.apps[appname].appname = appname
+
+    def updateResourceConfig(self, module, appname):
+        cpu = self.dependencies[module][appname].get('cpu')
+        mem = self.dependencies[module][appname].get('mem')
+        if cpu:
+            self.apps[appname].config['app']['requirements']['resources']['cpu'] = cpu
+        if mem:
+            self.apps[appname].config['app']['requirements']['resources']['mem'] = mem
 
     def buildDepends(self):
         def getAppScripts(module, appname):
