@@ -84,7 +84,8 @@ def build_pipe(args):
                    proj_name=args.proj_name,
                    queue=args.queue,
                    priority=args.priority,
-                   overwrite=args.overwrite)
+                   overwrite=args.overwrite,
+                   verbose = args.verbose)
     else:
         print >> sys.stderr, "parameters.conf is missing."
         os._exit(0)
@@ -557,6 +558,7 @@ if __name__ == "__main__":
     subparsers_pipe_build.add_argument('-queue', help = "queue of qsub", default='all.q')
     subparsers_pipe_build.add_argument('-out', help="output everything needed for a project")
     subparsers_pipe_build.add_argument('-overwrite', default=False, action='store_true', help="overwrite snap.db")
+    subparsers_pipe_build.add_argument('-verbose', default=False, action='store_true', help="show more info.")
     subparsers_pipe_build.set_defaults(func=build_pipe)
 
     # bcs
@@ -844,22 +846,22 @@ if __name__ == "__main__":
     subparsers_task_clean.set_defaults(func=clean_task)
 
     #task submit
-    subparsers_task_clean = subparsers_task.add_parser('submit',
+    subparsers_task_submit = subparsers_task.add_parser('submit',
         help='Submit task immediately and ignore all restraint.',
         description="This command will submit task immediately and ignore all restraint.",
         prog='snap task submit',
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_task_clean.set_defaults(func=submit_task)
+    subparsers_task_submit.set_defaults(func=submit_task)
 
     #task sync
-    subparsers_task_clean = subparsers_task.add_parser('sync',
+    subparsers_task_sync = subparsers_task.add_parser('sync',
         help='Sync seleted task only.',
         description="This command will sync status of selected tasks.",
         prog='snap task sync',
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_task_clean.set_defaults(func=sync_task)
+    subparsers_task_sync.set_defaults(func=sync_task)
 
     #task cyto
     subparsers_task_cyto = subparsers_task.add_parser('cyto',
