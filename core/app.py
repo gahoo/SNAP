@@ -134,6 +134,7 @@ class App(dict):
         self.parameters = {}
         self.isGDParameters = True
         self.is_run = False
+        self.verbose = True
         self.scripts = []
         self.shell_path = ''
         self.model = None
@@ -597,7 +598,7 @@ class App(dict):
                 if input_name in ['R_LIB', 'PYTHON_LIB']:
                     return
                 path = app_file.path
-                if (path is not '') and ('{{' not in path) and (not os.path.exists(path)):
+                if self.verbose and (path is not '') and ('{{' not in path) and (not os.path.exists(path)):
                     print dyeWARNING('%s.%s: %s not found' % (self.appname, input_name, path))
 
             def showFile(data):
@@ -626,9 +627,10 @@ class App(dict):
             map(checkParameters, self.get('parameters', []))
             print "==========================="
 
-    def build(self, parameters=None, parameter_file=None, dependence_file=None, module=None, output=None, debug=False, benchmark=False):
+    def build(self, parameters=None, parameter_file=None, dependence_file=None, module=None, output=None, debug=False, benchmark=False, verbose=True):
         self.shell_path = output
         self.debug = debug
+        self.verbose = verbose
         if not self.appname:
             self.load()
         self.loadParameters(parameters, parameter_file)
@@ -809,7 +811,8 @@ class App(dict):
                     new_source = source.replace('oss://', '/')
                     #raise ValueError("{name}:{source} should not starts with oss://".format(name=name, source=source))
                     msg = "Auto Guess Local Path\t{module}.{app}.{name}: {source} => {new_source}"
-                    print dyeWARNING(msg.format(module=self.module, app=self.appname, name=name, source=source, new_source = new_source))
+                    if self.verbose:
+                        print dyeWARNING(msg.format(module=self.module, app=self.appname, name=name, source=source, new_source = new_source))
                 return new_source
 
             def checkDestination(destination):
@@ -827,7 +830,8 @@ class App(dict):
                         filename = os.path.basename(destination)
                         new_destination = os.path.join(self.oss_path('project'), 'database', folder, filename)
                     msg = "Auto Guess OSS Path\t{module}.{app}.{name}: {destination} => {new_destination}"
-                    print dyeWARNING(msg.format(module=self.module, app=self.appname, name=name, destination=destination, new_destination = new_destination))
+                    if self.verbose:
+                        print dyeWARNING(msg.format(module=self.module, app=self.appname, name=name, destination=destination, new_destination = new_destination))
                 return new_destination
 
             def fix_path(each_file):
