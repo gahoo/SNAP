@@ -831,7 +831,11 @@ class App(dict):
                 return new_destination
 
             def fix_path(each_file):
-                if each_file['name'] != '':
+                if isinstance(each_file['name'], dict):
+                    each_file['name'] = each_file['name']['local']
+                    each_file['oss'] = each_file['oss']['oss']
+                    each_file.updatePath()
+                elif each_file['name'] != '':
                     each_file['name'] = checkSource(each_file['name'])
                     each_file['oss'] = checkDestination(each_file['oss'])
                     each_file.updatePath()
