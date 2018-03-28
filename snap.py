@@ -885,8 +885,8 @@ if __name__ == "__main__":
         prog='snap task cyto',
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_task_cyto.add_argument('-mode', default='task', choices=('task', 'app', 'module'), help="Update task instance")
-    subparsers_task_cyto.add_argument('-layout', default='breadthfirst', help="Network layout, such as: cose, cose-bilkent, breadthfirst, dagre, klay, circle, random, grid, concentric etc.")
+    subparsers_task_cyto.add_argument('-mode', default='app', choices=('task', 'app', 'module'), help="Update task instance")
+    subparsers_task_cyto.add_argument('-layout', default='klay', help="Network layout, such as: cose, cose-bilkent, breadthfirst, dagre, klay, circle, random, grid, concentric etc.")
     subparsers_task_cyto.add_argument('-port', default=8000, type=int, help="Port expose")
     subparsers_task_cyto.add_argument('-compound', default='all', choices=('app', 'module', 'all', 'none'), help="Compound level")
     subparsers_task_cyto.add_argument('-size', default='elapsed', choices=('elapsed', 'cpu', 'mem', 'data'), help="What does size map")
