@@ -330,6 +330,12 @@ def submit_task(args):
     map(lambda x: x.update(**setting), tasks)
     do_task(args, ['pending'], 'submit')
 
+def kill_task(args):
+    proj = load_project(args.project)
+    tasks = proj.query_tasks(args)
+    stop_task(args)
+    map(lambda x: x.kill(), tasks)
+
 def sync_task(args):
     def sync_each_task(task):
         task.bcs[-1].poll()
@@ -853,6 +859,15 @@ if __name__ == "__main__":
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task_submit.set_defaults(func=submit_task)
+
+    #task kill
+    subparsers_task_kill = subparsers_task.add_parser('kill',
+        help='Kill running or waiting task immediately.',
+        description="This command will submit task immediately and ignore all restraint.",
+        prog='snap task kill',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_kill.set_defaults(func=kill_task)
 
     #task sync
     subparsers_task_sync = subparsers_task.add_parser('sync',

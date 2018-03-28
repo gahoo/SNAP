@@ -891,6 +891,7 @@ class Task(Base):
     run = Event(from_states=(waiting, running), to_state=running)
     finish = Event(from_states=(waiting, running), to_state=finished)
     fail = Event(from_states=(waiting, running), to_state=failed)
+    kill = Event(from_states=(waiting, running), to_state=failed)
     retry = Event(from_states=failed, to_state=pending)
     redo = Event(from_states=(finished, cleaned), to_state=pending)
     clean = Event(from_states=(stopped, finished, failed), to_state=cleaned)
@@ -908,6 +909,7 @@ class Task(Base):
     @after('run')
     @after('finish')
     @after('fail')
+    @after('kill')
     @after('retry')
     @after('redo')
     @after('clean')
@@ -1253,6 +1255,7 @@ class Task(Base):
     def stop_task(self):
         bcs = self.bcs[-1]
         bcs.stop()
+        bcs.finish_date = datetime.datetime.now()
         msg = self.msg("{state} => stopped".format(state=self.aasm_state))
         self.project.logger.info(msg)
 
@@ -1260,6 +1263,13 @@ class Task(Base):
     def delete_tasks(self):
         map(lambda x:x.delete(), self.bcs)
         msg = self.msg("{state} => cleaned".format(state=self.aasm_state))
+        self.project.logger.info(msg)
+
+    @before('kill')
+    def kill_tasks(self):
+        self.bcs[-1].delete()
+        self.bcs[-1].finish_date = datetime.datetime.now()
+        msg = self.msg("{state} => killed".format(state=self.aasm_state))
         self.project.logger.info(msg)
 
     @before('clean')
