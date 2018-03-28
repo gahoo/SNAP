@@ -409,7 +409,7 @@ class Project(Base):
             if args.mode == 'module':
                 module_status = build_status_css()
 
-            sizes = [n['data'].get(args.size, 0) for n in nodes]
+            sizes = [n['data'].get(args.size, 1) for n in nodes]
             sizes = [s for s in sizes if s != 0 and s]
             if not sizes:
                 sizes = [1]
