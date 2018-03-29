@@ -30,7 +30,7 @@ class DB(object):
         self.session = Session()
 
     def trim_parameters(self, parameters):
-        skips = ['Inputs', 'Property', 'Parameters', 'CommonData', 'Samples', 'Groups', 'Outputs', 'Conditions', 'CommonParameters']
+        skips = ['Inputs', 'Property', 'Parameters', 'CommonData', 'Samples', 'Groups', 'Miscellaneous', 'Outputs', 'Conditions', 'CommonParameters']
         return {k:v for k, v in parameters.iteritems() if k not in skips}
 
     def format(self):
