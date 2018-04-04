@@ -802,6 +802,26 @@ class Project(Base):
         cluster = Cluster(name = self.name, disk_type=disk_type, disk_size=disk_size, project=self)
         cluster.create(groups=groups, mount_point=mount_point, discount=self.discount, instance_image=image, vpc_id=vpc_id, vpc_cidr_block=vpc_cidr_block)
 
+    @catchClientError
+    def bind_cluster(self, id):
+        if self.session.query(Cluster).filter_by(id=id).one():
+            print dyeWARNING('Cluster %s already bind.' % id)
+            return
+        cluster = CLIENT.get_cluster(id)
+        disks = cluster.Configs.Disks
+        if disks.DataDisk.Size:
+            disk_size = disks.DataDisk.Size
+        else:
+            disk_size = disks.SystemDisk.Size
+        if disks.DataDisk.Type:
+            disk_type = 'data.' + disks.DataDisk.Type
+        elif disks.SystemDisk.Type:
+            disk_type = 'system.' + disks.SystemDisk.Type
+        else:
+            disk_type = None
+        self.cluster = Cluster(id=id, name=cluster.Name, disk_type=disk_type, disk_size=disk_size, project=self)
+        self.save()
+
 class Module(Base):
     __tablename__ = 'module'
 

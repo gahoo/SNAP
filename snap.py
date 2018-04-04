@@ -465,6 +465,10 @@ def create_cluster(args):
     proj = load_project(args.project)
     proj.create_cluster(**kwargs)
 
+def bind_cluster(args):
+    proj = load_project(args.project)
+    proj.bind_cluster(args.id)
+
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
         description = "SNAP is Not A Pipeline.",
@@ -1035,7 +1039,7 @@ if __name__ == "__main__":
 
     #cluster create
     subparsers_cluster_create = subparsers_cluster.add_parser('create',
-        help='create clusters',
+        help='create clusters for project',
         description="This command will create new cluster on Bcs.",
         prog='snap cluster create',
         formatter_class=argparse.RawTextHelpFormatter)
@@ -1050,6 +1054,16 @@ if __name__ == "__main__":
     subparsers_cluster_create.add_argument('-vpc_id', help="VPC id for access other ECS instance.")
     subparsers_cluster_create.add_argument('-vpc_cidr_block', help="VPC cidr block for access other ECS instance.")
     subparsers_cluster_create.set_defaults(func=create_cluster)
+
+    #cluster bind
+    subparsers_cluster_bind = subparsers_cluster.add_parser('bind',
+        help='bind existed cluster to project',
+        description="This command will bind cluster to project.",
+        prog='snap cluster bind',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_cluster_bind.add_argument('-project', required=False, help="ContractID or ProjectID")
+    subparsers_cluster_bind.add_argument('-id', required=True, help="Cluster ID")
+    subparsers_cluster_bind.set_defaults(func=bind_cluster)
 
 if __name__ == '__main__':
     argslist = sys.argv[1:]
