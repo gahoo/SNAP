@@ -447,6 +447,24 @@ def sync_mapping(args):
 
     map(lambda x: x.sync(overwrite=args.overwrite), mappings)
 
+def create_cluster(args):
+    kwargs = {k:v for k,v in args._get_kwargs() if k != 'func' and v is not None}
+    if args.instance and args.counts and len(args.instance) != len(args.counts):
+        print dyeFAIL('The number of instance and counts is not equal.')
+        os._exit(1)
+    elif not args.instance and args.counts:
+        print dyeFAIL('-counts must work with -instance')
+        os._exit(1)
+    if args.instance and args.price_limit and len(args.instance) != len(args.price_limit):
+        print dyeFAIL('The number of instance and price_limit is not equal.')
+        os._exit(1)
+    elif not args.instance and args.price_limit:
+        print dyeFAIL('-price_limit must work with -instance')
+        os._exit(1)
+
+    proj = load_project(args.project)
+    proj.create_cluster(**kwargs)
+
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
         description = "SNAP is Not A Pipeline.",
@@ -587,7 +605,7 @@ if __name__ == "__main__":
     subparsers_bcs_config.add_argument('-image', default='img-ubuntu', help="defualt instance image to run BCS.")
     subparsers_bcs_config.add_argument('-registry_path', default='docker-images', help="docker registry path on bucket.")
     subparsers_bcs_config.add_argument('-vpc_id', help="VPC id for access other ECS instance.")
-    subparsers_bcs_config.add_argument('-vpc_cidr_block', default='172.16.0.0/16', help="VPC cidr block for access other ECS instance.")
+    subparsers_bcs_config.add_argument('-vpc_cidr_block', default='172.16.20.0/20', help="VPC cidr block for access other ECS instance.")
     subparsers_bcs_config.add_argument('-tmate_server', help="tmate server IP.")
     subparsers_bcs_config.add_argument('-benchmark_interval', help="tmate server IP.")
     subparsers_bcs_config.add_argument('-access_token', help="Access token for dingtalk notification")
@@ -1002,23 +1020,36 @@ if __name__ == "__main__":
     subparsers_mapping_sync.add_argument('-estimate_size', default=False, action='store_true', help="estimate sync data size")
     subparsers_mapping_sync.set_defaults(func=sync_mapping)
 
-    # bcs cron
-    # bcs cron add
-    # bcs cron remove
-    # bcs task
-    # bcs task update
-    # bcs task restart
-    # bcs task retry
-    # bcs task redo
-    # bcs task stop
-    # bcs task clean
-    # bcs task submit
-    # bcs task log
-    # bcs task show
-    # bcs clean
-    # bcs instance
-    # bcs deliver
-    # bcs archive
+    # cluster
+    parsers_cluster = subparsers.add_parser('cluster',
+        help = "Operations of cluster",
+        description = "Create List Show Update Delete Clusters",
+        prog = 'snap cluster',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_cluster = parsers_cluster.add_subparsers()
+
+    # mapping select common args
+    share_cluster_parser = argparse.ArgumentParser(add_help=False)
+    share_cluster_parser.add_argument('-project', required=False, help="ContractID or ProjectID")
+    share_cluster_parser.add_argument('-id', required=True, help="Cluster ID")
+
+    #cluster create
+    subparsers_cluster_create = subparsers_cluster.add_parser('create',
+        help='create clusters',
+        description="This command will create new cluster on Bcs.",
+        prog='snap cluster create',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_cluster_create.add_argument('-project', required=False, help="ContractID or ProjectID")
+    subparsers_cluster_create.add_argument('-image', help="Defualt instance image for cluster.")
+    subparsers_cluster_create.add_argument('-instance', help="Which instance to use.", nargs="*")
+    subparsers_cluster_create.add_argument('-counts', help="How many instance do you want.", nargs="*", type=int)
+    subparsers_cluster_create.add_argument('-price_limit', help="Mount point for data disk.", nargs="*", type=float)
+    subparsers_cluster_create.add_argument('-disk_type', help="Cluster disk type. [system.cloud_ssd, data.cloud_efficiency, data.ephemeral_ssd]")
+    subparsers_cluster_create.add_argument('-disk_size', help="Cluster disk size", type=int)
+    subparsers_cluster_create.add_argument('-mount_point', help="Mount point for data disk.")
+    subparsers_cluster_create.add_argument('-vpc_id', help="VPC id for access other ECS instance.")
+    subparsers_cluster_create.add_argument('-vpc_cidr_block', help="VPC cidr block for access other ECS instance.")
+    subparsers_cluster_create.set_defaults(func=create_cluster)
 
 if __name__ == '__main__':
     argslist = sys.argv[1:]
