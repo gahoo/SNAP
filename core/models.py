@@ -87,7 +87,7 @@ class Project(Base):
     discount = Column(Float, default=0.1)
     email = Column(String, default="{user}@igenecode.com".format(user=getpass.getuser()))
     mns = Column(String)
-    cluster = Column(String)
+    cluster = relationship("Cluster", uselist=False, back_populates="project")
     task = relationship("Task", back_populates="project")
 
     session = None
@@ -779,6 +779,29 @@ class Project(Base):
             CLIENT.stop_job(id)
         CLIENT.delete_job(id)
 
+    def create_cluster(self, image=None, instance=[], counts=[], mount_point=None, price_limit=[], disk_type=None, disk_size=None, vpc_id=None, vpc_cidr_block=None, **kwargs):
+        def make_groups(instance, counts, price_limit):
+            if not instance:
+                instance = set([t.instance.name for t in self.task])
+            if not counts:
+                counts = [0] * len(instance)
+            if not price_limit:
+                price_limit = [None] * len(instance)
+            groups = zip(instance, counts, price_limit)
+            return [make_group_dict(instance, counts, price) for instance, counts, price in groups]
+
+        def make_group_dict(instance, counts, price):
+            instance = self.session.query(Instance).filter_by(name=instance).one()
+            return {
+                'name': instance.name,
+                'instance': instance,
+                'counts': counts,
+                'price': price }
+
+        groups = make_groups(instance, counts, price_limit)
+        cluster = Cluster(name = self.name, disk_type=disk_type, disk_size=disk_size, project=self)
+        cluster.create(groups=groups, mount_point=mount_point, discount=self.discount, instance_image=image, vpc_id=vpc_id, vpc_cidr_block=vpc_cidr_block)
+
 class Module(Base):
     __tablename__ = 'module'
 
@@ -972,11 +995,16 @@ class Task(Base):
             self.project.notify()
             raise
 
+        if self.project.cluster:
+            cluster_id = self.project.cluster.id
+        else:
+            cluster_id = None
+
         bcs = Bcs(
             name = task_name,
             spot_price_limit = task.AutoCluster.SpotPriceLimit,
             instance = self.instance,
-            cluster = self.project.cluster)
+            cluster = cluster_id)
         bcs.dag.add_task(task_name=task_name, task=task)
         bcs.job.Name = "{project}-{sh}".format(project=self.project.name, sh = task_name)
         oss_script_path = [m for m in self.mapping if m.name=='sh'][0].destination
@@ -1022,7 +1050,7 @@ class Task(Base):
         task.Timeout = 86400 * 3
         task.MaxRetryCount = 0
         if self.project.cluster and self.instance.name in self.get_cluster_instances():
-            task.ClusterId = self.project.cluster
+            task.ClusterId = self.project.cluster.id
         else:
             task.AutoCluster = self.prepare_cluster()
         return script_name, task
@@ -1061,6 +1089,10 @@ class Task(Base):
                 self.project.logger.warning(msg)
                 print dyeWARNING(msg)
                 return False
+            elif is_exist and not mapping.destination.endswith('/') and mapping.size() == 0:
+                msg = self.msg('%s size is zero.' % mapping.destination)
+                self.project.logger.warning(msg)
+                print dyeWARNING(msg)
             return True
 
         def fix_nested(mounts):
@@ -1165,7 +1197,7 @@ class Task(Base):
 
     def get_cluster(self):
         if self.project.cluster:
-            return CLIENT.get_cluster(self.project.cluster)
+            return CLIENT.get_cluster(self.project.cluster.id)
         else:
             return None
 
@@ -1772,3 +1804,139 @@ class Mapping(Base):
             [cp(src, dest) for src, dest in traversal_key(source, destination)]
         else:
             print dyeWARNING(msg % 'Skipped')
+
+
+class Cluster(Base):
+    __tablename__ = 'cluster'
+
+    id = Column(String, primary_key=True)
+    name = Column(String)
+    disk_size = Column(Float)
+    disk_type = Column(String)
+
+    project_id = Column(Integer, ForeignKey('project.id'), nullable=False)
+    project = relationship("Project", back_populates="cluster")
+
+    def __repr__(self):
+        return "<Cluster(id={id})>".format(id=self.id)
+
+    def save(self):
+        self.project.save()
+
+    def create(self, **kwargs):
+        cluster_desc = self.prepare_cluster(**kwargs)
+        try:
+            self.id = CLIENT.create_cluster(cluster_desc).Id
+            self.save()
+        except ClientError, e:
+            print cluster_desc
+            msg = str(e)
+            print dyeFAIL(msg)
+            self.project.logger.error(msg)
+
+    def prepare_cluster(self, groups, mount_point=None, discount=0.1, instance_image=None, vpc_id=None, vpc_cidr_block=None):
+        add_groups = lambda x:cluster_desc.add_group(x['name'].replace('.', '-'), self.prepare_group(discount=discount, **x))
+
+        cluster_desc = ClusterDescription()
+        cluster_desc.Name = self.name
+        map(add_groups, groups)
+
+        cluster_desc.Configs.Disks = self.prepare_disk(mount_point=mount_point)
+        cluster_desc.Configs.Networks = self.prepare_network(vpc_id=vpc_id, vpc_cidr_block=vpc_cidr_block)
+        cluster_desc.Notification = self.prepare_notify()
+
+        if instance_image:
+            cluster_desc.ImageId = instance_image
+        else:
+            cluster_desc.ImageId = ALI_CONF['default_image']
+
+        return cluster_desc
+
+    def prepare_group(self, name, instance, counts, price, discount=0.1):
+        group_desc = GroupDescription()
+        group_desc.DesiredVMCount = counts
+        group_desc.InstanceType = instance.name
+        if instance.name.startswith('bcs.'):
+            group_desc.ResourceType = 'OnDemand'
+        elif price > 0:
+            group_desc.ResourceType = 'Spot'
+            group_desc.SpotStrategy = 'SpotWithPriceLimit'
+            group_desc.SpotPriceLimit = price
+        elif price == 0:
+            group_desc.ResourceType = 'Spot'
+            group_desc.SpotStrategy = 'SpotAsPriceGo'
+        elif price is None:
+            group_desc.ResourceType = 'Spot'
+            group_desc.SpotPriceLimit = round(discount * instance.price, 3)
+        else:
+            msg = 'Cluster({cluster}) invalid {name} settings: {instance} x {counts} <= {price}'
+            msg = msg.format(cluster=self.id, name=name, instance=instance.name, counts=counts, price=price)
+            raise ValueError(msg)
+
+        return group_desc
+
+    def prepare_disk(self, mount_point=None):
+        def prepare_data_disk():
+            if drive_type:
+                disks.DataDisk.Type = drive_type
+            disks.DataDisk.Size = int(self.disk_size)
+            if mount_point:
+                disks.DataDisk.MountPoint = mount_point
+            else:
+                disks.DataDisk.MountPoint = self.project.path
+
+        def prepare_system_disk(size):
+            if drive_type:
+                disks.SystemDisk.Type = drive_type
+            if size <40:
+                disks.SystemDisk.Size = 40
+            else:
+                disks.SystemDisk.Size = size
+
+        disks = Disks()
+        if not self.disk_size:
+           return disks
+
+        if self.disk_type:
+            (disk_type, drive_type) = self.disk_type.split('.')
+        else:
+            (disk_type, drive_type) = ('system', None)
+
+        if self.disk_size > 500:
+            disk_type = 'data'
+        elif self.disk_size <= 40:
+            disk_type = 'system'
+
+        if disk_type == 'data':
+            prepare_system_disk(40)
+            prepare_data_disk()
+        elif disk_type == 'system':
+            prepare_system_disk(self.disk_size)
+
+        return disks
+
+    def prepare_network(self, vpc_id=None, vpc_cidr_block=None):
+        network = Networks()
+        if vpc_id:
+            network.VPC.VpcId = vpc_id
+        else:
+            network.VPC.VpcId = ALI_CONF['vpc_id']
+
+        if vpc_cidr_block:
+            network.VPC.CidrBlock = vpc_cidr_block
+        else:
+            network.VPC.CidrBlock = ALI_CONF['vpc_cidr_block']
+
+        return network
+
+    def prepare_notify(self):
+        notice = Notification()
+        if self.project.mns:
+            notice.Topic.Endpoint = self.project.mns
+            notice.Topic.Name = self.project.name
+            notice.Topic.Events = ['OnJobFailed', 'OnTaskFailed', 'OnInstanceFailed']
+
+        return notice
+
+    def show(self):
+        pass
