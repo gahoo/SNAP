@@ -224,3 +224,34 @@ def format_history_price_tbl(prices):
         tbl.add_row([p[key] for key in tbl.field_names])
 
     return tbl
+
+def format_cluster_tbl(clusters, proj_cluster=None):
+    def buildDisk(disk, disk_type):
+        return "[{disk_type}.{drive_type} {size}]".format(disk_type = disk_type, size = disk.Size, drive_type=disk.Type)
+
+    def buildGroup(group):
+        if group.Disks.DataDisk.Size:
+            disks = group.Disks.DataDisk
+            disk_type = 'Data'
+        else:
+            disks = group.Disks.SystemDisk
+            disk_type = 'Sys'
+
+        return "{actual}/{desired} | {instance} < {price} {disks}".format(
+            instance = group.InstanceType,
+            actual = group.ActualVMCount,
+            desired = group.DesiredVMCount,
+            disks = buildDisk(disks, disk_type),
+            price = group.SpotPriceLimit)
+
+    tbl = PrettyTable()
+    tbl.field_names = ['id', 'name', 'state', 'counts | instances < price [disk]', 'create time', 'elapsed']
+    if proj_cluster:
+        clusters = [c for c in clusters if c.Id == proj_cluster.id]
+    for c in clusters:
+        instances = map(buildGroup, c.Groups.values())
+        instances = '\n'.join(instances)
+        creation_time = c.CreationTime.replace(microsecond=0)
+        tbl.add_row([c.Id, c.Name, c.State, instances, creation_time, diff_date(creation_time, None)])
+
+    return tbl
