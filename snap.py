@@ -469,6 +469,16 @@ def bind_cluster(args):
     proj = load_project(args.project)
     proj.bind_cluster(args.id)
 
+def list_cluster(args):
+    from core.ali.bcs import CLIENT
+    if args.project:
+        proj = load_project(args.project)
+        cluster = proj.cluster
+    else:
+        cluster = None
+    clusters = CLIENT.list_clusters("", 100)
+    print format_cluster_tbl(clusters, cluster)
+
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
         description = "SNAP is Not A Pipeline.",
@@ -1061,9 +1071,18 @@ if __name__ == "__main__":
         description="This command will bind cluster to project.",
         prog='snap cluster bind',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_cluster_bind.add_argument('-project', required=False, help="ContractID or ProjectID")
+    subparsers_cluster_bind.add_argument('-project', required=True, help="ContractID or ProjectID")
     subparsers_cluster_bind.add_argument('-id', required=True, help="Cluster ID")
     subparsers_cluster_bind.set_defaults(func=bind_cluster)
+
+    #cluster list
+    subparsers_cluster_list = subparsers_cluster.add_parser('list',
+        help='list existed clusters',
+        description="This command will list clusters.",
+        prog='snap cluster list',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_cluster_list.add_argument('-project', required=False, help="ContractID or ProjectID")
+    subparsers_cluster_list.set_defaults(func=list_cluster)
 
 if __name__ == '__main__':
     argslist = sys.argv[1:]
