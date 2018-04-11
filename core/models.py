@@ -612,7 +612,7 @@ class Project(Base):
     def update(self, **kwargs):
         commom_keys = set(['name', 'description', 'owner', 'status', 'max_job', 'run_cnt', 'discount', 'email', 'mns', 'cluster']) & set(kwargs.keys())
         old_setting = [self.__getattribute__(k) for k in commom_keys]
-        [self.__setattr__(k, kwargs[k]) for k in commom_keys]
+        [self.__setattr__(k, kwargs[k]) for k in commom_keys if kwargs[k] != 'None']
         [self.__setattr__(k, None) for k in commom_keys if kwargs[k] == 'None']
         kwargs = {k:kwargs[k] for k in commom_keys}
         updated = "\t".join(["(%s %s => %s)" % (k, old, new) for k, old, new in zip(commom_keys, old_setting, kwargs.values())])
