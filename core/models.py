@@ -804,23 +804,32 @@ class Project(Base):
 
     @catchClientError
     def bind_cluster(self, id):
-        if self.session.query(Cluster).filter_by(id=id).one():
-            print dyeWARNING('Cluster %s already bind.' % id)
-            return
-        cluster = CLIENT.get_cluster(id)
-        disks = cluster.Configs.Disks
-        if disks.DataDisk.Size:
-            disk_size = disks.DataDisk.Size
+        def bind_new(id):
+            cluster = CLIENT.get_cluster(id)
+            disks = cluster.Configs.Disks
+            if disks.DataDisk.Size:
+                disk_size = disks.DataDisk.Size
+            else:
+                disk_size = disks.SystemDisk.Size
+            if disks.DataDisk.Type:
+                disk_type = 'data.' + disks.DataDisk.Type
+            elif disks.SystemDisk.Type:
+                disk_type = 'system.' + disks.SystemDisk.Type
+            else:
+                disk_type = None
+            return Cluster(id=id, name=cluster.Name, disk_type=disk_type, disk_size=disk_size, create_date=cluster.CreationTime, project=self)
+
+        def bind_existed(id):
+            return self.session.query(Cluster).filter_by(id=id).one()
+
+        if self.session.query(Cluster).filter_by(id=id).all():
+            bind_func = bind_existed
         else:
-            disk_size = disks.SystemDisk.Size
-        if disks.DataDisk.Type:
-            disk_type = 'data.' + disks.DataDisk.Type
-        elif disks.SystemDisk.Type:
-            disk_type = 'system.' + disks.SystemDisk.Type
-        else:
-            disk_type = None
-        self.cluster = Cluster(id=id, name=cluster.Name, disk_type=disk_type, disk_size=disk_size, project=self)
+            bind_func = bind_new
+
+        self.cluster = bind_func(id)
         self.save()
+
 
 class Module(Base):
     __tablename__ = 'module'
@@ -1833,8 +1842,10 @@ class Cluster(Base):
     name = Column(String)
     disk_size = Column(Float)
     disk_type = Column(String)
+    create_date = Column(DateTime, default=datetime.datetime.now())
+    finish_date = Column(DateTime)
 
-    project_id = Column(Integer, ForeignKey('project.id'), nullable=False)
+    project_id = Column(Integer, ForeignKey('project.id'), nullable=True)
     project = relationship("Project", back_populates="cluster")
 
     def __repr__(self):
@@ -1887,6 +1898,7 @@ class Cluster(Base):
             group_desc.SpotStrategy = 'SpotAsPriceGo'
         elif price is None:
             group_desc.ResourceType = 'Spot'
+            group_desc.SpotStrategy = 'SpotWithPriceLimit'
             group_desc.SpotPriceLimit = round(discount * instance.price, 3)
         else:
             msg = 'Cluster({cluster}) invalid {name} settings: {instance} x {counts} <= {price}'
