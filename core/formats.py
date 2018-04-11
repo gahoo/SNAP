@@ -245,7 +245,8 @@ def format_cluster_tbl(clusters, proj_cluster=None):
             price = group.SpotPriceLimit)
 
     tbl = PrettyTable()
-    tbl.field_names = ['id', 'name', 'state', 'counts | instances < price [disk]', 'create time', 'elapsed']
+    tbl.field_names = ['id', 'name', 'state', 'cnt | instances < price [disk]', 'create time', 'elapsed']
+    tbl.align['cnt | instances < price [disk]'] = "l"
     if proj_cluster:
         clusters = [c for c in clusters if c.Id == proj_cluster.id]
     for c in clusters:
