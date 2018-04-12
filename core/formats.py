@@ -225,7 +225,7 @@ def format_history_price_tbl(prices):
 
     return tbl
 
-def format_cluster_tbl(clusters, proj_cluster=None):
+def format_cluster_tbl(clusters, cluster_in_db=None):
     def buildDisk(disk, disk_type):
         return "[{disk_type}.{drive_type} {size}]".format(disk_type = disk_type, size = disk.Size, drive_type=disk.Type)
 
@@ -247,8 +247,8 @@ def format_cluster_tbl(clusters, proj_cluster=None):
     tbl = PrettyTable()
     tbl.field_names = ['id', 'name', 'state', 'cnt | instances < price [disk]', 'create time', 'elapsed']
     tbl.align['cnt | instances < price [disk]'] = "l"
-    if proj_cluster:
-        clusters = [c for c in clusters if c.Id == proj_cluster.id]
+    if cluster_in_db:
+        clusters = [c for c in clusters if c.Id in cluster_in_db]
     for c in clusters:
         instances = map(buildGroup, c.Groups.values())
         instances = '\n'.join(instances)

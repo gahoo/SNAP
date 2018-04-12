@@ -473,11 +473,11 @@ def list_cluster(args):
     from core.ali.bcs import CLIENT
     if args.project:
         proj = load_project(args.project)
-        cluster = proj.cluster
+        cluster_in_db = [c.id for c in proj.session.query(models.Cluster).all()]
     else:
-        cluster = None
+        cluster_in_db = None
     clusters = CLIENT.list_clusters("", 100)
-    print format_cluster_tbl(clusters, cluster)
+    print format_cluster_tbl(clusters, cluster_in_db)
 
 def scale_cluster(args):
     kwargs = {'instance':args.instance, 'counts':args.counts}
