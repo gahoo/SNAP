@@ -830,6 +830,12 @@ class Project(Base):
         self.cluster = bind_func(id)
         self.save()
 
+    @catchClientError
+    def scale_cluster(self, instance, counts):
+        instance = map(lambda x: x.replace('.', '-'), instance)
+        groups = dict(zip(instance, counts))
+        CLIENT.change_cluster_desired_vm_count(self.cluster.id, **groups)
+
 
 class Module(Base):
     __tablename__ = 'module'
