@@ -479,6 +479,32 @@ def list_cluster(args):
     clusters = CLIENT.list_clusters("", 100)
     print format_cluster_tbl(clusters, cluster)
 
+def scale_cluster(args):
+    kwargs = {'instance':args.instance, 'counts':args.counts}
+    proj = load_project(args.project)
+    proj.scale_cluster(**kwargs)
+
+def delete_cluster(args):
+    from core.ali.bcs import CLIENT
+    msg = dyeWARNING('Delete cluster({clusters})?[y/n]:')
+    if args.id and (args.yes or question(msg.format(clusters=" ".join(args.id)))):
+        map(CLIENT.delete_cluster, args.id)
+
+    if not args.id and args.project:
+        proj = load_project(args.project)
+        CLIENT.delete_cluster(proj.cluster.id)
+        proj.cluster.finish_date = datetime.datetime.now()
+        proj.cluster = None
+        proj.save()
+
+def log_cluster(args):
+    from core.ali.bcs import CLIENT
+
+    if not args.id and args.project:
+        proj = load_project(args.project)
+        cluster = CLIENT.get_cluster(proj.cluster.id)
+        print "\n".join(cluster.OperationLogs)
+
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
         description = "SNAP is Not A Pipeline.",
@@ -1083,6 +1109,39 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_cluster_list.add_argument('-project', required=False, help="ContractID or ProjectID")
     subparsers_cluster_list.set_defaults(func=list_cluster)
+
+    #cluster scale
+    subparsers_cluster_scale = subparsers_cluster.add_parser('scale',
+        help='scale cluster instances',
+        description="This command will scale instances in clusters.",
+        prog='snap cluster scale',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_cluster_scale.add_argument('-project', required=False, help="ContractID or ProjectID")
+    subparsers_cluster_scale.add_argument('-id', required=False, help="Cluster ID")
+    subparsers_cluster_scale.add_argument('-instance', help="Which instance to use.", nargs="*")
+    subparsers_cluster_scale.add_argument('-counts', help="How many instance do you want.", nargs="*", type=int)
+    subparsers_cluster_scale.set_defaults(func=scale_cluster)
+
+    #cluster delete
+    subparsers_cluster_delete = subparsers_cluster.add_parser('delete',
+        help='delete clusters',
+        description="This command will list clusters.",
+        prog='snap cluster delete',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_cluster_delete.add_argument('-project', required=False, help="ContractID or ProjectID")
+    subparsers_cluster_delete.add_argument('-id', required=False, help="Cluster ID", nargs="*")
+    subparsers_cluster_delete.add_argument('-yes', action='store_true', help="Don't ask.")
+    subparsers_cluster_delete.set_defaults(func=delete_cluster)
+
+    #cluster log
+    subparsers_cluster_log = subparsers_cluster.add_parser('log',
+        help='show clusters log',
+        description="This command will list clusters.",
+        prog='snap cluster log',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_cluster_log.add_argument('-project', required=False, help="ContractID or ProjectID")
+    subparsers_cluster_log.add_argument('-id', required=False, help="Cluster ID", nargs="*")
+    subparsers_cluster_log.set_defaults(func=log_cluster)
 
 if __name__ == '__main__':
     argslist = sys.argv[1:]
