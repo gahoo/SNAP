@@ -836,7 +836,6 @@ class Project(Base):
         groups = dict(zip(instance, counts))
         CLIENT.change_cluster_desired_vm_count(self.cluster.id, **groups)
 
-
 class Module(Base):
     __tablename__ = 'module'
 
@@ -949,7 +948,7 @@ class Task(Base):
     run = Event(from_states=(waiting, running), to_state=running)
     finish = Event(from_states=(waiting, running), to_state=finished)
     fail = Event(from_states=(waiting, running), to_state=failed)
-    kill = Event(from_states=(waiting, running), to_state=failed)
+    kill = Event(from_states=(waiting, running, stopped), to_state=failed)
     retry = Event(from_states=failed, to_state=pending)
     redo = Event(from_states=(finished, cleaned), to_state=pending)
     clean = Event(from_states=(stopped, finished, failed), to_state=cleaned)
