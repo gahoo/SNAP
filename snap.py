@@ -480,9 +480,11 @@ def list_cluster(args):
     print format_cluster_tbl(clusters, cluster_in_db)
 
 def scale_cluster(args):
-    kwargs = {'instance':args.instance, 'counts':args.counts}
+    instance = map(lambda x: x.replace('.', '-'), args.instance)
+    groups = dict(zip(instance, args.counts))
     proj = load_project(args.project)
-    proj.scale_cluster(**kwargs)
+    if proj.cluster:
+        proj.cluster.scale(**groups)
 
 def delete_cluster(args):
     from core.ali.bcs import CLIENT
