@@ -51,7 +51,7 @@ def format_project_tbl(projects, size=False, cost=False):
 def format_detail_porject(project):
     tbl = PrettyTable()
     tbl.header = False
-    fields = ['id', 'name', 'description', 'owner', 'status', 'type', 'pipe', 'path', 'max_job', 'run_cnt', 'create_date', 'start_date', 'finish_date', 'discount', 'email', 'mns', 'cluster']
+    fields = ['id', 'name', 'description', 'owner', 'status', 'type', 'pipe', 'path', 'max_job', 'run_cnt', 'create_date', 'start_date', 'finish_date', 'discount', 'email', 'mns', 'cluster', 'auto_scale']
     values = [project.__getattribute__(k) for k in fields]
     elapsed = diff_date(get_date(project.start_date), get_date(project.finish_date))
     tbl.add_column("field", fields + ['task num', 'elapsed'])

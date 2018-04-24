@@ -87,6 +87,7 @@ class Project(Base):
     discount = Column(Float, default=0.1)
     email = Column(String, default="{user}@igenecode.com".format(user=getpass.getuser()))
     mns = Column(String)
+    auto_scale = Column(Boolean, default=True)
     cluster = relationship("Cluster", uselist=False, back_populates="project")
     task = relationship("Task", back_populates="project")
 
@@ -108,7 +109,7 @@ class Project(Base):
         map(lambda x:x.check(), to_sync)
         map(lambda x:x.check(), to_check)
 
-        if self.cluster:
+        if self.cluster and self.auto_scale:
             self.cluster.auto_scale()
         self.notify()
         self.log_date()
@@ -613,7 +614,7 @@ class Project(Base):
         return q.all()
 
     def update(self, **kwargs):
-        commom_keys = set(['name', 'description', 'owner', 'status', 'max_job', 'run_cnt', 'discount', 'email', 'mns', 'cluster']) & set(kwargs.keys())
+        commom_keys = set(['name', 'description', 'owner', 'status', 'max_job', 'run_cnt', 'discount', 'email', 'mns', 'cluster', 'auto_scale']) & set(kwargs.keys())
         old_setting = [self.__getattribute__(k) for k in commom_keys]
         [self.__setattr__(k, kwargs[k]) for k in commom_keys if kwargs[k] != 'None']
         [self.__setattr__(k, None) for k in commom_keys if kwargs[k] == 'None']

@@ -140,7 +140,7 @@ def update_bcs(args):
         dummy_args = argparse.Namespace(project=setting['name'], add=True, delete=False, interval=15)
         cron_bcs(dummy_args)
 
-    fields = ('name', 'description', 'owner', 'status', 'max_job', 'run_cnt', 'discount', 'email', 'mns', 'cluster')
+    fields = ('name', 'description', 'owner', 'status', 'max_job', 'run_cnt', 'discount', 'email', 'mns', 'cluster', 'auto_scale')
     setting = {k:v for k,v in args._get_kwargs() if k in fields and v is not None}
     try:
         proj = load_project(args.project)
@@ -690,6 +690,8 @@ if __name__ == "__main__":
     subparsers_bcs_update.add_argument('-email', help="Which Email address will be sent when job failed.")
     subparsers_bcs_update.add_argument('-mns', help="MNS endpoint for notification.")
     subparsers_bcs_update.add_argument('-cluster', help="Cluster ID for existed cluster.")
+    subparsers_bcs_update.add_argument('-auto_scale', action='store_true', help="add crontab job")
+    subparsers_bcs_update.add_argument('-no_auto_scale', default=None, dest='auto_scale', action='store_false', help="This is not a writable mapping")
     subparsers_bcs_update.set_defaults(func=update_bcs)
 
     # bcs sync
