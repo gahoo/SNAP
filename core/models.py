@@ -1127,7 +1127,7 @@ class Task(Base):
 
         task.Timeout = 86400 * 3
         task.MaxRetryCount = 0
-        if self.project.cluster and self.instance.name in self.get_cluster_instances():
+        if self.project.cluster and self.instance.name in self.get_cluster_instances() and not self.app.instance_image:
             task.ClusterId = self.project.cluster.id
         else:
             task.AutoCluster = self.prepare_cluster()
