@@ -107,7 +107,9 @@ class Project(Base):
         to_check = [t for t in self.task if t.is_created or t.is_pending or t.is_failed]
         map(lambda x:x.check(), to_sync)
         map(lambda x:x.check(), to_check)
-        self.auto_scale()
+
+        if self.cluster:
+            self.cluster.auto_scale()
         self.notify()
         self.log_date()
 
@@ -831,53 +833,6 @@ class Project(Base):
         self.cluster = bind_func(id)
         self.save()
 
-    def scale_cluster(self, instance, counts):
-        instance = map(lambda x: x.replace('.', '-'), instance)
-        groups = dict(zip(instance, counts))
-        self.cluster.scale(**groups)
-
-    def auto_scale(self):
-        def count_instance(instance):
-            bcs_instance = [b for b in bcs if b.instance.name == instance]
-            status = {'running': len([b for b in bcs_instance if b.status=='Running']),
-                      'waiting': len([b for b in bcs_instance if b.status=='Waiting' and b.waited().total_seconds() > 600])}
-            status.update(cluster_status[instance])
-            return status
-
-        def count_instance_status(instance, status):
-            return len([b for b in bcs if b.status==status and b.instance.name == instance])
-
-        def calc_desired(running, waiting, actual, desired):
-            sufficiency = desired - (running + waiting)
-            # scale up
-            if sufficiency < 0:
-                new_desired = desired + 1 + ((abs(sufficiency) - 1)  / 3)
-            # scale down
-            elif sufficiency > 0:
-                new_desired = desired - 1 - (sufficiency  / 2)
-            else:
-                new_desired = desired
-            return new_desired
-
-        if not self.cluster:
-            return
-
-        cluster_status = self.cluster.count_instance()
-        bcs = self.session.query(Bcs).filter( ((Bcs.status=='Waiting') | (Bcs.status=='Running')) & (Bcs.cluster is not None) ).all()
-        bcs = [b for b in bcs if b.instance.name in cluster_status]
-        instances = cluster_status.keys()
-        instance_status = dict(zip(instances, map(count_instance, instances)))
-        new_desired = map(lambda x:calc_desired(**x), instance_status.values())
-        group_name = map(lambda x: x.replace('.', '-'), instance_status.keys())
-        groups = dict(zip(group_name, new_desired))
-        self.cluster.scale(**groups)
-
-        old_desired = [status['desired'] for status in instance_status.values()]
-        scaled_instance = filter(lambda x:x[1] != x[2], zip(instance_status.keys(), old_desired, new_desired))
-        msg = map(lambda x: "%s: %s -> %s" % x, scaled_instance)
-        if msg:
-            self.message.extend(msg)
-            self.logger.info('\t'.join(msg))
 
 class Module(Base):
     __tablename__ = 'module'
@@ -2043,3 +1998,43 @@ class Cluster(Base):
     @catchClientError
     def scale(self, **groups):
         CLIENT.change_cluster_desired_vm_count(self.id, **groups)
+
+    def auto_scale(self):
+        def count_instance(instance):
+            bcs_instance = [b for b in bcs if b.instance.name == instance]
+            status = {'running': len([b for b in bcs_instance if b.status=='Running']),
+                      'waiting': len([b for b in bcs_instance if b.status=='Waiting' and b.waited().total_seconds() > 600])}
+            status.update(cluster_status[instance])
+            return status
+
+        def count_instance_status(instance, status):
+            return len([b for b in bcs if b.status==status and b.instance.name == instance])
+
+        def calc_desired(running, waiting, actual, desired):
+            sufficiency = desired - (running + waiting)
+            # scale up
+            if sufficiency < 0:
+                new_desired = desired + 1 + ((abs(sufficiency) - 1)  / 3)
+            # scale down
+            elif sufficiency > 0:
+                new_desired = desired - 1 - (sufficiency  / 2)
+            else:
+                new_desired = desired
+            return new_desired
+
+        cluster_status = self.count_instance()
+        bcs = self.project.session.query(Bcs).filter( ((Bcs.status=='Waiting') | (Bcs.status=='Running')) & (Bcs.cluster is not None) ).all()
+        bcs = [b for b in bcs if b.instance.name in cluster_status]
+        instances = cluster_status.keys()
+        instance_status = dict(zip(instances, map(count_instance, instances)))
+        new_desired = map(lambda x:calc_desired(**x), instance_status.values())
+        group_name = map(lambda x: x.replace('.', '-'), instance_status.keys())
+        groups = dict(zip(group_name, new_desired))
+        self.scale(**groups)
+
+        old_desired = [status['desired'] for status in instance_status.values()]
+        scaled_instance = filter(lambda x:x[1] != x[2], zip(instance_status.keys(), old_desired, new_desired))
+        msg = map(lambda x: "%s: %s -> %s" % x, scaled_instance)
+        if msg:
+            self.project.message.extend(msg)
+            self.project.logger.info('\t'.join(msg))
