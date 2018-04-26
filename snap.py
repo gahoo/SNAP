@@ -354,6 +354,11 @@ def attach_task(args):
     tasks = proj.query_tasks(args)
     tasks[0].attach()
 
+def profile_task(args):
+    proj = load_project(args.project)
+    tasks = proj.query_tasks(args)
+    proj.profile(tasks)
+
 def add_mapping(args):
     proj = load_project(args.project)
     proj.add_mapping(args)
@@ -962,6 +967,16 @@ if __name__ == "__main__":
         parents=[share_task_parser],
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_task_attach.set_defaults(func=attach_task)
+
+    #task profile
+    subparsers_task_profile = subparsers_task.add_parser('profile',
+        help='profile selected tasks.',
+        description="This command will profile tasks to guide optimization.",
+        prog='snap task profile',
+        parents=[share_task_parser],
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_task_profile.add_argument('-port', default=8000, type=int, help="Port expose")
+    subparsers_task_profile.set_defaults(func=profile_task)
 
     # mapping
     parsers_mapping = subparsers.add_parser('mapping',
