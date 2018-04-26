@@ -28,6 +28,9 @@ from oss2 import ObjectIterator
 from argparse import Namespace
 from flask import Flask
 from jinja2 import Template
+from StringIO import StringIO
+import pandas as pd
+import numpy as np
 import functools
 import getpass
 import datetime
@@ -37,6 +40,7 @@ import json
 import csv
 import pdb
 import sys
+import re
 
 Base = declarative_base()
 
@@ -612,6 +616,9 @@ class Project(Base):
             q = q.filter(dependence_table.c.task_id.in_(tids) | dependence_table.c.depend_task_id.in_(tids))
 
         return q.all()
+
+    def profile(self, tasks):
+        profiles = pd.concat([t.profile() for t in tasks], ignore_index=True)
 
     def update(self, **kwargs):
         commom_keys = set(['name', 'description', 'owner', 'status', 'max_job', 'run_cnt', 'discount', 'email', 'mns', 'cluster', 'auto_scale']) & set(kwargs.keys())
@@ -1484,6 +1491,91 @@ class Task(Base):
         if self.reach_max_failed(3):
             msg = "- <{id}> *{sh}* {status} | [detail](#)".format(id=self.id, module=self.module.name, app=self.app.name, sh=os.path.basename(self.shell), status=self.aasm_state)
             self.project.message.append(msg)
+
+    def profile(self):
+        def load_disk_usage(key):
+            content = read_object(key)
+            du = pd.read_table(StringIO(content), delim_whitespace=True)
+            return pd.DataFrame({
+                'sys': du[du.Mounted == '/'].reset_index().Used.astype('int64'),
+                'data': du[du.Filesystem == '/dev/xvdb1'].reset_index().Used.astype('int64'),
+                'file': os.path.basename(key).rstrip('.disk_usage') })
+
+        def add_time_disk_usage(ps, du):
+            times = ps.Time.unique()
+            lack_num = len(du) - len(times)
+            if lack_num > 0:
+                lack = times[-1] + times[1] * np.arange(1, lack_num + 1)
+                times = np.append(times, lack)
+            elif lack_num < 0:
+                times = times[:lack_num]
+            du['Time'] = times
+            du['sys'] = du['sys'] - du['sys'][0]
+            return du
+
+        def process_pidstat_line(line, cmd_idx):
+            elements = line.split()
+            return "\t".join(elements[:cmd_idx]) + '\t' + " ".join(elements[cmd_idx:])
+
+        def extrac_command(cmd):
+            match = pattern.search(cmd)
+            if match:
+                return match.group()
+            else:
+                return cmd.split()[0]
+
+        def normalize_time(times, date):
+            if isinstance(times[0], str):
+                times = date + times
+                times = pd.to_datetime(times)
+                times = times - times[0]
+            else:
+                print "other type"
+                pdb.set_trace()
+            return times
+
+        def load_pidstat(key):
+            content = read_object(key)
+            lines = content.split('\n')
+            date = lines[0].split('\t')[1]
+            headers = lines[2].lstrip('#').split()
+            cmd_idx = headers.index('Command')
+
+            lines = [process_pidstat_line(l, cmd_idx) for l in lines if not l.startswith('Linux') and l != '' and not l.startswith('#')]
+            content = "\n".join(lines)
+            ps = pd.read_table(StringIO(content), sep='\t', header=None, names=headers)
+
+            ps['Program'] = map(extrac_command, ps.Command)
+            ps['file'] = os.path.basename(key).rstrip('.pidstat')
+            ps = ps[~ps.Program.isin(['crond', 'pidstat'])].reset_index()
+            ps.Time = normalize_time(ps.Time, date)
+
+            return ps
+
+        sys.stdout.write('\rprocessing task %s' % self.id)
+        sys.stdout.flush()
+        pattern = re.compile(r'\w+\.(jar|R|pl|py)')
+        sh = filter(lambda x:x.name =='sh', self.mapping)[0]
+        key = oss2key(sh.destination.rstrip('sh'))
+        related_files = [obj.key for obj in ObjectIterator(BUCKET, prefix=key)]
+        pidstats = filter(lambda x:x.endswith('pidstat'), related_files)
+        disk_usages = filter(lambda x:x.endswith('disk_usage'), related_files)
+        if len(pidstats) != len(disk_usages):
+            raise ValueError('{id}\tThe number of pidstats and disk_usages is differ'.format(id=self.id))
+        if not pidstats or not disk_usages:
+            return None
+
+        pidstats = map(load_pidstat, pidstats)
+        disk_usages = map(load_disk_usage, disk_usages)
+        disk_usages = map(lambda x:add_time_disk_usage(*x), zip(pidstats, disk_usages))
+        profiles = pd.merge(pd.concat(pidstats), pd.concat(disk_usages), how='left')
+        profiles['App'] = self.app.name
+        profiles['Module'] = self.module.name
+        profiles['Instance'] = self.instance.name
+        profiles['Instance.CPU'] = self.instance.cpu
+        profiles['Instance.MEM'] = self.instance.mem
+        profiles['Instance.Disk'] = 40 if self.disk_size <= 40 else int(self.disk_size)
+        return profiles
 
 class Bcs(Base):
     __tablename__ = 'bcs'
