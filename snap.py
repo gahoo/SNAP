@@ -357,7 +357,11 @@ def attach_task(args):
 def profile_task(args):
     proj = load_project(args.project)
     tasks = proj.query_tasks(args)
-    proj.profile(tasks)
+    profiles = proj.profile(tasks)
+    profile_file = os.path.expanduser("~/.snap/profile.pkl")
+    profiles.to_pickle(profile_file)
+    from core.profile import app as profile_app
+    profile_app.run_server(host='0.0.0.0', port=args.port)
 
 def add_mapping(args):
     proj = load_project(args.project)
