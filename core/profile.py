@@ -18,7 +18,7 @@ app.scripts.config.serve_locally = True
 profile_file = os.path.expanduser("~/.snap/profile.pkl")
 profiles = pd.read_pickle(profile_file)
 profiles.Time = profiles.Time.astype('int64')
-column_options = [{'label': c , 'value':c} for c in  profiles.columns.values.tolist()] + [{'label': 'None', 'value': None}]
+column_options = [{'label': c , 'value':c} for c in profiles.columns.values.tolist() if c != 'index']
 
 def color_palette(elements, ptype='qual', palette='Paired'):
     n_element = len(elements)
@@ -76,7 +76,7 @@ app.layout = html.Div([
         html.Div([
             html.Span('Type'),
             dcc.Dropdown(
-                options = map(lambda x:{'label':x, 'value':x}, ['scatter', 'box', 'heatmap']),
+                options = map(lambda x:{'label':x, 'value':x}, ['scatter', 'box']),
                 value = 'scatter',
                 id = 'figure_type')
         ], style={'width': '15%', 'display': 'inline-block'}),
@@ -86,13 +86,6 @@ app.layout = html.Div([
                 options = map(lambda x:{'label':x, 'value':x}, ['markers', 'lines', 'markers+lines']),
                 value = 'markers+lines',
                 id = 'figure_mode')
-        ], style={'width': '15%', 'display': 'inline-block'}),
-        html.Div([
-            html.Span('Z-axis'),
-            dcc.Dropdown(
-                options = column_options,
-                value = None,
-                id = 'zaxis')
         ], style={'width': '15%', 'display': 'inline-block'}),
     ]),
     html.Hr(),
@@ -123,9 +116,8 @@ def update_selected_row_indices(clickData, selected_row_indices):
      Input('size_mapper', 'value'),
      Input('figure_type', 'value'),
      Input('figure_mode', 'value'),
-     Input('zaxis', 'value'),
     ])
-def update_figure(rows, selected_row_indices, xaxis_column, yaxis_column, size_column, ftype, fmode, zaxis_column):
+def update_figure(rows, selected_row_indices, xaxis_column, yaxis_column, size_column, ftype, fmode):
     def add_file_trace(fig, filename, row_idx, col_idx=1):
         file_trace = make_file_trace(filename)
         [fig.append_trace(trace, row_idx, col_idx) for trace in file_trace]
@@ -144,6 +136,7 @@ def update_figure(rows, selected_row_indices, xaxis_column, yaxis_column, size_c
         else:
             scaled_size = 6
         data = {
+            'marker': {'color': program_color[program], 'size': scaled_size},
             'type': ftype,
             'name': program}
 
@@ -151,13 +144,8 @@ def update_figure(rows, selected_row_indices, xaxis_column, yaxis_column, size_c
             data['x'] = program_trace[xaxis_column]
         if yaxis_column:
             data['y'] = program_trace[yaxis_column]
-        if ftype == 'heatmap' and zaxis_column:
-            data['z'] = program_trace[zaxis_column]
-            data['colorscale'] = 'Viridis'
         if ftype == 'scatter':
             data['mode'] = fmode
-        if ftype != 'heatmap':
-            data['marker'] = {'color': program_color[program], 'size': scaled_size}
 
         return data
 
