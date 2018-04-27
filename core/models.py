@@ -618,7 +618,7 @@ class Project(Base):
         return q.all()
 
     def profile(self, tasks):
-        profiles = pd.concat([t.profile() for t in tasks], ignore_index=True)
+        return pd.concat([t.profile() for t in tasks], ignore_index=True)
 
     def update(self, **kwargs):
         commom_keys = set(['name', 'description', 'owner', 'status', 'max_job', 'run_cnt', 'discount', 'email', 'mns', 'cluster', 'auto_scale']) & set(kwargs.keys())
@@ -1552,7 +1552,7 @@ class Task(Base):
 
             return ps
 
-        sys.stdout.write('\rprocessing task %s' % self.id)
+        sys.stdout.write('processing task %s\r' % self.id)
         sys.stdout.flush()
         pattern = re.compile(r'\w+\.(jar|R|pl|py)')
         sh = filter(lambda x:x.name =='sh', self.mapping)[0]
