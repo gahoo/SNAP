@@ -102,6 +102,12 @@ class Project(Base):
     def __repr__(self):
         return "<Project(id={id}, name={name})>".format(id=self.id, name=self.name)
 
+    def waited(self):
+        return diff_date(get_date(self.create_date), get_date(self.start_date))
+
+    def elapsed(self):
+        return diff_date(get_date(self.start_date), get_date(self.finish_date))
+
     def sync(self):
         self.poll()
         if self.reach_max_jobs():
@@ -339,18 +345,18 @@ class Project(Base):
             if job_id in bcs:
                 bcs[job_id].cost += float(row[21])
             if cluster_id in clusters:
-                clusters[cluster_id] += float(row[21])
+                clusters[cluster_id].cost += float(row[21])
 
         def add_cluster_cost(b):
-            elapsed = diff_date(b.start_date, b.finish_date)
-            if elapsed:
-                b.cost = clusters[b.cluster] * elapsed.total_seconds() / total_elapsed
+            if b.elapsed():
+                b.cost = clusters[b.cluster].cost * b.elapsed().total_seconds() / cluster_total_elapsed[b.cluster]
 
-        def get_total_cluster_elapsed(bcs):
-            bcs_with_cluster = [b for b in bcs if b.cluster]
-            get_each_elapsed = lambda x: diff_date(x.start_date, x.finish_date)
-            each_elapsed = map(get_each_elapsed, bcs_with_cluster)
-            return sum([e.total_seconds() for e in each_elapsed if e])
+        def get_total_cluster_elapsed(bcs, clusters):
+            total_elapsed = {c.id:[] for c in clusters}
+            bcs_with_cluster = [b for b in bcs if b.cluster and b.elapsed()]
+            map(lambda x: total_elapsed[x.cluster].append(x.elapsed().total_seconds()), bcs_with_cluster)
+            total_elapsed = {k: sum(v) for k, v in total_elapsed.iteritems()}
+            return total_elapsed
 
         def zero_cost(element):
             element.cost = 0
@@ -358,11 +364,13 @@ class Project(Base):
         if not self.finish_date:
             print dyeWARNING("Project not finished yet. Billing might be incompelte.")
         bcs = self.session.query(Bcs).all()
+        clusters = self.session.query(Cluster).all()
         map(zero_cost, bcs)
-        clusters = {c:0 for c in set([b.cluster for b in bcs])}
+        map(zero_cost, clusters)
         #project_elapsed = diff_date(self.start_date, self.finish_date)
-        total_elapsed = get_total_cluster_elapsed(bcs)
+        cluster_total_elapsed = get_total_cluster_elapsed(bcs, clusters)
         bcs = {b.id:b for b in bcs}
+        clusters = {c.id:c for c in clusters}
         dates = date_dirs()
         for root, dirs, files in os.walk(billing_path):
             dirs[:] = [d for d in dirs if d in dates]
@@ -1609,20 +1617,10 @@ class Bcs(Base):
         super(Bcs, self).__init__(*args, **kwargs)
 
     def waited(self):
-        if self.start_date:
-            return self.start_date - self.create_date
-        else:
-            now = datetime.datetime.now()
-            return now - self.create_date
+        return diff_date(get_date(self.create_date), get_date(self.start_date))
 
     def elapsed(self):
-        if not self.start_date:
-            return None
-        elif self.finish_date:
-            return self.finish_date - self.start_date
-        else:
-            now = datetime.datetime.now()
-            return now - self.start_date
+        return diff_date(get_date(self.start_date), get_date(self.finish_date))
 
     @catchClientError
     def submit(self):
@@ -1957,12 +1955,16 @@ class Cluster(Base):
     disk_type = Column(String)
     create_date = Column(DateTime, default=datetime.datetime.now())
     finish_date = Column(DateTime)
+    cost = Column(Float, default=0)
 
     project_id = Column(Integer, ForeignKey('project.id'), nullable=True)
     project = relationship("Project", back_populates="cluster")
 
     def __repr__(self):
         return "<Cluster(id={id})>".format(id=self.id)
+
+    def elapsed(self):
+        return diff_date(get_date(self.create_date), get_date(self.finish_date))
 
     def save(self):
         self.project.save()
