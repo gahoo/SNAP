@@ -314,7 +314,7 @@ class Project(Base):
     def reach_max_jobs(self):
         return self.count_active_jobs() >= self.max_job
 
-    def bcs_cost(self, billing_path):
+    def billing(self, billing_path):
         def date_dirs():
             dates = []
             if self.start_date:

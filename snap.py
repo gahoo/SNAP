@@ -198,7 +198,7 @@ def clean_bcs(args):
 def cost_bcs(args):
     proj = load_project(args.project)
     if args.bill:
-        proj.bcs_cost(args.bill)
+        proj.billing(args.bill)
 
     costs = proj.cost_stat(args.mode)
     print format_cost_tbl(costs).get_string(sortby="total", reversesort=True)
