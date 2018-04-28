@@ -10,6 +10,7 @@ import colorlover as cl
 import plotly
 import os
 import pdb
+import itertools
 
 app = dash.Dash()
 
@@ -33,6 +34,8 @@ def color_palette(elements, ptype='qual', palette='Paired'):
     return dict(zip(elements, colors))
 
 program_color = color_palette(profiles.Program.unique())
+overview_color = color_palette(['%CPU', '%MEM', 'disk'], 'qual', 'Pastel1')
+ctrl_style = {'width': '14%', 'display': 'inline-block', 'margin': '1'}
 
 app.layout = html.Div([
     html.H4('Task Profile'),
@@ -52,41 +55,54 @@ app.layout = html.Div([
     html.Hr(),
     html.Div([
         html.Div([
-            html.Span('X-axis'),
+            html.Label('Show:'),
+            dcc.RadioItems(
+                options = [{'label': 'Overview', 'value': True}, {'label': 'Detail', 'value': False}],
+                value = True,
+                id = 'overview')
+        ], style={'width': '10%', 'float': 'left', 'margin': '1'}),
+        html.Div([
+            html.Label('X-axis'),
             dcc.Dropdown(
                 options = column_options,
                 placeholder = 'Xaxis',
                 value = 'Time',
                 id = 'xaxis')
-        ], style={'width': '15%', 'display': 'inline-block'}),
+        ], style = ctrl_style),
         html.Div([
-            html.Span('Y-axis'),
+            html.Label('Y-axis'),
             dcc.Dropdown(
                 options = column_options,
                 value = '%CPU',
                 id = 'yaxis')
-        ], style={'width': '15%', 'display': 'inline-block'}),
+        ], style = ctrl_style),
         html.Div([
-            html.Span('Size'),
+            html.Label('Size'),
             dcc.Dropdown(
                 options = column_options,
                 value = None,
                 id = 'size_mapper')
-        ], style={'width': '15%', 'display': 'inline-block'}),
+        ], style = ctrl_style),
         html.Div([
-            html.Span('Type'),
+            html.Label('Type'),
             dcc.Dropdown(
                 options = map(lambda x:{'label':x, 'value':x}, ['scatter', 'box']),
                 value = 'scatter',
                 id = 'figure_type')
-        ], style={'width': '15%', 'display': 'inline-block'}),
+        ], style = ctrl_style),
         html.Div([
-            html.Span('Type'),
+            html.Label('Mode'),
             dcc.Dropdown(
                 options = map(lambda x:{'label':x, 'value':x}, ['markers', 'lines', 'markers+lines']),
                 value = 'markers+lines',
                 id = 'figure_mode')
-        ], style={'width': '15%', 'display': 'inline-block'}),
+        ], style = ctrl_style),
+        html.Div([
+            html.Label('Height'),
+            dcc.Slider(
+                min = 120, max=800, step=20, value=180,
+                id = 'height')
+        ], style = ctrl_style),
     ]),
     html.Hr(),
     dcc.Graph(
@@ -111,26 +127,48 @@ def update_selected_row_indices(clickData, selected_row_indices):
     Output('graph-profiles', 'figure'),
     [Input('datatable-profiles', 'rows'),
      Input('datatable-profiles', 'selected_row_indices'),
+     Input('overview', 'value'),
+     Input('height', 'value'),
      Input('xaxis', 'value'),
      Input('yaxis', 'value'),
      Input('size_mapper', 'value'),
      Input('figure_type', 'value'),
      Input('figure_mode', 'value'),
     ])
-def update_figure(rows, selected_row_indices, xaxis_column, yaxis_column, size_column, ftype, fmode):
+def update_figure(rows, selected_row_indices, overview, height, xaxis_column, yaxis_column, size_column, ftype, fmode):
     def add_file_trace(fig, filename, row_idx, col_idx=1):
         file_trace = make_file_trace(filename)
-        [fig.append_trace(trace, row_idx, col_idx) for trace in file_trace]
-
-    def make_file_trace(filename, merge=False):
-        file_df = dff[dff.file == filename]
-        if merge:
-            pass
+        if overview:
+            enumerate(file_trace, start=1)
+            [fig.append_trace(trace, row_idx, i) for i, trace in enumerate(file_trace, start=1)]
         else:
-            return [make_program_trace(filename, program) for program in file_df.Program.unique()]
+            [fig.append_trace(trace, row_idx, 1) for trace in file_trace]
 
-    def make_program_trace(filename, program):
-        program_trace = dff[(dff.file == filename) & (dff.Program == program)]
+    def make_file_trace(filename):
+        file_df = dff[dff.file == filename].reset_index()
+        if overview:
+            return make_overview_trace(file_df)
+        else:
+            return [make_program_trace(file_df, program) for program in file_df.Program.unique()]
+
+    def make_overview_trace(file_df):
+        if file_df.data[0]:
+            file_df = file_df.rename(columns = {'data': 'disk'})
+        else:
+            file_df = file_df.rename(columns = {'sys': 'disk'})
+        overview_df = file_df.filter(['Time', '%CPU', '%MEM', 'disk']).groupby('Time')
+        overview_df = overview_df.agg({'%CPU': 'sum', '%MEM': 'sum', 'disk': 'max'})
+        overview_df.index.name = 'Time'
+        overview_df.reset_index(inplace=True)
+        get_column_data = lambda column: {
+            'name': column, 'type': 'scatter', 'fill': 'tonexty',
+            'marker': {'color': overview_color[column]},
+            'x': overview_df.Time, 'y': overview_df[column]}
+
+        return map(get_column_data, ('%CPU', '%MEM', 'disk'))
+
+    def make_program_trace(file_df, program):
+        program_trace = file_df[file_df.Program == program]
         if size_column:
             scaled_size = 12 * (0.5 + (program_trace[size_column] - dff[size_column].min()) / dff[size_column].max())
         else:
@@ -152,16 +190,22 @@ def update_figure(rows, selected_row_indices, xaxis_column, yaxis_column, size_c
     dff = pd.DataFrame(rows)
     dff.Time = dff.Time.astype('timedelta64[ns]') + pd.to_datetime('1970/01/01')
     filenames = dff.file.unique()
+    if overview:
+        ncol = 3
+        titles = map(lambda x: ".".join(x), itertools.product(filenames, ['%CPU', '%MEM', 'disk']))
+    else:
+        ncol = 1
+        titles = filenames
     fig = plotly.tools.make_subplots(
-        rows=len(filenames), cols=1,
-        subplot_titles=filenames,
+        rows=len(filenames), cols=ncol,
+        subplot_titles=titles,
         shared_xaxes=True)
     marker = {'color': ['#0074D9']*len(dff)}
     for i in (selected_row_indices or []):
         marker['color'][i] = '#FF851B'
 
     [add_file_trace(fig, filename, i) for i, filename in enumerate(filenames, start=1)]
-    fig['layout']['height'] = 180 * len(filenames)
+    fig['layout']['height'] = height * len(filenames)
     max_nchar = max(map(len, dff.Program))
     fig['layout']['margin'] = {
         'l': 7 * max_nchar,
