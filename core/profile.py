@@ -111,22 +111,8 @@ app.layout = html.Div([
 ], className="container")
 
 @app.callback(
-    Output('datatable-profiles', 'selected_row_indices'),
-    [Input('graph-profiles', 'clickData')],
-    [State('datatable-profiles', 'selected_row_indices')])
-def update_selected_row_indices(clickData, selected_row_indices):
-    if clickData:
-        for point in clickData['points']:
-            if point['pointNumber'] in selected_row_indices:
-                selected_row_indices.remove(point['pointNumber'])
-            else:
-                selected_row_indices.append(point['pointNumber'])
-    return selected_row_indices
-
-@app.callback(
     Output('graph-profiles', 'figure'),
     [Input('datatable-profiles', 'rows'),
-     Input('datatable-profiles', 'selected_row_indices'),
      Input('overview', 'value'),
      Input('height', 'value'),
      Input('xaxis', 'value'),
@@ -135,7 +121,7 @@ def update_selected_row_indices(clickData, selected_row_indices):
      Input('figure_type', 'value'),
      Input('figure_mode', 'value'),
     ])
-def update_figure(rows, selected_row_indices, overview, height, xaxis_column, yaxis_column, size_column, ftype, fmode):
+def update_figure(rows, overview, height, xaxis_column, yaxis_column, size_column, ftype, fmode):
     def add_file_trace(fig, filename, row_idx, col_idx=1):
         file_trace = make_file_trace(filename)
         if overview:
@@ -200,19 +186,15 @@ def update_figure(rows, selected_row_indices, overview, height, xaxis_column, ya
         rows=len(filenames), cols=ncol,
         subplot_titles=titles,
         shared_xaxes=True)
-    marker = {'color': ['#0074D9']*len(dff)}
-    for i in (selected_row_indices or []):
-        marker['color'][i] = '#FF851B'
 
     [add_file_trace(fig, filename, i) for i, filename in enumerate(filenames, start=1)]
     fig['layout']['height'] = height * len(filenames)
     max_nchar = max(map(len, dff.Program))
     fig['layout']['margin'] = {
-        'l': 7 * max_nchar,
+        'l': 8 * max_nchar,
         'r': 10,
         't': 40,
         'b': 80
     }
-    #fig['layout']['yaxis3']['type'] = 'log'
     return fig
 
