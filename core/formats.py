@@ -28,13 +28,12 @@ def format_project_tbl(projects, size=False, cost=False):
         state = states[p.name]
         progress = 100.0 * (state.get('cleaned', 0) + state.get('finished', 0)) / sum(state.values())
         progress = round(progress, 2)
-        elapsed = diff_date(get_date(p.start_date), get_date(p.finish_date))
         row_size = build_size()
         row_cost = build_cost()
         if size and row_cost:
             row_cost = [round(sum(row_size) / (2.0 ** 30) * 0.148, 3) + row_cost[0]]
         row_size = map(human_size, row_size)
-        return [p.name] + [state.get(column, 0) for column in states_column] + [progress, elapsed] + row_size + row_cost
+        return [p.name] + [state.get(column, 0) for column in states_column] + [progress, p.elapsed()] + row_size + row_cost
 
     tbl = PrettyTable()
     states = {e.name:e.states() for e in projects}
@@ -53,9 +52,8 @@ def format_detail_porject(project):
     tbl.header = False
     fields = ['id', 'name', 'description', 'owner', 'status', 'type', 'pipe', 'path', 'max_job', 'run_cnt', 'create_date', 'start_date', 'finish_date', 'discount', 'email', 'mns', 'cluster', 'auto_scale']
     values = [project.__getattribute__(k) for k in fields]
-    elapsed = diff_date(get_date(project.start_date), get_date(project.finish_date))
     tbl.add_column("field", fields + ['task num', 'elapsed'])
-    tbl.add_column("value", values + [len(project.task), elapsed])
+    tbl.add_column("value", values + [len(project.task), project.elapsed()])
     return tbl
 
 def format_tasks_tbl(tasks, cost=False):
@@ -69,10 +67,8 @@ def format_tasks_tbl(tasks, cost=False):
         if task.bcs:
             failed_cnts = len([b for b in task.bcs if b.status == 'Failed'])
             create_date = get_date(task.bcs[-1].create_date)
-            start_date = get_date(task.bcs[-1].start_date)
-            finish_date = get_date(task.bcs[-1].finish_date)
-            waited = diff_date(create_date, start_date)
-            elapsed = diff_date(start_date, finish_date)
+            waited = task.bcs[-1].waited()
+            elapsed = task.bcs[-1].elapsed()
         else:
             failed_cnts = 0
             create_date = task.project.create_date.replace(microsecond=0)
@@ -119,11 +115,7 @@ def format_bcs_tbl(bcs, with_instance):
     for b in bcs:
         status = format_status(b.status.lower(), b.deleted)
         create_date = get_date(b.create_date)
-        start_date = get_date(b.start_date)
-        finish_date = get_date(b.finish_date)
-        waited = diff_date(create_date, start_date)
-        elapsed = diff_date(start_date, finish_date)
-        row = [b.id, b.name, status, create_date, waited, elapsed, b.cost]
+        row = [b.id, b.name, status, create_date, b.waited(), b.elapsed(), b.cost]
         if with_instance:
             i = b.instance
             row = row + [i.name, i.cpu, i.mem, i.price, b.spot_price_limit]
