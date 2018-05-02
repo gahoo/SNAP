@@ -326,7 +326,7 @@ class Project(Base):
                 finish = self.finish_date + datetime.timedelta(days=1)
                 finish = datetime.datetime.combine(finish, datetime.time.max)
             else:
-                finish = datetime.datetime.now()
+                finish = datetime.datetime.combine(datetime.datetime.now(), datetime.time.max)
 
             i = start
             while i <= finish:
@@ -1043,7 +1043,7 @@ class Task(Base):
             self.project.notify()
             raise
 
-        if self.project.cluster:
+        if self.project.cluster and task.ClusterId:
             cluster_id = self.project.cluster.id
         else:
             cluster_id = None
@@ -1502,7 +1502,7 @@ class Task(Base):
 
     def profile(self):
         def load_disk_usage(key):
-            content = read_object(key)
+            content = read_object(key, full=True)
             du = pd.read_table(StringIO(content), delim_whitespace=True)
             return pd.DataFrame({
                 'sys': du[du.Mounted == '/'].reset_index().Used.astype('int64'),
@@ -1510,10 +1510,16 @@ class Task(Base):
                 'file': os.path.basename(key).rstrip('.disk_usage') })
 
         def add_time_disk_usage(ps, du):
+            if ps is None:
+                return None
             times = ps.Time.unique()
             lack_num = len(du) - len(times)
+            if len(times) <= 1:
+                step = times[0] + 60000000000
+            else:
+                step = times[1]
             if lack_num > 0:
-                lack = times[-1] + times[1] * np.arange(1, lack_num + 1)
+                lack = times[-1] + step * np.arange(1, lack_num + 1)
                 times = np.append(times, lack)
             elif lack_num < 0:
                 times = times[:lack_num]
@@ -1522,7 +1528,7 @@ class Task(Base):
             return du
 
         def process_pidstat_line(line, cmd_idx):
-            elements = line.split()
+            elements = line.strip().split()
             return "\t".join(elements[:cmd_idx]) + '\t' + " ".join(elements[cmd_idx:])
 
         def extrac_command(cmd):
@@ -1530,12 +1536,15 @@ class Task(Base):
             if match:
                 return match.group()
             else:
-                return cmd.split()[0]
+                return os.path.basename(cmd.split()[0])
 
         def normalize_time(times, date):
             if isinstance(times[0], str):
                 times = date + times
                 times = pd.to_datetime(times)
+                times = times - times[0]
+            elif times.dtype == 'int64':
+                times = pd.to_datetime(times, unit='s')
                 times = times - times[0]
             else:
                 print "other type"
@@ -1543,19 +1552,24 @@ class Task(Base):
             return times
 
         def load_pidstat(key):
-            content = read_object(key)
+            content = read_object(key, full=True)
             lines = content.split('\n')
+            if len(lines) < 4:
+                return None
             date = lines[0].split('\t')[1]
             headers = lines[2].lstrip('#').split()
+            n_column = len(headers)
             cmd_idx = headers.index('Command')
 
             lines = [process_pidstat_line(l, cmd_idx) for l in lines if not l.startswith('Linux') and l != '' and not l.startswith('#')]
+            lines = [l for l in lines if l[:8].isdigit() or l[2] == ':']
+            lines = [l for l in lines if len(l.strip('\t').split('\t')) == n_column]
             content = "\n".join(lines)
             ps = pd.read_table(StringIO(content), sep='\t', header=None, names=headers)
 
             ps['Program'] = map(extrac_command, ps.Command)
             ps['file'] = os.path.basename(key).rstrip('.pidstat')
-            ps = ps[~ps.Program.isin(['crond', 'pidstat'])].reset_index()
+            ps = ps[~ps.Program.isin(['cron', 'CRON', 'crond', 'pidstat'])].reset_index()
             ps.Time = normalize_time(ps.Time, date)
 
             return ps
