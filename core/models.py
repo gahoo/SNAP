@@ -1531,7 +1531,7 @@ class Task(Base):
             elements = line.strip().split()
             return "\t".join(elements[:cmd_idx]) + '\t' + " ".join(elements[cmd_idx:])
 
-        def extrac_command(cmd):
+        def extract_command(cmd):
             match = pattern.search(cmd)
             if match:
                 return match.group()
@@ -1567,7 +1567,7 @@ class Task(Base):
             content = "\n".join(lines)
             ps = pd.read_table(StringIO(content), sep='\t', header=None, names=headers)
 
-            ps['Program'] = map(extrac_command, ps.Command)
+            ps['Program'] = map(extract_command, ps.Command)
             ps['file'] = os.path.basename(key).rstrip('.pidstat')
             ps = ps[~ps.Program.isin(['cron', 'CRON', 'crond', 'pidstat'])].reset_index()
             ps.Time = normalize_time(ps.Time, date)
