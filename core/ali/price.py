@@ -13,6 +13,7 @@ db.session.commit()
 instances = db.session.query(Instance)
 
 app = dash.Dash()
+app.scripts.config.serve_locally = True
 
 app.layout = html.Div([
     dcc.Dropdown(
