@@ -23,7 +23,9 @@ column_options = [{'label': c , 'value':c} for c in profiles.columns.values.toli
 
 def color_palette(elements, ptype='qual', palette='Paired'):
     n_element = len(elements)
-    if n_element <= 11:
+    if n_element < 3:
+        colors = cl.scales['3'][ptype][palette][:n_element]
+    elif n_element <= 11:
         cnt = str(n_element)
         colors = cl.scales[cnt][ptype][palette]
     else:
