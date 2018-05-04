@@ -1044,7 +1044,7 @@ class Task(Base):
             raise
 
         if self.project.cluster and task.ClusterId:
-            cluster_id = self.project.cluster.id
+            cluster_id = task.ClusterId
         else:
             cluster_id = None
 
