@@ -968,7 +968,7 @@ class App(dict):
             proj.session = db.session
             proj.logger = new_logger(self.appname)
             if cluster:
-                proj.update(cluster = cluster)
+                proj.bind_cluster(cluster)
             return proj
 
         def submit_jobs(tasks):
