@@ -1181,9 +1181,11 @@ class Task(Base):
             is_write_destination_nested = functools.partial(is_nested, destination = write_destinations)
             nested_write_destinations = check_nested(is_write_destination_nested, read_destinations)
 
+            nested_path_to_rm = list(set(duplicated_read_destinations + nested_read_destinations + nested_write_destinations + rw_destinations))
+            nested_path_to_rm.sort()
             nested_mounts = []
 
-            for nested_path in set(duplicated_read_destinations + nested_read_destinations + nested_write_destinations + rw_destinations):
+            for nested_path in nested_path_to_rm:
                 m = new_nested_mount(nested_path)
                 mounts = rm_nested_mounts(nested_path)
                 if m:
