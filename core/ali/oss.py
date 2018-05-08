@@ -8,7 +8,7 @@ from ..colorMessage import dyeWARNING, dyeFAIL
 
 def oss2key(destination):
     prefix = os.path.join('oss://', BUCKET.bucket_name)
-    key = destination.replace(prefix, '').strip('/')
+    key = destination.replace(prefix, '').lstrip('/')
     return key
 
 class OSSkeys(object):
