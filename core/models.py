@@ -631,7 +631,9 @@ class Project(Base):
     def update(self, **kwargs):
         commom_keys = set(['name', 'description', 'owner', 'status', 'max_job', 'run_cnt', 'discount', 'email', 'mns', 'cluster', 'auto_scale']) & set(kwargs.keys())
         old_setting = [self.__getattribute__(k) for k in commom_keys]
-        [self.__setattr__(k, kwargs[k]) for k in commom_keys if kwargs[k] != 'None']
+        if 'cluster' in commom_keys and kwargs['cluster'] != '':
+            self.bind_cluster(kwargs['cluster'])
+        [self.__setattr__(k, kwargs[k]) for k in commom_keys if kwargs[k] != 'None' and k != 'cluster']
         [self.__setattr__(k, None) for k in commom_keys if kwargs[k] == 'None']
         kwargs = {k:kwargs[k] for k in commom_keys}
         updated = "\t".join(["(%s %s => %s)" % (k, old, new) for k, old, new in zip(commom_keys, old_setting, kwargs.values())])
