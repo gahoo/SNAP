@@ -699,7 +699,7 @@ if __name__ == "__main__":
     subparsers_bcs_update.add_argument('-email', help="Which Email address will be sent when job failed.")
     subparsers_bcs_update.add_argument('-mns', help="MNS endpoint for notification.")
     subparsers_bcs_update.add_argument('-cluster', help="Cluster ID for existed cluster.")
-    subparsers_bcs_update.add_argument('-auto_scale', action='store_true', help="add crontab job")
+    subparsers_bcs_update.add_argument('-auto_scale', default=None, action='store_true', help="add crontab job")
     subparsers_bcs_update.add_argument('-no_auto_scale', default=None, dest='auto_scale', action='store_false', help="This is not a writable mapping")
     subparsers_bcs_update.set_defaults(func=update_bcs)
 
