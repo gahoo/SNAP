@@ -769,8 +769,8 @@ class App(dict):
             else:
                 script_file = None
                 mappings = []
-            [mappings.extend(getMappings(f, 'inputs', extra)) for f in self['inputs']]
-            [mappings.extend(getMappings(f, 'outputs', extra)) for f in self['outputs']]
+            [mappings.extend(getMappings(f, 'inputs', extra)) for f in self.get('inputs', [])]
+            [mappings.extend(getMappings(f, 'outputs', extra)) for f in self.get('outputs', [])]
 
             self.check()
             script = self.renderScript(template, extra=extra)
