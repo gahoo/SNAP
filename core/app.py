@@ -333,8 +333,15 @@ class App(dict):
             return getGHvalue(name)
 
     def loadParameterValue(self, name, is_oss=False):
+        def needWORKSPACE(name, value):
+            is_str = isinstance(value, str)
+            is_local_realtive = not (value.startswith('/') or value.startswith('oss://'))
+            is_in_inputs = self.config['app']['inputs'] and name in self.config['app']['inputs'].keys()
+            is_in_outputs = self.config['app']['outputs'] and name in self.config['app']['outputs'].keys()
+            return is_str and is_local_realtive and (is_in_inputs or is_in_outputs)
+
         def addWorkspace4FilePath(name, value):
-            if isinstance(value, str) and not (value.startswith('/') or value.startswith('oss://')) and (name in self.config['app']['inputs'].keys() or name in self.config['app']['outputs'].keys()):
+            if needWORKSPACE(name, value):
                 if is_oss:
                     WORKSPACE = self.oss_path('project')
                 else:
