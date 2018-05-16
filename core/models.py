@@ -1561,7 +1561,8 @@ class Task(Base):
             if len(lines) < 4:
                 return None
             date = lines[0].split('\t')[1]
-            headers = lines[2].lstrip('#').split()
+            headers = [l for l in lines[:6] if l.startswith('#')].pop()
+            headers = headers.lstrip('#').split()
             n_column = len(headers)
             cmd_idx = headers.index('Command')
 
