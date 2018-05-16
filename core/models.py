@@ -1324,7 +1324,7 @@ class Task(Base):
 
     def prepare_network(self):
         network = Networks()
-        if self.debug_mode:
+        if self.debug_mode or 'ne' in self.instance.name:
             network.VPC.CidrBlock = ALI_CONF['vpc_cidr_block']
             network.VPC.VpcId = ALI_CONF['vpc_id']
         return network
