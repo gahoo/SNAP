@@ -808,11 +808,11 @@ class App(dict):
             if is_path_has_listed_extra:
                 extra_param = listed_extra.keys().pop()
                 extra_list = [{extra_param: v} for v in listed_extra.values().pop()]
-                return map(lambda x:renderPath(value[0], x), extra_list)
+                return map(lambda x:renderExtraListPath(value[0], x), extra_list)
             else:
                 return value
 
-        def renderPath(x, extra):
+        def renderExtraListPath(x, extra):
             new_file = copy.deepcopy(x)
             new_file['name'] = self.renderScript(x['name'], extra=extra)
             new_file['oss'] = self.renderScript(x['oss'], extra=extra)
