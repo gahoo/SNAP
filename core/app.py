@@ -6,6 +6,7 @@ import copy
 import pdb
 import sys
 import errno
+import copy
 from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
 from colorMessage import dyeWARNING, dyeFAIL
@@ -652,17 +653,21 @@ class App(dict):
             self.renderScripts()
             self.writeScripts()
 
-    def renderScript(self, cmd_template=None, parameters=None, extra=None):
+    def renderScript(self, cmd_template=None, parameters=None, extra=None, inputs=None, outputs=None):
         if cmd_template is None:
             cmd_template = self.config['app']['cmd_template']
         if not parameters:
             parameters = self.get('parameters')
+        if not inputs:
+            inputs = self.get('inputs')
+        if not outputs:
+            outputs = self.get('outputs')
         samples = self.parameters.get('Samples')
         groups = self.parameters.get('Groups')
         template = Template(cmd_template)
         return template.render(
-            inputs = self.get('inputs'),
-            outputs = self.get('outputs'),
+            inputs = inputs,
+            outputs = outputs,
             parameters = parameters,
             samples = samples,
             groups = groups,
@@ -760,7 +765,7 @@ class App(dict):
             else:
                 raise ValueError('%s has different length' % list_params_name)
 
-            for n, param_dict in enumerate(params_list):
+            for n, param_dict in enumerate(params_list, start=1):
                 map(setParam, param_dict.keys(), param_dict.values())
                 param_dict['i'] = n
                 if(extra):
@@ -768,6 +773,14 @@ class App(dict):
                 renderEachParam(extra=param_dict)
 
         def renderEachParam(template=None, extra=None):
+            listed_extra = findListExtra(extra)
+            if listed_extra:
+                inputs = {k:fixExtraListPath(k, v, listed_extra) for k, v in copy.deepcopy(self.get('inputs')).iteritems()}
+                outputs = {k:fixExtraListPath(k, v, listed_extra) for k, v in copy.deepcopy(self.get('outputs')).iteritems()}
+            else:
+                inputs = self.get('inputs', [])
+                outputs = self.get('outputs', [])
+
             if (self.shell_path and self.dependence_file is None) or self.is_run:
                 script_file = self.renderScript(self.shell_path, extra=extra)
                 sh_mapping = addScriptMapping(script_file)
@@ -776,15 +789,39 @@ class App(dict):
             else:
                 script_file = None
                 mappings = []
-            [mappings.extend(getMappings(f, 'inputs', extra)) for f in self.get('inputs', [])]
-            [mappings.extend(getMappings(f, 'outputs', extra)) for f in self.get('outputs', [])]
+            [mappings.extend(getMappings(name, f, 'inputs', extra)) for name, f in inputs.iteritems()]
+            [mappings.extend(getMappings(name, f, 'outputs', extra)) for name, f in outputs.iteritems()]
 
             self.check()
-            script = self.renderScript(template, extra=extra)
-            if script.count('{{parameters'):
+
+            script = self.renderScript(template, extra=extra, inputs=inputs, outputs=outputs)
+            if script.count('{{parameters') or script.count('{{extra'):
                 script = self.renderScript(script, extra=extra)
 
             self.scripts.append({"filename": script_file, "content": script, "module": self.module, "extra": extra, "mappings": mappings})
+
+        def fixExtraListPath(key, value, listed_extra):
+            if len(listed_extra) > 1:
+                raise ValueError('More than one extra list parameters is not supported yet:' + listed_extra)
+            extra_key = ["extra." + k for k in listed_extra.keys()]
+            is_path_has_listed_extra = any(map(lambda x:x in value[0]['name'], extra_key))
+            if is_path_has_listed_extra:
+                extra_param = listed_extra.keys().pop()
+                extra_list = [{extra_param: v} for v in listed_extra.values().pop()]
+                return map(lambda x:renderPath(value[0], x), extra_list)
+            else:
+                return value
+
+        def renderPath(x, extra):
+            new_file = copy.deepcopy(x)
+            new_file['name'] = self.renderScript(x['name'], extra=extra)
+            new_file['oss'] = self.renderScript(x['oss'], extra=extra)
+            return new_file
+
+        def findListExtra(extra):
+            if extra is None:
+                return None
+            return {k:v for k,v in extra.iteritems() if isinstance(v, list)}
 
         def addScriptMapping(script_file):
             oss_proj_path = self.oss_path('project')
@@ -806,7 +843,7 @@ class App(dict):
                 'is_required': True,
                 'is_immediate': False}
 
-        def getMappings(name, file_type, extra):
+        def getMappings(name, files, file_type, extra):
             if file_type == 'inputs':
                 is_write = False
             elif file_type == 'outputs':
@@ -851,7 +888,7 @@ class App(dict):
                     each_file['oss'] = checkDestination(each_file['oss'])
                     each_file.updatePath()
 
-            map(fix_path, self[file_type][name])
+            map(fix_path, files)
 
             return [{
                 'name': name,
@@ -860,7 +897,7 @@ class App(dict):
                 'is_write': is_write,
                 'is_immediate': isImmediate(f['name']) and isImmediate(f['oss']) and name != 'APP_PATH',
                 'is_required': f['required']
-                } for f in self[file_type][name] if f['name'] != '']
+                } for f in files if f['name'] != '']
 
         def isImmediate(path):
             if path in self.parameters['CommonData'].values():
