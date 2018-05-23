@@ -2168,5 +2168,5 @@ class Cluster(Base):
         scaled_instance = filter(lambda x:x[1] != x[2], zip(instance_status.keys(), old_desired, new_desired))
         msg = map(lambda x: "%s: %s -> %s" % x, scaled_instance)
         if msg:
-            self.project.message.extend(msg)
+            self.project.message.extend(["\n\n*Cluster auto scaled:*\n"] + msg)
             self.project.logger.info('\t'.join(msg))
