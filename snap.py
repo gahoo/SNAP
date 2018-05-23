@@ -826,6 +826,7 @@ if __name__ == "__main__":
     subparsers_task_list.add_argument('-is_not_immediate', default=None, dest='is_immediate', action='store_false', help="This is not a immediate mapping")
     subparsers_task_list.add_argument('-is_required', default=None, dest='is_required', action='store_true', help="This is a required mapping")
     subparsers_task_list.add_argument('-is_not_requried', default=None, dest='is_required', action='store_false', help="This is not a required mapping")
+    subparsers_task_list.add_argument('-fuzzy', default=False, action='store_true', help="Fuzzy search source and destination")
     subparsers_task_list.add_argument('-cost', default=False, action='store_true', help="Show task cost or not")
     subparsers_task_list.set_defaults(func=list_task)
 

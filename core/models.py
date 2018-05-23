@@ -196,7 +196,7 @@ class Project(Base):
         q = self.session.query(Mapping)
         if args.id:
             q = q.filter(Mapping.id.in_(args.id))
-        if args.name:
+        if 'name' in args and args.name:
             q = q.filter(Mapping.name == args.name)
         if args.source:
             if fuzzy:
@@ -218,7 +218,7 @@ class Project(Base):
         return mappings
 
     def query_mapping_tasks(self, args):
-        mappings = self.query_mappings(args)
+        mappings = self.query_mappings(args, fuzzy=args.fuzzy)
         tasks = set(sum([m.task for m in mappings], []))
         return tasks
 
