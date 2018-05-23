@@ -747,6 +747,12 @@ class Project(Base):
 
             return mappings
 
+        def prepare_APP_PATH_mapping():
+            app_paths = self.session.query(Mapping).filter_by(name='APP_PATH').all()
+            source = os.path.commonprefix([m.source for m in app_paths])
+            destination = os.path.commonprefix([m.destination for m in app_paths])
+            return {source: destination}
+
         def prepare_task():
             task = TaskDescription()
             task.Parameters.Command.CommandLine = "sh -l -c 'sleep {timeout}'".format(timeout=timeout)
@@ -756,6 +762,7 @@ class Project(Base):
             task.WriteSupport = True
 
             input_mapping = prepare_mapipngs(inputs)
+            input_mapping.update(prepare_APP_PATH_mapping())
             input_mapping.update({self.path: "oss://{bucket}/project/{name}/".format(bucket=ALI_CONF['bucket'], name=self.name)})
             task.Mounts.Entries = [MountEntry({'Source': oss, 'Destination': local, 'WriteSupport':True}) for local, oss in input_mapping.iteritems()]
 
