@@ -121,6 +121,7 @@ class Project(Base):
 
         if self.cluster and self.auto_scale:
             self.cluster.auto_scale()
+        self.check_waiting_too_long(3600)
         self.notify()
         self.log_date()
 
@@ -148,6 +149,12 @@ class Project(Base):
     def poll(self):
         bcs = self.session.query(Bcs).filter( (Bcs.status=='Waiting') | (Bcs.status=='Running') ).all()
         map(lambda x:x.poll(), bcs)
+
+    def check_waiting_too_long(self, timeout=3600):
+        build_msg = lambda x, y: "- <{id}> *{sh}* has been waited for {time}".format(id=x.id, sh=os.path.basename(x.shell), time=y)
+        bcs = self.session.query(Bcs).filter( (Bcs.status=='Waiting') ).all()
+        msgs = [build_msg(b.task, b.waited()) for b in bcs if b.waited().total_seconds() > timeout]
+        self.message.extend(msgs)
 
     def states(self):
         states = [t.aasm_state for t in self.task]
