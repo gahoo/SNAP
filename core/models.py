@@ -122,7 +122,7 @@ class Project(Base):
         if self.cluster and self.auto_scale:
             self.cluster.auto_scale()
         self.check_waiting_too_long(3600)
-        self.check_instance_price(self.discount)
+        self.check_instance_price()
         self.notify()
         self.log_date()
 
@@ -157,12 +157,12 @@ class Project(Base):
         msgs = [build_msg(b.task, b.waited()) for b in bcs if b.waited().total_seconds() > timeout]
         self.message.extend(msgs)
 
-    def check_instance_price(self, max_discount=0.2):
+    def check_instance_price(self):
         build_msg = lambda x, y: "- {instance}: {spot} / {origin} = {discount}".format(instance=x, spot=y[0], origin=y[1], discount=y[0]/y[1])
         bcs = self.session.query(Bcs).filter( (Bcs.status=='Running') ).all()
         instances = set([b.instance for b in bcs])
         prices = map(lambda x:x.latest_price(), instances)
-        msgs = [build_msg(i.name, p) for i, p in zip(instances, prices) if p[0]/p[1] > max_discount]
+        msgs = [build_msg(i.name, p) for i, p in zip(instances, prices) if p[1] and p[0]/p[1] > self.discount]
         if msgs:
             msgs = ["\n\n*Folowing instance is getting expensive. Please consider switching alternative instance to avoid withdraw or high cost.*"] + msgs
             self.message.extend(msgs)
