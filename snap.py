@@ -807,8 +807,8 @@ if __name__ == "__main__":
     share_task_parser.add_argument('-id', default=None, help="Task id", nargs="*", type = int)
     share_task_parser.add_argument('-shell', default='.', help="Task shell")
     share_task_parser.add_argument('-status', default=None, help="Task status", nargs="*")
-    share_task_parser.add_argument('-app', default=None, help="Task app")
-    share_task_parser.add_argument('-module', default=None, help="Task module")
+    share_task_parser.add_argument('-app', default=None, help="Task app", nargs="*")
+    share_task_parser.add_argument('-module', default=None, help="Task module", nargs="*")
     share_task_parser.add_argument('-yes', action='store_true', help="Don't ask.")
 
     #task list

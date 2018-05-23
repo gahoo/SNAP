@@ -186,9 +186,9 @@ class Project(Base):
         if args.shell:
             q = q.filter(Task.shell.like("%" + args.shell + "%"))
         if args.app:
-            q = q.join(App).filter(App.name == args.app)
+            q = q.join(App).filter(App.name.in_(args.app))
         if args.module:
-            q = q.join(Module).filter(Module.name == args.module)
+            q = q.join(Module).filter(Module.name.in_(args.module))
         tasks = q.all()
         return tasks
 
