@@ -1054,7 +1054,10 @@ class Task(Base):
         if self.is_created:
             self.start()
         elif self.is_pending and self.is_dependence_satisfied():
-            self.submit()
+            try:
+                self.submit()
+            except Exception, e:
+                pass
         elif self.is_waiting or self.is_running:
             self.sync()
         elif self.is_failed and not self.reach_max_failed(3):
@@ -1091,10 +1094,10 @@ class Task(Base):
             (task_name, task) = self.prepare_task()
         except Exception, e:
             msg = self.msg(str(e))
+            print dyeFAIL(msg)
             self.project.logger.error(msg)
             task_info = "- <{id}> *{sh}* {status} | **FATAL ERROR**".format(id=self.id, sh=os.path.basename(self.shell), status=self.aasm_state)
             self.project.message.append(task_info)
-            self.project.notify()
             raise
 
         if self.project.cluster and task.ClusterId:
