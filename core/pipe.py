@@ -313,6 +313,9 @@ class Pipe(dict):
             return [sh['filename'] for sh in self.apps[appname].scripts if sh['module'] == module]
 
         def getSampleAppScripts(module, appname, sample_name):
+            if appname not in self.apps:
+                print dyeFAIL("Warning: dependencies.yaml: make sure {appname} in {module} is an alias App and not in parameter.conf".format(module=module, appname=appname))
+                return []
             return [sh['filename'] for sh in self.apps[appname].scripts if sh['module'] == module and sh['extra']['sample_name'] == sample_name]
 
         def makeAppPymonitorConf(module, appname):
