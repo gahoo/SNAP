@@ -217,7 +217,7 @@ def price_bcs(args):
 
 def inspect_bcs(args):
     proj = load_project(args.project)
-    proj.interactive_task(args.docker_image, inputs=args.inputs, outputs=args.outputs, instance_type=args.instance, cluster=args.cluster, timeout=args.timeout)
+    proj.interactive_task(args.docker_image, inputs=args.inputs, outputs=args.outputs, instance_type=args.instance, cluster=args.cluster, tid=args.tid, mid=args.mid, timeout=args.timeout)
 
 def load_project(name):
     def fuzzy_match(name):
@@ -786,8 +786,10 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_bcs_inspect.add_argument('-project', default=None, required=True, help="ContractID or ProjectID")
     subparsers_bcs_inspect.add_argument('-docker_image', default='alpine:3.7-2.2.1a-2', help="docker image for the shell")
+    subparsers_bcs_inspect.add_argument('-tid', help="task id", nargs="*")
     subparsers_bcs_inspect.add_argument('-inputs', help="input mappings, k:v paris. local_dir:oss_dir", nargs="*")
     subparsers_bcs_inspect.add_argument('-outputs', help="output mappings, k:v paris. local_dir:oss_dir", nargs="*")
+    subparsers_bcs_inspect.add_argument('-mid', help="mapping id", nargs="*")
     subparsers_bcs_inspect.add_argument('-instance', default='ecs.sn1.medium', help="which instance to use.")
     subparsers_bcs_inspect.add_argument('-cluster', help="which cluster to use.")
     subparsers_bcs_inspect.add_argument('-timeout', default=600, help="Auto quit timeout.", type=int)

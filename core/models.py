@@ -707,7 +707,7 @@ class Project(Base):
 
         return {'clean': clean_total, 'project': total}
 
-    def interactive_task(self, docker_image, inputs, outputs, instance_type, instance_image=None, cluster=None, timeout=60):
+    def interactive_task(self, docker_image, inputs, outputs, instance_type, instance_image=None, cluster=None, tid=[], mid=[], timeout=60):
         def build_env():
             docker_oss_path = os.path.join('oss://', ALI_CONF['bucket'], ALI_CONF['docker_registry_oss_path']) + '/'
             return {
@@ -753,6 +753,26 @@ class Project(Base):
             destination = os.path.commonprefix([m.destination for m in app_paths])
             return {source: destination}
 
+        def prepare_mid_mapping(mid, is_write=True):
+            if not mid:
+                return []
+            if is_write:
+                mappings = self.session.query(Mapping).filter((Mapping.id.in_(mid)) & (Mapping.is_write == True)).all()
+            else:
+                mappings = self.session.query(Mapping).filter((Mapping.id.in_(mid)) & (Mapping.is_write == False) & (Mapping.is_immediate == False) & Mapping.name.notin_(['sh', 'APP_PATH'])).all()
+            return [{m.source:m.destination} for m in mappings]
+
+        def prepare_tid_mapping(tid, is_write=True):
+            if not tid:
+                return []
+            tasks = self.session.query(Task).filter(Task.id.in_(tid)).all()
+            mappings = sum([t.mapping for t in tasks], [])
+            if is_write:
+                mappings = [m for m in mappings if m.is_write==is_write]
+            else:
+                mappings = [m for m in mappings if m.is_write==is_write and m.name not in ('sh', 'APP_PATH') and m.is_immediate == False]
+            return [{m.source:m.destination} for m in mappings]
+
         def prepare_task():
             task = TaskDescription()
             task.Parameters.Command.CommandLine = "sh -l -c 'sleep {timeout}'".format(timeout=timeout)
@@ -764,10 +784,17 @@ class Project(Base):
             input_mapping = prepare_mapipngs(inputs)
             input_mapping.update(prepare_APP_PATH_mapping())
             input_mapping.update({self.path: "oss://{bucket}/project/{name}/".format(bucket=ALI_CONF['bucket'], name=self.name)})
+            map(input_mapping.update, prepare_mid_mapping(mid, False))
+            map(input_mapping.update, prepare_tid_mapping(tid, False))
+            print dyeOKBLUE("Mappings:")
+            print "\n".join(["%s <= %s" % (k, v) for k,v in input_mapping.iteritems()])
             task.Mounts.Entries = [MountEntry({'Source': oss, 'Destination': local, 'WriteSupport':True}) for local, oss in input_mapping.iteritems()]
 
             output_mapping = prepare_mapipngs(outputs)
             output_mapping.update({os.path.join(self.path, 'inspector') + '/': "oss://{bucket}/project/{name}/inspector/".format(bucket=ALI_CONF['bucket'], name=self.name)})
+            map(output_mapping.update, prepare_mid_mapping(mid, True))
+            map(output_mapping.update, prepare_tid_mapping(tid, True))
+            print "\n".join(["%s => %s" % (k, v) for k,v in output_mapping.iteritems()])
             task.OutputMapping = output_mapping
 
             task.Timeout = 86400 * 3
