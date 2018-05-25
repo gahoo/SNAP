@@ -5,10 +5,12 @@ from core import models
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
+from collections import defaultdict
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_table_experiments as dt
 import plotly.figure_factory as ff
+import plotly.graph_objs as go
 import json
 import pandas as pd
 import numpy as np
@@ -58,7 +60,7 @@ app.layout = html.Div([
         html.Div([
             html.Label('Mode'),
             dcc.Dropdown(
-                options = make_options(['Module', 'App', 'Task']),
+                options = make_options(['Module', 'App', 'Task', 'Instance']),
                 value = 'Module',
                 id = 'mode')
         ], style = {'width': '10%', 'display': 'inline-block', 'margin': '1'}),
@@ -79,6 +81,11 @@ app.layout = html.Div([
     dcc.Graph(
         id='graph-gantt'
     ),
+    dcc.Checklist(
+        options = make_options(['boxplot']),
+        values = [],
+        id = 'boxplot',
+        style = {'float': 'right'}),
 ], className="container")
 
 @app.callback(
@@ -112,8 +119,9 @@ def set_apps_options(project_id, modules):
      Input('modules', 'value'),
      Input('apps', 'value'),
      Input('show', 'values'),
+     Input('boxplot', 'values'),
     ])
-def update_figure(project_id, mode, modules, apps, show):
+def update_figure(project_id, mode, modules, apps, show, boxplot):
     def pick_job(jobs):
         jobs = filter(lambda x:x.status == 'Finished', jobs)
         return jobs[-1]
@@ -132,7 +140,8 @@ def update_figure(project_id, mode, modules, apps, show):
     get_task_name = {
         'Task': lambda x:os.path.basename(x.task.shell),
         'App': lambda x:x.task.app.name,
-        'Module': lambda x:x.task.module.name}
+        'Module': lambda x:x.task.module.name,
+        'Instance': lambda x:x.instance.name}
 
     def choose_start_finish():
         if 'waited' in show and 'elapsed' in show:
@@ -147,15 +156,41 @@ def update_figure(project_id, mode, modules, apps, show):
     def pick_start(element):
         return element['Start']
 
+    def prepare_gantt(df):
+        return ff.create_gantt(df, group_tasks=True)
+
+    def make_task_trace(name, value):
+        return {
+            'name': name,
+            'type': 'box',
+            'x': value
+        }
+
+    def add_task_time(job):
+        diff_time = job['Finish'] - job['Start']
+        task_time[job['Task']].append(diff_time.total_seconds() / 3600.0)
+
+    def prepare_boxplot(df):
+        map(add_task_time, df)
+        data = [make_task_trace(name, value) for name, value in task_time.iteritems()]
+        fig = go.Figure(data=data)
+        fig['layout']['showlegend'] = False
+        return fig
+
     proj = load_project(project_id)
     jobs = [pick_job(t.bcs) for t in proj.task if t.bcs]
     jobs = filter_jobs(jobs)
     job_start, job_finish = choose_start_finish()
     df = map(build_task, jobs)
     df = sorted(df, key=pick_start)
-    max_nchar = max([len(i['Task']) for i in df])
+    task_time =  defaultdict(list)
 
-    fig = ff.create_gantt(df, group_tasks=True)
+    if 'boxplot' in boxplot:
+        fig = prepare_boxplot(df)
+    else:
+        fig = prepare_gantt(df)
+
+    max_nchar = max([len(i['Task']) for i in df])
     fig['layout']['height'] = 18 * len(set([i['Task'] for i in df])) + 200
     fig['layout']['margin'] = {
         'l': 8 * max_nchar,
