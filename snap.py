@@ -15,6 +15,7 @@ from core.formats import *
 from core.misc import *
 from core.db import DB
 from core.ali.price import app as price_app
+from core.gantt import app as gantt_app
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
@@ -214,6 +215,9 @@ def instance_bcs(args):
 
 def price_bcs(args):
     price_app.run_server(host='0.0.0.0', port=args.port)
+
+def gantt_bcs(args):
+    gantt_app.run_server(host='0.0.0.0', port=args.port)
 
 def inspect_bcs(args):
     proj = load_project(args.project)
@@ -794,6 +798,15 @@ if __name__ == "__main__":
     subparsers_bcs_inspect.add_argument('-cluster', help="which cluster to use.")
     subparsers_bcs_inspect.add_argument('-timeout', default=600, help="Auto quit timeout.", type=int)
     subparsers_bcs_inspect.set_defaults(func=inspect_bcs)
+
+    # bcs gantt
+    subparsers_bcs_gantt = subparsers_bcs.add_parser('gantt',
+        help='Show gantt chart.',
+        description="This command will show gantt chart",
+        prog='snap bcs gantt',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_bcs_gantt.add_argument('-port', default=8000, type=int, help="Port expose")
+    subparsers_bcs_gantt.set_defaults(func=gantt_bcs)
 
     # task
     parsers_task = subparsers.add_parser('task',
