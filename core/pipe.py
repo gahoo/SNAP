@@ -276,7 +276,7 @@ class Pipe(dict):
             self.apps[appname].build(parameters=parameters, module=module, output=sh_file, verbose=self.verbose)
 
         def buildEachModule(module):
-            module_param = dict([(k, self.parameters[k]) for k in ('Samples', 'CommonData', 'CommonParameters', module)])
+            module_param = dict([(k, self.parameters[k]) for k in ('Samples', 'Groups', 'CommonData', 'CommonParameters', module)])
             for appname in self.parameters[module].keys():
                 buildEachApp(module_param.copy(), module, appname)
 
