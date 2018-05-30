@@ -98,6 +98,6 @@ def plan_constructor(loader, node):
     else:
         raise ValueError('Invalid Plan format: %s' % data)
 
-plan_regex = re.compile(r'^~(\w+)\|?(\w+)?@?(\w+)?')
+plan_regex = re.compile(r'^~([\w_\-]+)\|?([\w_\-]+)?@?(\w+)?')
 yaml.add_constructor(u'!plan', plan_constructor)
 yaml.add_implicit_resolver(u'!plan', plan_regex)
