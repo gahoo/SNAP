@@ -783,8 +783,8 @@ class App(dict):
                 inputs = {k:fixExtraListPath(k, v, listed_extra) for k, v in copy.deepcopy(self.get('inputs')).iteritems()}
                 outputs = {k:fixExtraListPath(k, v, listed_extra) for k, v in copy.deepcopy(self.get('outputs')).iteritems()}
             else:
-                inputs = self.get('inputs', [])
-                outputs = self.get('outputs', [])
+                inputs = self.get('inputs', {})
+                outputs = self.get('outputs', {})
 
             if (self.shell_path and self.dependence_file is None) or self.is_run:
                 script_file = self.renderScript(self.shell_path, extra=extra)
