@@ -1562,6 +1562,12 @@ class Task(Base):
     def profile(self):
         def load_disk_usage(key):
             content = read_object(key, full=True)
+            lines = content.split('\n')
+            headers = lines[0].split()
+            n_column = len(headers)
+            lines = filter(lambda x:'127.0.0.1' not in x, lines)
+            lines = filter(lambda x: len(x.split()) <= n_column, lines)
+            content = "\n".join(lines)
             du = pd.read_table(StringIO(content), delim_whitespace=True)
             return pd.DataFrame({
                 'sys': du[du.Mounted == '/'].reset_index().Used.astype('int64'),
@@ -1617,12 +1623,12 @@ class Task(Base):
                 return None
             date = lines[0].split('\t')[1]
             headers = [l for l in lines[:6] if l.startswith('#')].pop()
-            headers = headers.lstrip('#').split()
+            headers = headers.rstrip('\x00').lstrip('#').split()
             n_column = len(headers)
             cmd_idx = headers.index('Command')
 
             lines = [process_pidstat_line(l, cmd_idx) for l in lines if not l.startswith('Linux') and l != '' and not l.startswith('#')]
-            lines = [l for l in lines if l[:8].isdigit() or l[2] == ':']
+            lines = [l for l in lines if l[:10].isdigit() or l[2] == ':']
             lines = [l for l in lines if len(l.strip('\t').split('\t')) == n_column]
             content = "\n".join(lines)
             ps = pd.read_table(StringIO(content), sep='\t', header=None, names=headers)
