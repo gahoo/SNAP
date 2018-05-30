@@ -650,7 +650,12 @@ class App(dict):
             self.write(script, output)
         else:
             # add debug mode: add *.sh.variable file telling the value of inputs. outputs. parameters. making debug easier
-            self.renderScripts()
+            try:
+                self.renderScripts()
+            except Exception, e:
+                msg = "{module}.{app}: template render failed."
+                print dyeFAIL(msg.format(app=self.appname, module=self.module))
+                raise
             self.writeScripts()
 
     def renderScript(self, cmd_template=None, parameters=None, extra=None, inputs=None, outputs=None):
