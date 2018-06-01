@@ -519,6 +519,9 @@ def log_cluster(args):
         proj = load_project(args.project)
         cluster = CLIENT.get_cluster(proj.cluster.id)
         print "\n".join(cluster.OperationLogs)
+    elif args.id:
+        cluster = CLIENT.get_cluster(args.id)
+        print "\n".join(cluster.OperationLogs)
 
 if __name__ == "__main__":
     parsers = argparse.ArgumentParser(
@@ -1179,7 +1182,7 @@ if __name__ == "__main__":
         prog='snap cluster log',
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_cluster_log.add_argument('-project', required=False, help="ContractID or ProjectID")
-    subparsers_cluster_log.add_argument('-id', required=False, help="Cluster ID", nargs="*")
+    subparsers_cluster_log.add_argument('-id', required=False, help="Cluster ID")
     subparsers_cluster_log.set_defaults(func=log_cluster)
 
 if __name__ == '__main__':
