@@ -121,7 +121,8 @@ class Project(Base):
 
         if self.cluster and self.auto_scale:
             self.cluster.auto_scale()
-        self.check_waiting_too_long(3600)
+        self.check_too_long('Waiting', 3600)
+        self.check_too_long('Running', 43200)
         self.check_instance_price()
         self.notify()
         self.log_date()
@@ -151,9 +152,9 @@ class Project(Base):
         bcs = self.session.query(Bcs).filter( (Bcs.status=='Waiting') | (Bcs.status=='Running') ).all()
         map(lambda x:x.poll(), bcs)
 
-    def check_waiting_too_long(self, timeout=3600):
-        build_msg = lambda x, y: "- <{id}> *{sh}* has been waited for {time}".format(id=x.id, sh=os.path.basename(x.shell), time=y)
-        bcs = self.session.query(Bcs).filter( (Bcs.status=='Waiting') ).all()
+    def check_too_long(self, status='Waiting', timeout=3600):
+        build_msg = lambda x, y: "- <{id}> *{sh}* has been {status} for {time}".format(id=x.id, sh=os.path.basename(x.shell), status=status, time=y)
+        bcs = self.session.query(Bcs).filter( (Bcs.status==status) ).all()
         msgs = [build_msg(b.task, b.waited()) for b in bcs if b.waited().total_seconds() > timeout]
         self.message.extend(msgs)
 
