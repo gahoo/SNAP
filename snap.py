@@ -288,12 +288,20 @@ def debug_task(args):
             map(lambda x:x.show_json(args.cache), tasks)
 
 def update_task(args):
+    def question_update():
+        if args.id or len(tasks) <= 1 or args.yes:
+            return
+        ids = ", ".join([str(t.id) for t in tasks])
+        if not question(dyeWARNING('tasks({ids}) will be updated, proceed?[y/n]: '.format(ids=ids))):
+            os._exit(0)
+
     setting = {k:v for k,v in args._get_kwargs() if k in ('instance', 'cpu', 'mem', 'docker_image', 'disk_type', 'disk_size', 'debug_mode', 'benchmark', 'mappings') and v is not None}
     if args.state:
         setting['aasm_state'] = args.state
 
     proj = load_project(args.project)
     tasks = proj.query_tasks(args)
+    question_update()
     if setting and tasks:
         map(lambda x: x.update(**setting), tasks)
         tasks[0].project.session.commit()
