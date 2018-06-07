@@ -1315,7 +1315,7 @@ class Task(Base):
             cluster_info = self.get_cluster()
         except ClientError,e:
             if e.status == 404:
-                msg = "Make sure cluster({id}) exists: ".format(id=self.project.cluster.id) + str(e)
+                msg = "Make sure cluster({id}) exists: ".format(id=self.project.cluster.id)
                 print dyeFAIL(msg)
                 self.project.logger.error(msg)
                 raise
