@@ -36,8 +36,8 @@ ecs.sn1ne.xlarge	4	8			1.89
 ecs.sn1ne.2xlarge	8	16			3.78
 ecs.sn1ne.4xlarge	16	32			7.182
 ecs.sn1ne.8xlarge	32	64			14.354
-ecs.sn2ne.large	2	8			1.26
-ecs.sn2ne.xlarge	4	16			2.53
+ecs.sn2ne.large	2	8			0.99
+ecs.sn2ne.xlarge	4	16			1.99
 ecs.sn2ne.2xlarge	8	32			4.807
 ecs.sn2ne.4xlarge	16	64			9.614
 ecs.sn2ne.8xlarge	32	128			19.228
