@@ -1311,7 +1311,15 @@ class Task(Base):
             return None
 
     def get_cluster_instances(self):
-        cluster_info = self.get_cluster()
+        try:
+            cluster_info = self.get_cluster()
+        except ClientError,e:
+            if e.status == 404:
+                msg = "Make sure cluster({id}) exists: ".format(id=self.project.cluster.id) + str(e)
+                print dyeFAIL(msg)
+                self.project.logger.error(msg)
+                raise
+
         if cluster_info:
             return {v['InstanceType']:v['ActualVMCount'] for v in cluster_info.Groups.values()}
         else:
