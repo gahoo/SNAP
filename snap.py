@@ -100,6 +100,7 @@ def config_bcs(args):
             conf = loadYaml(conf_file)
         conf.update(new_conf)
         dumpYaml(conf_file, conf)
+        os.chmod(conf_file, 0600)
 
     ali_conf_file = os.path.expanduser("~/.snap/ali.conf")
     ali_new_conf = {k:v for k,v in args._get_kwargs() if v and k not in ('func', 'access_token', 'mobile')}
