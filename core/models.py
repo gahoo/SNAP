@@ -1083,8 +1083,8 @@ class Task(Base):
             self.retry()
 
         if self.aasm_state != old_state:
-           msg = self.msg("{old_state} => {state}".format(old_state=old_state, state=self.aasm_state))
-           self.project.logger.info(msg)
+            msg = self.msg("{old_state} => {state}".format(old_state=old_state, state=self.aasm_state))
+            self.project.logger.info(msg)
 
     def is_dependence_satisfied(self):
         is_finished = [t.is_finished or t.is_cleaned for t in self.depend_on]
