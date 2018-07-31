@@ -2240,3 +2240,7 @@ class Cluster(Base):
         if msg:
             self.project.message.extend(["\n\n*Cluster auto scaled:*\n"] + msg)
             self.project.logger.info('\t'.join(msg))
+
+    def bid(self, group_name, price_limit=0, strategy="SpotWithPriceLimit"):
+        CLIENT.change_cluster_spot_config(self.id, group_name=group_name, price_limit=price_limit, strategy=strategy)
+
