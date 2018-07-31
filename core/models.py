@@ -114,10 +114,12 @@ class Project(Base):
             print dyeWARNING('Reach max job limit')
             os._exit(0)
 
+        self.lock_sync()
         to_sync = [t for t in self.task if t.is_waiting or t.is_running]
         to_check = [t for t in self.task if t.is_created or t.is_pending or t.is_failed]
         map(lambda x:x.check(), to_sync)
         map(lambda x:x.check(), to_check)
+        self.unlock_sync()
 
         if self.cluster and self.auto_scale:
             self.cluster.auto_scale()
@@ -126,6 +128,22 @@ class Project(Base):
         self.check_instance_price()
         self.notify()
         self.log_date()
+
+    def lock_sync(self):
+        lock_file = os.path.join(self.path, '.lock')
+        if not os.path.exists(lock_file) or time.time() - os.path.getctime(lock_file) > 120:
+            with open(lock_file, 'a'):
+                os.utime(lock_file, None)
+        else:
+            msg = 'Other snap process is syncing, please wait. Or maybe last sync is failed, then delete %s to continue.' % lock_file
+            print dyeWARNING(msg)
+            self.logger.info(msg)
+            os._exit(1)
+
+    def unlock_sync(self):
+        lock_file = os.path.join(self.path, '.lock')
+        if os.path.exists(lock_file):
+            os.remove(lock_file)
 
     def log_date(self):
         if not self.start_date:
