@@ -508,6 +508,24 @@ def scale_cluster(args):
     if proj.cluster:
         proj.cluster.scale(**groups)
 
+def bid_cluster(args):
+    if args.instance and args.price_limit and len(args.instance) != len(args.price_limit):
+        print dyeFAIL('The number of instance and counts is not equal.')
+        os._exit(1)
+
+    instance = map(lambda x: x.replace('.', '-'), args.instance)
+    if not args.price_limit:
+        print dyeWARNING('Using SpotAsPriceGo strategy when price limit is 0.')
+        price_limit = [0] * len(instance)
+        strategy = ['SpotAsPriceGo'] * len(instance)
+    else:
+        price_limit = args.price_limit
+        strategy = [args.strategy] * len(instance)
+    groups = [{'group_name':i, 'strategy':s, 'price_limit':p} for i, s, p in  zip(instance, strategy, price_limit)]
+    proj = load_project(args.project)
+    if proj.cluster:
+        map(lambda x:proj.cluster.bid(**x), groups)
+
 def delete_cluster(args):
     from core.ali.bcs import CLIENT
     msg = dyeWARNING('Delete cluster({clusters})?[y/n]:')
@@ -1134,7 +1152,7 @@ if __name__ == "__main__":
     subparsers_cluster_create.add_argument('-image', help="Defualt instance image for cluster.")
     subparsers_cluster_create.add_argument('-instance', help="Which instance to use.", nargs="*")
     subparsers_cluster_create.add_argument('-counts', help="How many instance do you want.", nargs="*", type=int)
-    subparsers_cluster_create.add_argument('-price_limit', help="Mount point for data disk.", nargs="*", type=float)
+    subparsers_cluster_create.add_argument('-price_limit', help="Price limit of instances.", nargs="*", type=float)
     subparsers_cluster_create.add_argument('-disk_type', help="Cluster disk type. [system.cloud_ssd, data.cloud_efficiency, data.ephemeral_ssd]")
     subparsers_cluster_create.add_argument('-disk_size', help="Cluster disk size", type=int)
     subparsers_cluster_create.add_argument('-mount_point', help="Mount point for data disk.")
@@ -1172,6 +1190,20 @@ if __name__ == "__main__":
     subparsers_cluster_scale.add_argument('-instance', help="Which instance to use.", nargs="*")
     subparsers_cluster_scale.add_argument('-counts', help="How many instance do you want.", nargs="*", type=int)
     subparsers_cluster_scale.set_defaults(func=scale_cluster)
+
+    #cluster bid
+    subparsers_cluster_bid = subparsers_cluster.add_parser('bid',
+        help='bid cluster instances price',
+        description="This command will change instances price limit in clusters.",
+        prog='snap cluster bid',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_cluster_bid.add_argument('-project', required=False, help="ContractID or ProjectID")
+    subparsers_cluster_bid.add_argument('-id', required=False, help="Cluster ID")
+    subparsers_cluster_bid.add_argument('-instance', help="Which instance to change.", nargs="*")
+    subparsers_cluster_bid.add_argument('-strategy', choices=['SpotWithPriceLimit', 'SpotAsPriceGo'],
+                                        default='SpotWithPriceLimit', required=False, help="Spot strategy")
+    subparsers_cluster_bid.add_argument('-price_limit', required=False, help="Price limit of instances.", nargs="*", type=float)
+    subparsers_cluster_bid.set_defaults(func=bid_cluster)
 
     #cluster delete
     subparsers_cluster_delete = subparsers_cluster.add_parser('delete',
