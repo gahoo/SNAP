@@ -9,6 +9,8 @@ import errno
 import re
 import glob
 import time
+import git
+import shutil
 from sqlalchemy import create_engine, UniqueConstraint
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
@@ -164,6 +166,13 @@ class WorkflowParameter(object):
             self.save(filename, content)
 
 
+class GitProgress(git.RemoteProgress):
+    def update(self, op_code, cur_count, max_count=None, message=''):
+        #print(op_code, cur_count, max_count, cur_count / (max_count or 100.0), message or "NO MESSAGE")
+        progress = "\rDownloading {percent} {msg}".format(percent = 100 * cur_count / (max_count or 100.0), msg = message or "")
+        sys.stdout.write(progress)
+        sys.stdout.flush()
+
 class Pipe(dict):
     """The Pipe related things."""
     def __init__(self, pipe_path):
@@ -182,6 +191,30 @@ class Pipe(dict):
 
     def new(self):
         pass
+
+    def add(self, url, overwrite=False):
+        if os.path.exists(os.path.join(self.pipe_path, '.git')):
+            if overwrite:
+                shutil.rmtree(self.pipe_path)
+            else:
+                print dyeWARNING('pipe already exists')
+                os._exit(1)
+
+        repo = git.Repo.clone_from(url, self.pipe_path, progress=GitProgress())
+        latest = repo.tags.pop()
+        print repo.git.checkout(latest.name)
+        self.update_submodules(repo)
+        print "\nnew pipe added, using %s" % latest.name
+        return latest.name
+
+    def update_submodules(self, repo = None):
+        def update_each(submodule):
+            print 'Updating {submodule}, {sha}'.format(submodule=submodule.name, sha=submodule.hexsha)
+            submodule.update()
+
+        if not repo:
+            repo = git.Repo(self.pipe_path)
+        map(update_each, repo.submodules)
 
     def loadPipe(self):
         def isApp(files):
