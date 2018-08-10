@@ -88,6 +88,22 @@ def add_pipe(args):
     installed_pipe[pipe_name] = {'path': pipe_path, 'tag': tag}
     dumpYaml(pipe_yaml, installed_pipe)
 
+def list_pipe(args):
+    filtered_pipe = {k:v for k, v in installed_pipe.items() if args.name in k}
+    print format_pipe_tbl(filtered_pipe)
+
+def switch_pipe(args):
+    pass
+
+def upgrade_pipe(args):
+    pass
+
+def deploy_pipe(args):
+    pass
+
+def remove_pipe(args):
+    pass
+
 def build_pipe(args):
     if args.pipe_path and os.path.isdir(args.pipe_path):
         pipe = Pipe(args.pipe_path)
@@ -681,6 +697,15 @@ if __name__ == "__main__":
     subparsers_pipe_add.add_argument('-destination', default=os.path.expanduser('~/.snap/pipelines/'), help="where to place pipeline")
     subparsers_pipe_add.add_argument('-overwrite', default=False, action='store_true', help="overwrite existed pipeline.")
     subparsers_pipe_add.set_defaults(func=add_pipe)
+
+    # pipe list
+    subparsers_pipe_list = subparsers_pipe.add_parser('list',
+        help='list installed pipelines.',
+        description="This command will list installed pipeline",
+        prog='snap pipe list',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_pipe_list.add_argument('-name', help="the pipeline name")
+    subparsers_pipe_list.set_defaults(func=list_pipe)
 
     # pipe build
     subparsers_pipe_build = subparsers_pipe.add_parser('build',

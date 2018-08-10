@@ -248,3 +248,12 @@ def format_cluster_tbl(clusters, cluster_in_db=None):
         tbl.add_row([c.Id, c.Name, c.State, instances, creation_time, diff_date(creation_time, None)])
 
     return tbl
+
+def format_pipe_tbl(installed_pipe):
+    tbl = PrettyTable()
+    tbl.field_names = ['name', 'version', 'path']
+
+    for pipe_name, v in installed_pipe.items():
+        tbl.add_row([pipe_name, v['tag'], v['path']])
+
+    return tbl
