@@ -21,6 +21,11 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import IntegrityError
 from crontab import CronTab
 
+def yaml2dict(filepath):
+    if not os.path.exists(filepath):
+        open(filepath, 'a').close()
+    return loadYaml(filepath) or dict()
+
 def new_app(args):
     if args.name:
         app = App(args.name)
@@ -70,6 +75,18 @@ def parameter_pipe(args):
     else:
         print >> sys.stderr, "workflow name must be specified."
         os._exit(0)
+
+def add_pipe(args):
+    if args.name:
+        pipe_name = args.name
+    else:
+        pipe_name = os.path.basename(args.url).rstrip('.git')
+
+    pipe_path = os.path.join(args.destination, pipe_name)
+    pipe = Pipe(pipe_path)
+    tag = pipe.add(args.url, args.overwrite)
+    installed_pipe[pipe_name] = {'path': pipe_path, 'tag': tag}
+    dumpYaml(pipe_yaml, installed_pipe)
 
 def build_pipe(args):
     if args.pipe_path and os.path.isdir(args.pipe_path):
@@ -652,6 +669,19 @@ if __name__ == "__main__":
     subparsers_pipe_parameter.add_argument('-out', help="output render result to file. default write to stdout")
     subparsers_pipe_parameter.set_defaults(func=parameter_pipe)
 
+    # pipe add
+    subparsers_pipe_add = subparsers_pipe.add_parser('add',
+        help='install new pipelines.',
+        description="This command will add pipeline to local for easy install and deploy. "
+        "Install new pipelines.",
+        prog='snap pipe add',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_pipe_add.add_argument('-url', required=True, help="the git repos url to the pipeline")
+    subparsers_pipe_add.add_argument('-name', help="the pipeline name")
+    subparsers_pipe_add.add_argument('-destination', default=os.path.expanduser('~/.snap/pipelines/'), help="where to place pipeline")
+    subparsers_pipe_add.add_argument('-overwrite', default=False, action='store_true', help="overwrite existed pipeline.")
+    subparsers_pipe_add.set_defaults(func=add_pipe)
+
     # pipe build
     subparsers_pipe_build = subparsers_pipe.add_parser('build',
         help='PIPE build shell and dependencies',
@@ -1227,11 +1257,11 @@ if __name__ == "__main__":
     subparsers_cluster_log.set_defaults(func=log_cluster)
 
 if __name__ == '__main__':
-    argslist = sys.argv[1:]
     db_yaml = os.path.expanduser("~/.snap/db.yaml")
-    if not os.path.exists(db_yaml):
-        open(db_yaml, 'a').close()
-    db = loadYaml(db_yaml)
+    db = yaml2dict(db_yaml)
+    pipe_yaml = os.path.expanduser("~/.snap/pipe.yaml")
+    installed_pipe = yaml2dict(pipe_yaml)
+    argslist = sys.argv[1:]
     if len(argslist) > 0:
         args = parsers.parse_args(argslist)
         args.func(args)
