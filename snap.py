@@ -100,7 +100,11 @@ def switch_pipe(args):
     dumpYaml(pipe_yaml, installed_pipe)
 
 def upgrade_pipe(args):
-    pass
+    pipe_path = installed_pipe[args.name]['path']
+    pipe = Pipe(pipe_path)
+    tag = pipe.upgrade(refspec=args.refspec)
+    installed_pipe[args.name]['tag'] = tag
+    dumpYaml(pipe_yaml, installed_pipe)
 
 def deploy_pipe(args):
     pass
@@ -720,6 +724,16 @@ if __name__ == "__main__":
     subparsers_pipe_switch.add_argument('-name', help="the pipeline name")
     subparsers_pipe_switch.add_argument('-version', help="the pipeline version")
     subparsers_pipe_switch.set_defaults(func=switch_pipe)
+
+    # pipe upgrade
+    subparsers_pipe_upgrade = subparsers_pipe.add_parser('upgrade',
+        help='pull and switch to latest version.',
+        description="This command will pull and switch to latest pipeline version",
+        prog='snap pipe upgrade',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_pipe_upgrade.add_argument('-name', help="the pipeline name")
+    subparsers_pipe_upgrade.add_argument('-refspec', default='+refs/heads/*:refs/remotes/origin/*', help="refspec of git repo")
+    subparsers_pipe_upgrade.set_defaults(func=upgrade_pipe)
 
     # pipe build
     subparsers_pipe_build = subparsers_pipe.add_parser('build',

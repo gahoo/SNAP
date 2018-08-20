@@ -224,6 +224,18 @@ class Pipe(dict):
         tags = ", ".join([tag.name for tag in repo.tags])
         print "switch to {version}, available versions: {tags}".format(version=version, tags=tags)
 
+    def upgrade(self, refspec='+refs/heads/*:refs/remotes/origin/*'):
+        repo = git.Repo(self.pipe_path)
+        remote = repo.remote()
+        print "Pulling latest version"
+        remote.pull(refspec=refspec, progress=GitProgress())
+        latest = repo.tags.pop()
+        print repo.git.checkout(latest.name)
+        print repo.git.submodule('update')
+        tags = ", ".join([tag.name for tag in repo.tags])
+        print "upgraded to {version}, available versions: {tags}".format(version=latest.name, tags=tags)
+        return latest.name
+
     def loadPipe(self):
         def isApp(files):
             return 'config.yaml' in files
