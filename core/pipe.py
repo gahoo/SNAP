@@ -216,6 +216,14 @@ class Pipe(dict):
             repo = git.Repo(self.pipe_path)
         map(update_each, repo.submodules)
 
+    def switch(self, version):
+        repo = git.Repo(self.pipe_path)
+        print repo.git.checkout(version)
+        #self.update_submodules(repo)
+        print repo.git.submodule('update')
+        tags = ", ".join([tag.name for tag in repo.tags])
+        print "switch to {version}, available versions: {tags}".format(version=version, tags=tags)
+
     def loadPipe(self):
         def isApp(files):
             return 'config.yaml' in files
