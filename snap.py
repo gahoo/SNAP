@@ -93,6 +93,7 @@ def list_pipe(args):
     print format_pipe_tbl(filtered_pipe)
 
 def switch_pipe(args):
+    check_pipe_exists(args.name)
     pipe_path = installed_pipe[args.name]['path']
     pipe = Pipe(pipe_path)
     pipe.switch(args.version)
@@ -100,6 +101,7 @@ def switch_pipe(args):
     dumpYaml(pipe_yaml, installed_pipe)
 
 def upgrade_pipe(args):
+    check_pipe_exists(args.name)
     pipe_path = installed_pipe[args.name]['path']
     pipe = Pipe(pipe_path)
     tag = pipe.upgrade(refspec=args.refspec)
@@ -111,6 +113,11 @@ def deploy_pipe(args):
 
 def remove_pipe(args):
     pass
+
+def check_pipe_exists(name):
+    if name not in installed_pipe:
+        print dyeFAIL('No Such Pipeline')
+        os._exit(1)
 
 def build_pipe(args):
     if args.pipe_path and os.path.isdir(args.pipe_path):
@@ -721,8 +728,8 @@ if __name__ == "__main__":
         description="This command will switch pipeline version",
         prog='snap pipe switch',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_pipe_switch.add_argument('-name', help="the pipeline name")
-    subparsers_pipe_switch.add_argument('-version', help="the pipeline version")
+    subparsers_pipe_switch.add_argument('-name', required=True, help="the pipeline name")
+    subparsers_pipe_switch.add_argument('-version', required=True, help="the pipeline version")
     subparsers_pipe_switch.set_defaults(func=switch_pipe)
 
     # pipe upgrade
@@ -731,7 +738,7 @@ if __name__ == "__main__":
         description="This command will pull and switch to latest pipeline version",
         prog='snap pipe upgrade',
         formatter_class=argparse.RawTextHelpFormatter)
-    subparsers_pipe_upgrade.add_argument('-name', help="the pipeline name")
+    subparsers_pipe_upgrade.add_argument('-name', required=True, help="the pipeline name")
     subparsers_pipe_upgrade.add_argument('-refspec', default='+refs/heads/*:refs/remotes/origin/*', help="refspec of git repo")
     subparsers_pipe_upgrade.set_defaults(func=upgrade_pipe)
 
