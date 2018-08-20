@@ -236,6 +236,28 @@ class Pipe(dict):
         print "upgraded to {version}, available versions: {tags}".format(version=latest.name, tags=tags)
         return latest.name
 
+    def deploy(self, bucket, destination, version=None):
+        if not version:
+            repo = git.Repo(self.pipe_path)
+            latest = repo.tags.pop()
+            version = latest.name
+        self.switch(version)
+
+        excludes = ['example', 'database', 'software', '.gitmodules', '.git', 'config.yaml', 'dependencies.yaml', 'README.md', '.appid']
+        files2upload = []
+        for root, dirs, files in os.walk(self.pipe_path, topdown=True, followlinks=True):
+            dirs[:] = [d for d in dirs if d not in excludes]
+            files[:] = [f for f in files if f not in excludes]
+            if files:
+                files2upload.extend(map(lambda x:os.path.join(root,x), files))
+
+        pipe_name = os.path.basename(self.pipe_path)
+        pipe_path = self.pipe_path + '/'
+        dest_files = map(lambda x:os.path.join('oss://', bucket, destination, pipe_name, version, x.replace(pipe_path, '')), files2upload)
+        cmd = zip(['ossutil cp -f'] * len(files2upload), files2upload, dest_files)
+        cmdlines = map(lambda x:' '.join(x), cmd)
+        map(os.system, cmdlines)
+
     def loadPipe(self):
         def isApp(files):
             return 'config.yaml' in files

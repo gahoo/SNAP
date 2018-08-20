@@ -109,7 +109,12 @@ def upgrade_pipe(args):
     dumpYaml(pipe_yaml, installed_pipe)
 
 def deploy_pipe(args):
-    pass
+    check_pipe_exists(args.name)
+    pipe_path = installed_pipe[args.name]['path']
+    pipe = Pipe(pipe_path)
+    ali_yaml = os.path.expanduser("~/.snap/ali.conf")
+    ali_conf = yaml2dict(ali_yaml)
+    pipe.deploy(ali_conf['bucket'], ali_conf['pipeline_path'], args.version)
 
 def remove_pipe(args):
     pass
@@ -742,6 +747,16 @@ if __name__ == "__main__":
     subparsers_pipe_upgrade.add_argument('-refspec', default='+refs/heads/*:refs/remotes/origin/*', help="refspec of git repo")
     subparsers_pipe_upgrade.set_defaults(func=upgrade_pipe)
 
+    # pipe deploy
+    subparsers_pipe_deploy = subparsers_pipe.add_parser('deploy',
+        help='deploy pipeline to Aliyun OSS.',
+        description="This command will deploy pipeline to Aliyun OSS",
+        prog='snap pipe deploy',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_pipe_deploy.add_argument('-name', required=True, help="the pipeline name")
+    subparsers_pipe_deploy.add_argument('-version', help="the pipeline version")
+    subparsers_pipe_deploy.set_defaults(func=deploy_pipe)
+
     # pipe build
     subparsers_pipe_build = subparsers_pipe.add_parser('build',
         help='PIPE build shell and dependencies',
@@ -779,6 +794,7 @@ if __name__ == "__main__":
     subparsers_bcs_config.add_argument('-region', help="which Aliyun BCS region you are.")
     subparsers_bcs_config.add_argument('-image', default='img-ubuntu', help="defualt instance image to run BCS.")
     subparsers_bcs_config.add_argument('-registry_path', default='docker-images', help="docker registry path on bucket.")
+    subparsers_bcs_config.add_argument('-pipeline_path', default='pipeline', help="pipeline path on bucket.")
     subparsers_bcs_config.add_argument('-vpc_id', help="VPC id for access other ECS instance.")
     subparsers_bcs_config.add_argument('-vpc_cidr_block', default='172.16.20.0/20', help="VPC cidr block for access other ECS instance.")
     subparsers_bcs_config.add_argument('-tmate_server', help="tmate server IP.")
