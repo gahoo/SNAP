@@ -89,11 +89,15 @@ def add_pipe(args):
     dumpYaml(pipe_yaml, installed_pipe)
 
 def list_pipe(args):
-    filtered_pipe = {k:v for k, v in installed_pipe.items() if args.name in k}
+    filtered_pipe = {k:v for k, v in installed_pipe.items() if not args.name or args.name in k}
     print format_pipe_tbl(filtered_pipe)
 
 def switch_pipe(args):
-    pass
+    pipe_path = installed_pipe[args.name]['path']
+    pipe = Pipe(pipe_path)
+    pipe.switch(args.version)
+    installed_pipe[args.name]['tag'] = args.version
+    dumpYaml(pipe_yaml, installed_pipe)
 
 def upgrade_pipe(args):
     pass
@@ -706,6 +710,16 @@ if __name__ == "__main__":
         formatter_class=argparse.RawTextHelpFormatter)
     subparsers_pipe_list.add_argument('-name', help="the pipeline name")
     subparsers_pipe_list.set_defaults(func=list_pipe)
+
+    # pipe switch
+    subparsers_pipe_switch = subparsers_pipe.add_parser('switch',
+        help='switch pipeline version.',
+        description="This command will switch pipeline version",
+        prog='snap pipe switch',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_pipe_switch.add_argument('-name', help="the pipeline name")
+    subparsers_pipe_switch.add_argument('-version', help="the pipeline version")
+    subparsers_pipe_switch.set_defaults(func=switch_pipe)
 
     # pipe build
     subparsers_pipe_build = subparsers_pipe.add_parser('build',
