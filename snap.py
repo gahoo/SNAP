@@ -117,7 +117,17 @@ def deploy_pipe(args):
     pipe.deploy(ali_conf['bucket'], ali_conf['pipeline_path'], args.version)
 
 def remove_pipe(args):
-    pass
+    check_pipe_exists(args.name)
+    pipe_path = installed_pipe[args.name]['path']
+    pipe = Pipe(pipe_path)
+    if args.aliyun:
+        ali_yaml = os.path.expanduser("~/.snap/ali.conf")
+        ali_conf = yaml2dict(ali_yaml)
+        pipe.destroy(ali_conf['bucket'], ali_conf['pipeline_path'], args.version)
+    else:
+        pipe.destroy()
+    installed_pipe.pop(args.name)
+    dumpYaml(pipe_yaml, installed_pipe)
 
 def check_pipe_exists(name):
     if name not in installed_pipe:
@@ -756,6 +766,17 @@ if __name__ == "__main__":
     subparsers_pipe_deploy.add_argument('-name', required=True, help="the pipeline name")
     subparsers_pipe_deploy.add_argument('-version', help="the pipeline version")
     subparsers_pipe_deploy.set_defaults(func=deploy_pipe)
+
+    # pipe remove
+    subparsers_pipe_remove = subparsers_pipe.add_parser('remove',
+        help='remove pipeline on Aliyun OSS and local.',
+        description="This command will delete pipeline on Aliyun OSS and local",
+        prog='snap pipe remove',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_pipe_remove.add_argument('-name', required=True, help="the pipeline name")
+    subparsers_pipe_remove.add_argument('-version', default='', help="the pipeline version")
+    subparsers_pipe_remove.add_argument('-aliyun', default=False, action='store_true', help="delete files on aliyun OSS")
+    subparsers_pipe_remove.set_defaults(func=remove_pipe)
 
     # pipe build
     subparsers_pipe_build = subparsers_pipe.add_parser('build',

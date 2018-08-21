@@ -258,6 +258,14 @@ class Pipe(dict):
         cmdlines = map(lambda x:' '.join(x), cmd)
         map(os.system, cmdlines)
 
+    def destroy(self, bucket='', destination='', version=''):
+        shutil.rmtree(self.pipe_path)
+        if bucket:
+            pipe_name = os.path.basename(self.pipe_path)
+            to_delete = os.path.join('oss://', bucket, destination, pipe_name, version, '')
+            cmdline = 'ossutil rm -r ' + to_delete
+            os.system(cmdline)
+
     def loadPipe(self):
         def isApp(files):
             return 'config.yaml' in files
