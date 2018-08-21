@@ -129,6 +129,15 @@ def remove_pipe(args):
     installed_pipe.pop(args.name)
     dumpYaml(pipe_yaml, installed_pipe)
 
+def show_pipe(args):
+    check_pipe_exists(args.name)
+    pipe_path = installed_pipe[args.name]['path']
+    version = installed_pipe[args.name]['tag']
+    print dyeOKGREEN('Pipeline {name}({version}) was installed at {path}'.format(name=args.name, version=version, path=pipe_path))
+    readme = os.path.join(pipe_path, 'README.md')
+    with open(readme) as f:
+        print f.read()
+
 def check_pipe_exists(name):
     if name not in installed_pipe:
         print dyeFAIL('No Such Pipeline')
@@ -777,6 +786,15 @@ if __name__ == "__main__":
     subparsers_pipe_remove.add_argument('-version', default='', help="the pipeline version")
     subparsers_pipe_remove.add_argument('-aliyun', default=False, action='store_true', help="delete files on aliyun OSS")
     subparsers_pipe_remove.set_defaults(func=remove_pipe)
+
+    # pipe show
+    subparsers_pipe_show = subparsers_pipe.add_parser('show',
+        help='show pipeline detail informatioin',
+        description="This command will show pipeline detail information",
+        prog='snap pipe show',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_pipe_show.add_argument('-name', required=True, help="the pipeline name")
+    subparsers_pipe_show.set_defaults(func=show_pipe)
 
     # pipe build
     subparsers_pipe_build = subparsers_pipe.add_parser('build',
