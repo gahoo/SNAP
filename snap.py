@@ -144,7 +144,13 @@ def check_pipe_exists(name):
         os._exit(1)
 
 def build_pipe(args):
-    if args.pipe_path and os.path.isdir(args.pipe_path):
+    if args.name:
+        if args.pipe_path:
+            print dyeWARNING('pipe_path will be ignore since name is provided')
+        check_pipe_exists(args.name)
+        pipe_path = installed_pipe[args.name]['path']
+        pipe = Pipe(pipe_path)
+    elif args.pipe_path and os.path.isdir(args.pipe_path):
         pipe = Pipe(args.pipe_path)
     else:
         print >> sys.stderr, "Pipeline path is invalid"
@@ -803,6 +809,7 @@ if __name__ == "__main__":
         "Build dependencies and everything needed to run a pipe",
         prog='snap pipe build',
         formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_pipe_build.add_argument('-name', help="the pipeline name")
     subparsers_pipe_build.add_argument('-pipe_path', help="the path to the pipeline")
     subparsers_pipe_build.add_argument('-proj_name', help = "the name of project")
     subparsers_pipe_build.add_argument('-param', help = "render from parameter.yaml file. default will be use if not specified.")
