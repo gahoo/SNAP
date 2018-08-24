@@ -123,10 +123,11 @@ def set_apps_options(project_id, modules):
     ])
 def update_figure(project_id, mode, modules, apps, show, boxplot):
     def pick_job(jobs):
-        jobs = filter(lambda x:x.status == 'Finished', jobs)
-        return jobs[-1]
+        jobs = filter(lambda x:x.status in ['Finished', 'Imported'], jobs)
+        return jobs[-1] if jobs else None
 
     def filter_jobs(jobs):
+        jobs = filter(lambda x:x is not None, jobs)
         if modules:
             jobs = filter(lambda x:x.task.module.name in modules, jobs)
         if apps:
