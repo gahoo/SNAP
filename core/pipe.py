@@ -237,6 +237,14 @@ class Pipe(dict):
         return latest.name
 
     def deploy(self, bucket, destination, version=None):
+        def upload(key, filename, consumed, total):
+            BUCKET.put_object_from_file(key, filename)
+            if total:
+                rate = 100 * consumed / total
+                bar = '=' * (rate / 2)
+                sys.stdout.write("\r{0}% {1}".format(rate, bar))
+                sys.stdout.flush()
+
         if not version:
             repo = git.Repo(self.pipe_path)
             latest = repo.tags.pop()
@@ -253,10 +261,9 @@ class Pipe(dict):
 
         pipe_name = os.path.basename(self.pipe_path)
         pipe_path = self.pipe_path + '/'
-        dest_files = map(lambda x:os.path.join('oss://', bucket, destination, pipe_name, version, x.replace(pipe_path, '')), files2upload)
-        cmd = zip(['ossutil cp -f'] * len(files2upload), files2upload, dest_files)
-        cmdlines = map(lambda x:' '.join(x), cmd)
-        map(os.system, cmdlines)
+        keys = map(lambda x:os.path.join(destination, pipe_name, version, x.replace(pipe_path, '')), files2upload)
+        total = len(files2upload)
+        map(upload, keys, files2upload, xrange(1, total+1), [total]*total)
 
     def destroy(self, bucket='', destination='', version=''):
         shutil.rmtree(self.pipe_path)
