@@ -251,9 +251,9 @@ def format_cluster_tbl(clusters, cluster_in_db=None):
 
 def format_pipe_tbl(installed_pipe):
     tbl = PrettyTable()
-    tbl.field_names = ['name', 'version', 'path']
+    tbl.field_names = ['name', 'version', 'installed path', 'oss path']
 
     for pipe_name, v in installed_pipe.items():
-        tbl.add_row([pipe_name, v['tag'], v['path']])
+        tbl.add_row([pipe_name, v['tag'], v['path'], v['oss']])
 
     return tbl

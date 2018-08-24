@@ -236,7 +236,7 @@ class Pipe(dict):
         print "upgraded to {version}, available versions: {tags}".format(version=latest.name, tags=tags)
         return latest.name
 
-    def deploy(self, bucket, destination, version=None):
+    def deploy(self, destination, version=None):
         def upload(key, filename, consumed, total):
             BUCKET.put_object_from_file(key, filename)
             if total:

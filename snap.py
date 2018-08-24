@@ -89,7 +89,13 @@ def add_pipe(args):
     dumpYaml(pipe_yaml, installed_pipe)
 
 def list_pipe(args):
+    def add_oss_path(pipe_name, pipeline):
+        pipeline['oss'] = os.path.join('oss://', ali_conf['bucket'], ali_conf['pipeline_path'], pipe_name, pipeline['tag'])
+
+    ali_yaml = os.path.expanduser("~/.snap/ali.conf")
+    ali_conf = yaml2dict(ali_yaml)
     filtered_pipe = {k:v for k, v in installed_pipe.items() if not args.name or args.name in k}
+    map(add_oss_path, filtered_pipe.keys(), filtered_pipe.values())
     print format_pipe_tbl(filtered_pipe)
 
 def switch_pipe(args):
@@ -114,7 +120,7 @@ def deploy_pipe(args):
     pipe = Pipe(pipe_path)
     ali_yaml = os.path.expanduser("~/.snap/ali.conf")
     ali_conf = yaml2dict(ali_yaml)
-    pipe.deploy(ali_conf['bucket'], ali_conf['pipeline_path'], args.version)
+    pipe.deploy(ali_conf['pipeline_path'], args.version)
 
 def remove_pipe(args):
     check_pipe_exists(args.name)
