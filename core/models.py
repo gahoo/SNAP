@@ -961,7 +961,7 @@ class Project(Base):
             waiting_jobs = filter(lambda x:x['State'] == 'Waiting', active_jobs.values())
             if waiting_jobs:
                 waiting_jobs = ', '.join([j['Id'] for j in waiting_jobs])
-                print dyeWARNING('There are Waiting jobs exists, which will not be import. Please double check {jobs} and stop them.'.format(jobs=waiting_jobs))
+                print dyeWARNING('There are Waiting jobs exists, which will not be imported. Please double check {jobs} and stop them.'.format(jobs=waiting_jobs))
             return active_jobs
 
         def import_job(job_id, log, task_name):
