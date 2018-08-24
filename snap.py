@@ -302,6 +302,10 @@ def inspect_bcs(args):
     proj = load_project(args.project)
     proj.interactive_task(args.docker_image, inputs=args.inputs, outputs=args.outputs, instance_type=args.instance, cluster=args.cluster, tid=args.tid, mid=args.mid, timeout=args.timeout)
 
+def resume_bcs(args):
+    proj = load_project(args.project)
+    proj.resume_progress()
+
 def load_project(name):
     def fuzzy_match(name):
         matches = filter(lambda x:name in x, db.keys())
@@ -920,6 +924,15 @@ if __name__ == "__main__":
     subparsers_bcs_clean.add_argument('-project', default=None, required=True, help="ContractID or ProjectID you want to clean")
     subparsers_bcs_clean.add_argument('-all_files', default=False, action='store_true', help="Delete all output files or just immediate files")
     subparsers_bcs_clean.set_defaults(func=clean_bcs)
+
+    # bcs resume
+    subparsers_bcs_resume = subparsers_bcs.add_parser('resume',
+        help='resume previous progress of project after rebuild.',
+        description="This command will resume project progress with logs.",
+        prog='snap bcs resume',
+        formatter_class=argparse.RawTextHelpFormatter)
+    subparsers_bcs_resume.add_argument('-project', default=None, required=True, help="ContractID or ProjectID you want to clean")
+    subparsers_bcs_resume.set_defaults(func=resume_bcs)
 
     # bcs cost
     subparsers_bcs_cost = subparsers_bcs.add_parser('cost',
