@@ -399,7 +399,7 @@ class Project(Base):
             element.cost = 0
 
         if not self.finish_date:
-            print dyeWARNING("Project not finished yet. Billing might be incompelte.")
+            print dyeWARNING("Project not finished yet. Billing might be incomplete.")
         bcs = self.session.query(Bcs).all()
         clusters = self.session.query(Cluster).all()
         map(zero_cost, bcs)
@@ -414,7 +414,12 @@ class Project(Base):
             for billing_file in files:
                 if billing_file.endswith('.csv'):
                     read_bill(os.path.join(root, billing_file))
-        map(add_cluster_cost, [b for b in bcs.values() if b.cluster])
+        imported_bcs = [b for b in bcs.values() if b.status == 'Imported']
+        if imported_bcs:
+            print dyeWARNING("There're imported jobs, billing jobs with cluster might have problems")
+            print dyeOKBLUE("Total cluster cost: " + str(sum([c.cost for c in clusters.values()])))
+        else:
+            map(add_cluster_cost, [b for b in bcs.values() if b.cluster])
         self.save()
 
     def cost_stat(self, mode):
@@ -728,7 +733,7 @@ class Project(Base):
 
     def interactive_task(self, docker_image, inputs, outputs, instance_type, instance_image=None, cluster=None, tid=[], mid=[], timeout=60):
         def build_env():
-            docker_oss_path = os.path.join('oss://', ALI_CONF['bucket'], ALI_CONF['docker_registry_oss_path']) + '/'
+            docker_oss_path = os.path.join('oss://', ALI_CONF['bucket'], ALI_CONF['registry_path']) + '/'
             return {
                 "DEBUG": "TRUE",
                 "TMATE_SERVER": ALI_CONF.get('tmate_server'),
@@ -920,6 +925,82 @@ class Project(Base):
             bind_func = bind_new
 
         self.cluster = bind_func(id)
+        self.save()
+
+    def resume_progress(self):
+        def resume_each_shell(sh_mapping):
+            sys.stdout.write("\rImporting " + sh_mapping.destination)
+            oss_script_path = oss2key(sh_mapping.destination)
+            (oss_script_prefix, ext) = os.path.splitext(oss_script_path)
+            task_name = os.path.basename(oss_script_prefix).replace('.', '_')
+            oss_log_path = oss_script_prefix + '_log/'
+            logs = [obj for obj in ObjectIterator(BUCKET, prefix=oss_log_path) if 'stdout' in obj.key]
+            logs.sort(key=lambda x:x.last_modified)
+            jobs = map(lambda x:os.path.basename(x.key).split('.')[1], logs)
+
+            if jobs and jobs[-1] in active_jobs:
+                latest_job = jobs[-1]
+                sh_mapping.task[0].aasm_state = active_jobs[latest_job]['State'].lower()
+            elif jobs:
+                sh_mapping.task[0].aasm_state = 'finished'
+            sh_mapping.task[0].bcs = map(lambda x, y:import_job(x, y, task_name), jobs, logs)
+
+        @catchClientError
+        def get_active_jobs():
+            marker = ""
+            max_item = 100
+            cnt = 0
+            active_jobs = {}
+            while marker or cnt == 0:
+                response = CLIENT.list_jobs(marker, max_item)
+                marker = response.NextMarker
+                jobs = filter(lambda x:self.name in x['Name'], response.Items)
+                jobs = {j['Id']:j for j in jobs}
+                active_jobs.update(jobs)
+                cnt += 1
+            waiting_jobs = filter(lambda x:x['State'] == 'Waiting', active_jobs.values())
+            if waiting_jobs:
+                waiting_jobs = ', '.join([j['Id'] for j in waiting_jobs])
+                print dyeWARNING('There are Waiting jobs exists, which will not be import. Please double check {jobs} and stop them.'.format(jobs=waiting_jobs))
+            return active_jobs
+
+        def import_job(job_id, log, task_name):
+            log_id = "{id}.{name}.0".format(id = job_id, name = task_name)
+            job = active_jobs.get(job_id)
+            if job:
+                status = job.get('State').lower()
+                create_date = job.get('CreationTime')
+                start_date = job.get('StartTime')
+                finish_date = job.get('EndTime')
+            else:
+                status = 'Imported'
+                create_date = read_object(log.key, (1, 19))
+                create_date = datetime.datetime.strptime(create_date, "%Y-%m-%d %H:%M:%S")
+                start_date = create_date
+                finish_date = datetime.datetime.fromtimestamp(log.last_modified)
+
+            bcs = Bcs(
+                id = job_id,
+                name = task_name,
+                spot_price_limit = 0,
+                stdout = "oss://{bucket}/{key}/".format(bucket=ALI_CONF['bucket'], key=log.key),
+                stderr = "oss://{bucket}/{key}/".format(bucket=ALI_CONF['bucket'], key=log.key.replace('stdout.', 'stderr.')),
+                status = status,
+                create_date = create_date,
+                start_date = start_date,
+                finish_date = finish_date
+                #instance = instance,
+                #cluster = cluster_id
+                )
+            return bcs
+
+        active_jobs = get_active_jobs()
+        mappings = self.session.query(Mapping).all()
+        shell_mappings = [m for m in mappings if m.name == 'sh']
+        map(resume_each_shell, shell_mappings)
+        imported_bcs = self.session.query(Bcs).all()
+        self.create_date = min([b.create_date for b in imported_bcs])
+        self.start_date = self.create_date
         self.save()
 
 
@@ -1282,7 +1363,7 @@ class Task(Base):
     def prepare_EnvVars(self):
         env = {}
         if self.docker_image:
-            docker_oss_path = os.path.join('oss://', ALI_CONF['bucket'], ALI_CONF['docker_registry_oss_path']) + '/'
+            docker_oss_path = os.path.join('oss://', ALI_CONF['bucket'], ALI_CONF['registry_path']) + '/'
             env.update({"BATCH_COMPUTE_DOCKER_IMAGE": "localhost:5000/" + self.docker_image,
                         "BATCH_COMPUTE_DOCKER_REGISTRY_OSS_PATH": docker_oss_path})
         if self.debug_mode:
