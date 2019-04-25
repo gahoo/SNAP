@@ -11,7 +11,7 @@ source .env/bin/activate
 pip install -r requirements.txt
 ```
 
-详细安装及使用方法请参考[Wiki](wikis)
+详细安装及使用方法请参考Wiki
 
 ## 与atom编辑器的搭配使用
 1. 安装[script](https://atom.io/packages/script)
