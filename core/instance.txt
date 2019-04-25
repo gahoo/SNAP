@@ -1,0 +1,105 @@
+ecs.g5.large	2	8			1.04
+ecs.g5.xlarge	4	16			1.976
+ecs.g5.2xlarge	8	32			3.961
+ecs.g5.4xlarge	16	64			7.913
+ecs.g5.6xlarge	24	96			11.875
+ecs.g5.8xlarge	32	128			15.836
+ecs.g5.16xlarge	64	256			31.663
+ecs.c5.large	2	4			0.62
+ecs.c5.xlarge	4	8			1.24
+ecs.c5.2xlarge	8	16			2.49
+ecs.c5.3xlarge	12	24			3.73
+ecs.c5.4xlarge	16	32			4.97
+ecs.c5.6xlarge	24	48			7.46
+ecs.c5.8xlarge	32	64			9.94
+ecs.c5.16xlarge	64	128			19.89
+ecs.r5.large	2	16			1.263
+ecs.r5.xlarge	4	32			2.536
+ecs.r5.2xlarge	8	64			5.063
+ecs.r5.4xlarge	16	128			10.136
+ecs.r5.6xlarge	24	192			15.2
+ecs.r5.8xlarge	32	256			20.263
+ecs.r5.16xlarge	64	512			40.536
+ecs.r5.22xlarge	88	704			55.736
+ecs.sn1.medium	2	4			0.9
+ecs.sn1.large	4	8			1.8
+ecs.sn1.xlarge	8	16			3.6
+ecs.sn1.3xlarge	16	32			5.462
+ecs.sn1.7xlarge	32	64			10.934
+ecs.sn2.medium	2	8			1.2
+ecs.sn2.large	4	16			2.41
+ecs.sn2.xlarge	8	32			4.82
+ecs.sn2.3xlarge	16	64			9.158
+ecs.sn2.7xlarge	32	128			18.316
+ecs.sn2.13xlarge	56	224			25.46
+ecs.sn1ne.large	2	4			0.94
+ecs.sn1ne.xlarge	4	8			1.89
+ecs.sn1ne.2xlarge	8	16			3.78
+ecs.sn1ne.4xlarge	16	32			7.182
+ecs.sn1ne.8xlarge	32	64			14.354
+ecs.sn2ne.large	2	8			0.99
+ecs.sn2ne.xlarge	4	16			1.99
+ecs.sn2ne.2xlarge	8	32			4.807
+ecs.sn2ne.4xlarge	16	64			9.614
+ecs.sn2ne.8xlarge	32	128			19.228
+ecs.sn2ne.14xlarge	56	224			33.411
+ecs.se1.large	2	16			1.53
+ecs.se1.xlarge	4	32			2.916
+ecs.se1.2xlarge	8	64			5.833
+ecs.se1.4xlarge	16	128			11.666
+ecs.se1.8xlarge	32	256			23.332
+ecs.se1.14xlarge	56	480			42.075
+ecs.se1ne.large	2	16			1.61
+ecs.se1ne.xlarge	4	32			3.059
+ecs.se1ne.2xlarge	8	64			6.127
+ecs.se1ne.4xlarge	16	128			12.245
+ecs.se1ne.8xlarge	32	256			24.491
+ecs.se1ne.14xlarge	56	480			44.184
+ecs.c4.xlarge	4	8			1.9
+ecs.c4.2xlarge	8	16			3.8
+ecs.c4.4xlarge	16	32			7.6
+ecs.cm4.xlarge	4	16			3.325
+ecs.cm4.2xlarge	8	32			6.65
+ecs.cm4.4xlarge	16	64			13.3
+ecs.cm4.6xlarge	24	96			19.95
+ecs.ce4.xlarge	4	32			4.493
+ecs.i1.xlarge	4	16	SSD	2 * 104	2.793
+ecs.i1.2xlarge	8	32	SSD	2 * 208	5.595
+ecs.i1.4xlarge	16	64	SSD	2 * 416	11.181
+ecs.i1-c5d1.4xlarge	16	64	SSD	2 * 1456	13.718
+ecs.i1.8xlarge	32	128	SSD	2 * 832	22.363
+ecs.i1-c10d1.8xlarge	32	128	SSD	2 * 1456	23.883
+ecs.i1.14xlarge	56	224	SSD	2 * 1456	28.3
+ecs.i2.xlarge	4	32	SSD	1 * 894	3.695
+ecs.i2.2xlarge	8	64	SSD	1 * 1788	7.391
+ecs.i2.4xlarge	16	128	SSD	2 * 1788	14.782
+ecs.i2.8xlarge	32	256	SSD	4 * 1788	29.554
+ecs.i2.16xlarge	64	512	SSD	8 * 1788	59.109
+ecs.d1.2xlarge	8	32	HDD	4 * 5500	6.042
+ecs.d1.4xlarge	16	64	HDD	8 * 5500	12.093
+ecs.d1.6xlarge	24	96	HDD	12 * 5500	18.135
+ecs.d1.8xlarge	32	128	HDD	16 * 5500	24.187
+ecs.d1.14xlarge	56	224	HDD	28 * 5500	42.322
+ecs.d1ne.2xlarge	8	32	HDD	4 * 5500	6.346
+ecs.d1ne.4xlarge	16	64	HDD	8 * 5500	12.701
+ecs.d1ne.6xlarge	24	96	HDD	12 * 5500	19.047
+ecs.d1ne.8xlarge	32	128	HDD	16 * 5500	25.403
+ecs.d1ne.14xlarge	56	224	HDD	28 * 5500	44.45
+ecs.gn5-c4g1.xlarge	4	30	SSD	440	14.288
+ecs.gn5-c8g1.2xlarge	8	60	SSD	440	17.204
+ecs.gn5-c4g1.2xlarge	8	60	SSD	880	28.576
+ecs.gn5-c8g1.4xlarge	16	120	SSD	880	34.409
+ecs.gn4-c4g1.xlarge	4	30			10.336
+ecs.gn4-c8g1.2xlarge	8	30			11.789
+ecs.gn4-c4g1.2xlarge	8	60			20.672
+ecs.gn4-c8g1.4xlarge	16	60			23.588
+ecs.gn4.8xlarge	32	48			11.343
+ecs.gn4.14xlarge	56	96			28.367
+ecs.ga1.xlarge	4	10			2.09
+ecs.ga1.2xlarge	8	20		1 * 175	4.18
+ecs.ga1.4xlarge	16	40		1 * 350	8.35
+ecs.ga1.8xlarge	32	80		1 * 700	16.701
+ecs.ga1.14xlarge	56	160		1 * 1400	33.402
+bcs.a2.large	4	8			0.4
+bcs.a2.xlarge	8	16			0.8
+bcs.a2.3xlarge	16	32			1.6

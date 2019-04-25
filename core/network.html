@@ -1,0 +1,118 @@
+<html>
+<head>
+<script src="http://js.cytoscape.org/js/cytoscape.min.js"></script>
+<script src="https://cdn.rawgit.com/OpenKieler/klayjs/0.4.1/klay.js"></script>
+<script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-klay/3.0.0/cytoscape-klay.js"></script>
+<script src="https://cdn.rawgit.com/cpettitt/dagre/v0.7.4/dist/dagre.min.js"></script>
+<script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-dagre/1.5.0/cytoscape-dagre.js"></script>
+<script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-cose-bilkent/1.6.5/cytoscape-cose-bilkent.js"></script>
+<style>
+#cy {
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+</style>
+</head>
+<body>
+  <div id="cy"></div>
+  <div>
+  progress: {{progress}}%. size mapped to {{size}}. min:{{min_size}}, max:{{max_size}}</br>
+  <span style="background-color: #74CBE8">running</span>
+  <span style="background-color: #f5ff6b">stopped</span>
+  <span style="background-color: #E8747C">failed</span>
+  <span style="background-color: #74E883">finished</span>
+  </div>
+</body>
+
+<script>
+var cy = cytoscape({
+  container: document.getElementById('cy'),
+
+  layout: {
+    name: '{{layout}}',
+    animate: false,
+    directed: true,
+    avoidOverlap: true,
+    nodeDimensionsIncludeLabels: true,
+    klay: {layoutHierarchy: true},
+    padding: 10
+  },
+
+  style: cytoscape.stylesheet()
+    .selector('node')
+      .css({
+        'content': 'data(name)',
+        'text-valign': 'center',
+        'width': 'mapData({{size}}, {{min_size}}, {{max_size}}, 20, 50)',
+        'height': 'mapData({{size}}, {{min_size}}, {{max_size}}, 20, 50)',
+        'color': '#fff',
+      })
+    .selector('node.task')
+      .css({
+        'text-outline-width': 1.2,
+        {{task_status}}
+      })
+    .selector('node.app')
+      .css({
+        'text-valign': 'bottom',
+        'font-size': '1.2em',
+        'text-outline-width': 1.5,
+        {{app_status}}
+      })
+    .selector('node.module')
+      .css({
+        'text-valign': 'top',
+        'font-size': '1.5em',
+        'text-outline-width': 2,
+//        'border-opacity': 0,
+        {{module_status}}
+      })
+    .selector(':selected')
+      .css({
+        'border-width': 2,
+      })
+    .selector('edge')
+      .css({
+        'curve-style': 'bezier',
+        'opacity': 0.666,
+        'target-arrow-shape': 'triangle',
+//        'source-arrow-shape': 'circle'
+      })
+    .selector('.faded')
+      .css({
+        'opacity': 0.25,
+        'text-opacity': 0
+      }),
+
+  elements: {
+    nodes: {{nodes}},
+    edges: {{edges}}
+  },
+
+  ready: function(){
+    window.cy = this;
+  }
+});
+
+cy.on('tap', 'node', function(e){
+  var n = e.target;
+  var neighborhood = n.neighborhood().add(n);
+  var parents = neighborhood.parents()
+  var descendants = neighborhood.descendants()
+
+  cy.elements().addClass('faded');
+  neighborhood.removeClass('faded');
+  parents.removeClass('faded');
+  descendants.removeClass('faded');
+});
+
+cy.on('tap', function(e){
+  if( e.target === cy ){
+    cy.elements().removeClass('faded');
+  }
+});
+</script>
+</html>

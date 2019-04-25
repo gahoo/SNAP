@@ -6,9 +6,14 @@ import copy
 import pdb
 import sys
 import errno
+import copy
 from jinja2 import Template
 from customizedYAML import folded_unicode, literal_unicode, include_constructor
 from colorMessage import dyeWARNING, dyeFAIL
+from core.db import DB
+from core import models
+from core.misc import *
+from core.formats import *
 
 
 class AppParameter(dict):
@@ -126,10 +131,14 @@ class App(dict):
         self.config_file = os.path.join(app_path, 'config.yaml')
         self.parameter_file = None
         self.dependence_file = None
+        self.dependencies = {}
         self.parameters = {}
         self.isGDParameters = True
+        self.is_run = False
+        self.verbose = True
         self.scripts = []
         self.shell_path = ''
+        self.model = None
         self.config = {
             'app': {
                 'package': "package_name",
@@ -252,6 +261,12 @@ class App(dict):
                 self.dependence_file = dependence_file
                 self.shell_path = depend[self.appname].get('sh_file')
 
+        def setAppPath():
+            app_path = depend[self.appname].get('APP_PATH')
+            if app_path is None:
+                app_path = os.path.join(self.module, self.appname) + '/'
+            self.parameters[module][self.appname]['APP_PATH'] = app_path
+
         if dependence_file:
             depend = self.loadYaml(dependence_file)
             module = depend.pop('name')
@@ -259,6 +274,8 @@ class App(dict):
             setShellPath()
             defaults = depend[self.appname].get('defaults')
             setDefault(defaults)
+            setAppPath()
+            self.dependencies[module] = depend
 
     def setModule(self, module=None):
         def inModule(k, v):
@@ -316,30 +333,57 @@ class App(dict):
         else:
             return getGHvalue(name)
 
-    def loadParameterValue(self, name):
+    def loadParameterValue(self, name, is_oss=False):
+        def needWORKSPACE(name, value):
+            is_str = isinstance(value, str)
+            is_local_realtive = not (value.startswith('/') or value.startswith('oss://'))
+            is_in_inputs = self.config['app']['inputs'] and name in self.config['app']['inputs'].keys()
+            is_in_outputs = self.config['app']['outputs'] and name in self.config['app']['outputs'].keys()
+            return is_str and is_local_realtive and (is_in_inputs or is_in_outputs)
+
         def addWorkspace4FilePath(name, value):
-            if isinstance(value, str) and not value.startswith('/') and (name in self.config['app']['inputs'].keys() or name in self.config['app']['outputs'].keys()):
-                WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
+            if needWORKSPACE(name, value):
+                if is_oss:
+                    WORKSPACE = self.oss_path('project')
+                else:
+                    WORKSPACE = self.parameters['CommonParameters'].get('WORKSPACE')
                 value = os.path.join(WORKSPACE, value)
             return value
 
+        def addAppPath(name, value):
+            if name != 'APP_PATH':
+                return value
+
+            app_path = self.parameters['CommonParameters']['APP_PATH']
+            if isinstance(app_path, dict):
+                if is_oss:
+                    prefix = app_path['oss']
+                else:
+                    prefix = app_path['local']
+            else:
+                prefix = app_path
+            if not value.endswith('/'):
+                value = value + '/'
+            return os.path.join(prefix, value)
+
         try:
             value = self.parameters[self.module][self.appname].get(name)
+            value = addAppPath(name, value)
             value = addWorkspace4FilePath(name, value)
         except (KeyError, AttributeError) as e:
             value = None
         return value
 
-    def getFilePath(self, name, file_type):
+    def getFilePath(self, name, file_type, is_oss=False):
         def getGDfilePath(name):
             pass
 
         def getGHfilePath(name):
             # Parameters App
-            file_path = self.loadParameterValue(name)
+            file_path = self.loadParameterValue(name, is_oss)
             # Parameters CommonData
             if not file_path:
-                file_path = self.parameters['CommonData'].get(name)
+                file_path = getCommonData(name, is_oss)
             # Parameters defaults
             if (not file_path or '{{extra.sample_name}}' in file_path) and (self.config['app'][file_type]) and (name in self.config['app'][file_type].keys()):
                 file_path = renderDefaultPath(file_path, file_type)
@@ -348,6 +392,15 @@ class App(dict):
                 return file_path
             else:
                 return [file_path]
+
+        def getCommonData(name, is_oss):
+            file_path = self.parameters['CommonData'].get(name)
+            if isinstance(file_path, dict):
+                if is_oss:
+                    file_path = file_path['oss']
+                else:
+                    file_path = file_path['local']
+            return file_path
 
         def renderDefaultPath(path_template, file_type):
             def renderPath(sample):
@@ -396,6 +449,7 @@ class App(dict):
             (name, settings) = item
 
             file_paths = self.getFilePath(name, file_type.lower())
+            oss_paths = self.getFilePath(name, file_type.lower(), True)
             if not file_paths:
                 file_paths = ["/path/to/data/to/load/%s" % name]
 
@@ -416,10 +470,11 @@ class App(dict):
             }
 
             data = []
-            for file_path in file_paths:
+            for file_path,oss_path in zip(file_paths, oss_paths):
                 data.append({
                     'enid': name,
                     'name': file_path,
+                    'oss': oss_path,
                     'property': _property,
                     'description': "%s file" % name
                 })
@@ -480,11 +535,17 @@ class App(dict):
         formatInputFiles = functools.partial(formatFiles, file_type='Inputs')
         formatOutputFiles = functools.partial(formatFiles, file_type='Outputs')
 
+        def add_APP_PATH_Input():
+            self.config['app']['inputs']['APP_PATH'] = {'hint': 'APP Path', 'default': '', 'required': True, 'item': {'separator': ' '}, 'minitems': 1, 'maxitems': 1, 'formats': [], 'type': 'file'}
+
         def addSampleNameParam():
             self.config['app']['parameters']['sample_name'] = {'quotes': False, 'prefix': '', 'separator': '', 'hint': '', 'default': '', 'required': True, 'type': 'string', 'value': None}
 
         def hasSampleName():
             return self.shell_path is not None and self.shell_path.count('sample_name}}') > 0
+
+        def hasAppBin():
+            return 'APP_PATH' in self.config['app']['cmd_template']
 
         def makeParameters(name):
             lower_name = name.lower()
@@ -508,6 +569,8 @@ class App(dict):
             }
 
         needNew = not self.parameters or not self.isGDParameters
+        if hasAppBin():
+            add_APP_PATH_Input()
         if hasSampleName():
             addSampleNameParam()
         map(makeParameters, ['Parameters', 'Inputs', 'Outputs'])
@@ -540,8 +603,10 @@ class App(dict):
 
         def checkInputs(input_name):
             def isExists(app_file):
+                if input_name in ['R_LIB', 'PYTHON_LIB']:
+                    return
                 path = app_file.path
-                if (path is not '') and ('{{' not in path) and (not os.path.exists(path)):
+                if self.verbose and (path is not '') and ('{{' not in path) and (not os.path.exists(path)):
                     print dyeWARNING('%s.%s: %s not found' % (self.appname, input_name, path))
 
             def showFile(data):
@@ -570,9 +635,10 @@ class App(dict):
             map(checkParameters, self.get('parameters', []))
             print "==========================="
 
-    def build(self, parameters=None, parameter_file=None, dependence_file=None, module=None, output=None, debug=False):
+    def build(self, parameters=None, parameter_file=None, dependence_file=None, module=None, output=None, debug=False, benchmark=False, verbose=True):
         self.shell_path = output
         self.debug = debug
+        self.verbose = verbose
         if not self.appname:
             self.load()
         self.loadParameters(parameters, parameter_file)
@@ -584,21 +650,32 @@ class App(dict):
             self.write(script, output)
         else:
             # add debug mode: add *.sh.variable file telling the value of inputs. outputs. parameters. making debug easier
-            self.renderScripts()
+            try:
+                self.renderScripts()
+            except Exception, e:
+                msg = "{module}.{app}: template render failed."
+                print dyeFAIL(msg.format(app=self.appname, module=self.module))
+                raise
             self.writeScripts()
 
-    def renderScript(self, cmd_template=None, parameters=None, extra=None):
+    def renderScript(self, cmd_template=None, parameters=None, extra=None, inputs=None, outputs=None):
         if cmd_template is None:
             cmd_template = self.config['app']['cmd_template']
         if not parameters:
             parameters = self.get('parameters')
+        if not inputs:
+            inputs = self.get('inputs')
+        if not outputs:
+            outputs = self.get('outputs')
         samples = self.parameters.get('Samples')
+        groups = self.parameters.get('Groups')
         template = Template(cmd_template)
         return template.render(
-            inputs = self.get('inputs'),
-            outputs = self.get('outputs'),
+            inputs = inputs,
+            outputs = outputs,
             parameters = parameters,
             samples = samples,
+            groups = groups,
             extra = extra,
             )
 
@@ -614,8 +691,15 @@ class App(dict):
                     return False
 
             def updateInputs(slots):
+                oss_clean_data_path = os.path.join(self.oss_path('clean'), sample_dict['sample_name'])
                 for k in slots:
-                    self['inputs'][k][0]['name'] = data.get(k)
+                    file_path = data.get(k)
+                    if file_path.startswith('oss://'):
+                        self['inputs'][k][0]['name'] = file_path.replace('oss://', '/')
+                        self['inputs'][k][0]['oss'] = file_path
+                    else:
+                        self['inputs'][k][0]['name'] = file_path
+                        self['inputs'][k][0]['oss'] = os.path.join(oss_clean_data_path, os.path.basename(file_path))
                     self['inputs'][k][0].updatePath()
 
             def updateParameters(slots):
@@ -686,7 +770,7 @@ class App(dict):
             else:
                 raise ValueError('%s has different length' % list_params_name)
 
-            for n, param_dict in enumerate(params_list):
+            for n, param_dict in enumerate(params_list, start=1):
                 map(setParam, param_dict.keys(), param_dict.values())
                 param_dict['i'] = n
                 if(extra):
@@ -694,15 +778,143 @@ class App(dict):
                 renderEachParam(extra=param_dict)
 
         def renderEachParam(template=None, extra=None):
-            if self.shell_path and self.dependence_file is None:
+            listed_extra = findListExtra(extra)
+            if listed_extra:
+                inputs = {k:fixExtraListPath(k, v, listed_extra) for k, v in copy.deepcopy(self.get('inputs')).iteritems()}
+                outputs = {k:fixExtraListPath(k, v, listed_extra) for k, v in copy.deepcopy(self.get('outputs')).iteritems()}
+            else:
+                inputs = self.get('inputs', {})
+                outputs = self.get('outputs', {})
+
+            if (self.shell_path and self.dependence_file is None) or self.is_run:
                 script_file = self.renderScript(self.shell_path, extra=extra)
+                sh_mapping = addScriptMapping(script_file)
+                script_file = sh_mapping['source']
+                mappings = [sh_mapping]
             else:
                 script_file = None
+                mappings = []
+            [mappings.extend(getMappings(name, f, 'inputs', extra)) for name, f in inputs.iteritems()]
+            [mappings.extend(getMappings(name, f, 'outputs', extra)) for name, f in outputs.iteritems()]
+
             self.check()
-            script = self.renderScript(template, extra=extra)
-            if script.count('{{parameters'):
+
+            script = self.renderScript(template, extra=extra, inputs=inputs, outputs=outputs)
+            if script.count('{{parameters') or script.count('{{extra'):
                 script = self.renderScript(script, extra=extra)
-            self.scripts.append({"filename": script_file, "content": script, "module": self.module, "extra": extra})
+
+            self.scripts.append({"filename": script_file, "content": script, "module": self.module, "extra": extra, "mappings": mappings})
+
+        def fixExtraListPath(key, value, listed_extra):
+            if len(listed_extra) > 1:
+                raise ValueError('More than one extra list parameters is not supported yet:' + listed_extra)
+            extra_key = ["extra." + k for k in listed_extra.keys()]
+            is_path_has_listed_extra = any(map(lambda x:x in value[0]['name'], extra_key))
+            if is_path_has_listed_extra:
+                extra_param = listed_extra.keys().pop()
+                extra_list = [{extra_param: v} for v in listed_extra.values().pop()]
+                return map(lambda x:renderExtraListPath(value[0], x), extra_list)
+            else:
+                return value
+
+        def renderExtraListPath(x, extra):
+            new_file = copy.deepcopy(x)
+            new_file['name'] = self.renderScript(x['name'], extra=extra)
+            new_file['oss'] = self.renderScript(x['oss'], extra=extra)
+            return new_file
+
+        def findListExtra(extra):
+            if extra is None:
+                return None
+            return {k:v for k,v in extra.iteritems() if isinstance(v, list)}
+
+        def addScriptMapping(script_file):
+            oss_proj_path = self.oss_path('project')
+            oss_script_file = script_file.replace(self.parameters['CommonParameters']['WORKSPACE'], '')
+            if oss_script_file.startswith('/'):
+                 raise ValueError("Auto generate oss script path failed. Because output path is not identical with WORKSPACE: " + self.parameters['CommonParameters']['WORKSPACE'])
+            oss_script_file = os.path.join(oss_proj_path, oss_script_file)
+            if not script_file.startswith('/'):
+                if self.is_run:
+                    script_file = os.path.join(self.parameters['CommonParameters']['WORKSPACE'], script_file)
+                else:
+                    script_file = os.path.abspath(script_file)
+
+            return {
+                'name': 'sh',
+                'source': script_file,
+                'destination': oss_script_file,
+                'is_write': False,
+                'is_required': True,
+                'is_immediate': False}
+
+        def getMappings(name, files, file_type, extra):
+            if file_type == 'inputs':
+                is_write = False
+            elif file_type == 'outputs':
+                is_write = True
+
+            def checkSource(source):
+                new_source = source
+                if source.startswith('oss://'):
+                    new_source = source.replace('oss://', '/')
+                    #raise ValueError("{name}:{source} should not starts with oss://".format(name=name, source=source))
+                    msg = "Auto Guess Local Path\t{module}.{app}.{name}: {source} => {new_source}"
+                    if self.verbose:
+                        print dyeWARNING(msg.format(module=self.module, app=self.appname, name=name, source=source, new_source = new_source))
+                return new_source
+
+            def checkDestination(destination):
+                if not destination:
+                    msg = "{app}.{name}: destination is empty"
+                    print dyeFAIL(msg.format(app=self.appname, name=name))
+                    return ''
+
+                new_destination = destination
+                if not destination.startswith('oss://'):
+                    if destination.startswith('/data/database') or destination.startswith('/data/pipeline'):
+                        new_destination = destination.replace('/data/', 'oss://igenecode-bcs/')
+                    else:
+                        folder = os.path.basename(os.path.dirname(destination))
+                        filename = os.path.basename(destination)
+                        new_destination = os.path.join(self.oss_path('project'), 'database', folder, filename)
+                    msg = "Auto Guess OSS Path\t{module}.{app}.{name}: {destination} => {new_destination}"
+                    if self.verbose:
+                        print dyeWARNING(msg.format(module=self.module, app=self.appname, name=name, destination=destination, new_destination = new_destination))
+                return new_destination
+
+            def fix_path(each_file):
+                if isinstance(each_file['name'], dict):
+                    each_file['name'] = each_file['name']['local']
+                    each_file['oss'] = each_file['oss']['oss']
+                    each_file.updatePath()
+                elif each_file['name'] != '':
+                    each_file['name'] = checkSource(each_file['name'])
+                    each_file['oss'] = checkDestination(each_file['oss'])
+                    each_file.updatePath()
+
+            map(fix_path, files)
+
+            return [{
+                'name': name,
+                'source': self.renderScript(f['name'], extra=extra),
+                'destination': self.renderScript(f['oss'], extra=extra),
+                'is_write': is_write,
+                'is_immediate': isImmediate(f['name']) and isImmediate(f['oss']) and name != 'APP_PATH',
+                'is_required': f['required']
+                } for f in files if f['name'] != '']
+
+        def isImmediate(path):
+            if path in self.parameters['CommonData'].values():
+                # in common data
+                return False
+            if path in self.parameters[self.module][self.appname].values():
+                return False
+            for sample in self.parameters['Samples']:
+                for data in sample['data']:
+                    if path in data.values():
+                        return False
+            return True
 
         def findListParams(params):
             isList = lambda value: isinstance(value, list)
@@ -722,9 +934,11 @@ class App(dict):
             params = None
             list_params_name = None
 
+
         if 'sample_name' in self.config['app']['parameters'].keys():
             #something wrong around here
             renderSamples(list_params_name)
+            self.config['app']['parameters'].pop('sample_name')
             self.type = 'sample'
         elif list_params_name:
             renderListParam(params, list_params_name)
@@ -754,11 +968,92 @@ class App(dict):
             with open(filename, 'w') as f:
                 f.write(content.encode('utf-8'))
 
+    def oss_path(self, type):
+        return os.path.join('oss://igenecode-bcs/', type, self.parameters['CommonParameters'].get('ContractID'))
+
     def test(self):
         pass
 
-    def run(self):
-        pass
+    def run(self, cpu=None, mem=None, instance=None, disk_type=None, disk_size=None, docker_image=None, cluster=None, all=False, upload=True, show_json=False, discount=None, **kwargs):
+        def update_app(cpu, mem, disk_type, disk_size, instance, docker_image):
+            def update_config(conf, name, value):
+                if value:
+                    conf[name] = value
+
+            def get_config(conf, name, attr):
+                value = conf.get(name)
+                if value:
+                    return value
+                else:
+                    conf[name] = {attr: None}
+                    return conf[name]
+
+            resources = self.config['app']['requirements']['resources']
+            instance_conf = get_config(self.config['app']['requirements'], 'instance', 'id')
+            docker_image_conf = get_config(self.config['app']['requirements'], 'container', 'image')
+            update_config(resources, 'cpu', cpu)
+            update_config(resources, 'mem', mem)
+            update_config(resources, 'disk_type', disk_type)
+            update_config(resources, 'disk', disk_size)
+            update_config(instance_conf, 'id', instance)
+            update_config(docker_image_conf, 'image', docker_image)
+
+        def prepare_DB():
+            db = DB(':memory:',
+                pipe_path = os.path.dirname(os.path.abspath(kwargs['dependence_file'])),
+                apps = {self.appname: self},
+                parameters = self.parameters.copy(),
+                dependencies = self.dependencies)
+            db.format()
+            db.mkOSSuploadSH()
+            return db
+
+        def upload_scripts():
+            if upload:
+                os.system('sh uploadScript2OSS.sh')
+
+        def prepare_project():
+            proj = db.session.query(models.Project).first()
+            proj.session = db.session
+            proj.logger = new_logger(self.appname)
+            if cluster:
+                proj.bind_cluster(cluster)
+            return proj
+
+        def submit_jobs(tasks):
+            map(lambda x:x.update(debug_mode=True), tasks)
+            map(lambda x:x.start(), tasks)
+            bcs = map(lambda x:x.bcs[0], tasks)
+            mappings = reduce(concat, map(lambda x:x.mapping, tasks))
+            print format_bcs_tbl(bcs, True)
+            print format_mapping_tbl(mappings)
+
+        def show_jobs_json(tasks):
+            if show_json:
+                map(lambda x:x.show_json(cache=False), tasks)
+
+        if 'name' in kwargs:
+            kwargs.pop('name')
+        if 'config' in kwargs:
+            self.config_file = kwargs.pop('config')
+        if 'depend' in kwargs:
+            kwargs['dependence_file'] = kwargs.pop('depend')
+        kwargs['parameter_file'] = kwargs.pop('param')
+        self.is_run = True
+        self.build(**kwargs)
+        update_app(cpu, mem, disk_type, disk_size, instance, docker_image)
+        db = prepare_DB()
+        upload_scripts()
+        proj = prepare_project()
+        if discount:
+            proj.discount = discount
+            proj.save()
+        if all:
+            submit_jobs(proj.task)
+            show_jobs_json(proj.task)
+        else:
+            submit_jobs(proj.task[:1])
+            show_jobs_json(proj.task[:1])
 
     def dump_parameter(self, parameter_file=None):
         if parameter_file is not None:

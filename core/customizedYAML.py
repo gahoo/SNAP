@@ -1,6 +1,7 @@
 import yaml
 import os
 import re
+import pdb
 from collections import OrderedDict
 
 # codes form stackoverflow.com
@@ -78,3 +79,25 @@ def refer_constructor(loader, node):
     return refer
 
 yaml.add_constructor(u'!refer', refer_constructor)
+
+def mapping_constructor(loader, node):
+    data = loader.construct_scalar(node)
+    (local, oss) = data.split(':', 1)
+    return {'local': local, 'oss': oss}
+
+yaml.add_constructor(u'!mapping', mapping_constructor)
+
+def plan_constructor(loader, node):
+    data = loader.construct_scalar(node)
+    if ';' in data:
+        return {'elements': data.lstrip('~').split(';')}
+    match = plan_regex.match(data)
+    if match:
+        case, control, method = match.groups()
+        return {'control': control, 'case': case, 'method': method}
+    else:
+        raise ValueError('Invalid Plan format: %s' % data)
+
+plan_regex = re.compile(r'^~([\w_\-]+)\|?([\w_\-]+)?@?(\w+)?')
+yaml.add_constructor(u'!plan', plan_constructor)
+yaml.add_implicit_resolver(u'!plan', plan_regex)
