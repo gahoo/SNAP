@@ -38,7 +38,7 @@ pycryptodome==3.6.4
 python-crontab==2.2.8
 python-dateutil==2.6.1
 pytz==2017.3
-PyYAML==3.11
+PyYAML==5.4
 requests==2.18.4
 six==1.11.0
 smmap2==2.0.4
