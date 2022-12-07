@@ -1,7 +1,7 @@
 aliyun-python-sdk-core==2.6.2
 aliyun-python-sdk-ecs==4.6.3
 batchcompute==2.0.8a13
-certifi==2017.11.5
+certifi==2022.12.7
 chardet==3.0.4
 click==6.7
 click-default-group==1.2
